@@ -16,6 +16,7 @@
 ## 구조
 - `packages/defense` 게임 규칙 엔진 (화면과 분리, 고정 틱 + 정수 계산 → 같은 입력이면 같은 결과)
   - `map.ts` 맵 해석·길 위 거리 ↔ 좌표, `maps.ts` 맵 데이터, `stages.ts` 탄 공식(1~100 + 무한)·몬스터·몬스터 능력, `abilities.ts` 캐릭 특수능력, `roster.ts` 캐릭 뽑기, `sim.ts` 탄 진행(명중 판정 포함), `config.ts` 설정
+  - `reference.ts` 탄 난이도 기준 덱, `autoplace.ts` 자동 배치, `stageHp.ts` 탄별 체력 표 (**`npm run calibrate` 가 생성 — 규칙·몬스터·맵을 바꾸면 다시 실행**, 스크립트는 `scripts/calibrate.ts`)
 - `apps/web` 브라우저 시험판 (Vite + React, 판은 canvas)
   - `sprites.ts` 스프라이트 불러오기·그리기, `draw.ts` 판 그리기(개체별 애니메이션 상태 AnimState), `Bench.tsx` 그리기 성능 시험
 - `scripts/sprites/` 그림 (SVG 코드로 직접 그림): `art.mjs` 캐릭 8종·몬스터 4종의 모션별 프레임, `build.mjs` → `npm run sprites` 가 `apps/web/public/sprites/` 에 시트(SVG·PNG 2배)·`sprites.json`·`preview.html` 생성. 그림을 고치면 다시 실행

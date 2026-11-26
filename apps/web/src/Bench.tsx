@@ -44,7 +44,6 @@ export function Bench({ onBack }: { onBack: () => void }) {
     canvas.width = W * dpr
     canvas.height = H * dpr
     canvas.style.width = `${W}px`
-    canvas.style.height = `${H}px`
     const t0 = performance.now()
     const mons: BMon[] = Array.from({ length: count }, (_, i) => ({
       type: MON_TYPES[i % 4 === 3 && i % 12 !== 11 ? 0 : i % 4]!,
@@ -156,7 +155,7 @@ export function Bench({ onBack }: { onBack: () => void }) {
         ))}
         <span className="dim">60 근처면 부드러움. 개체마다 모션·프레임이 따로 돎</span>
       </div>
-      <canvas ref={canvasRef} style={{ borderRadius: 8 }} />
+      <canvas ref={canvasRef} style={{ borderRadius: 8, maxWidth: "100%", height: "auto" }} />
     </div>
   )
 }

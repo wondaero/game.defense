@@ -1,6 +1,6 @@
 /**
  * 캐릭 특수능력 (사용자 작성 docs/spec, 2026-11-26).
- * - 캐릭당 0~1개. 붙을 확률은 설정 abilityChanceBp, 붙으면 6종 균등
+ * - 캐릭당 0~1개. 붙을 확률은 설정 abilityChanceBp, 붙으면 7종 균등
  * - 모두 **공격할 때 발동, 빗나가도 발동**
  * - 능력마다 뽑는 수치는 최대 2개 (확률 + 시간 / 확률만 / 능력치 종류 + 레벨 등)
  * - 쿨타임은 능력 종류마다 고정 (뽑기 아님)
@@ -9,7 +9,7 @@
  */
 import { Rng } from './rng.ts'
 
-export type AbilityKind = 'stun' | 'splash' | 'crit' | 'obstacle' | 'recall' | 'teamLevel'
+export type AbilityKind = 'stun' | 'splash' | 'crit' | 'obstacle' | 'recall' | 'teamLevel' | 'allAttack'
 export type BuffStat = 'atk' | 'range' | 'speed' | 'agility' | 'all'
 export type ObstacleKind = 'damage' | 'slow'
 
@@ -20,8 +20,9 @@ export type Ability =
   | { kind: 'obstacle'; chanceBp: number; obstacle: ObstacleKind }
   | { kind: 'recall'; chanceBp: number }
   | { kind: 'teamLevel'; chanceBp: number; stat: BuffStat; level: number }
+  | { kind: 'allAttack'; chanceBp: number }
 
-export const ABILITY_KINDS: readonly AbilityKind[] = ['stun', 'splash', 'crit', 'obstacle', 'recall', 'teamLevel']
+export const ABILITY_KINDS: readonly AbilityKind[] = ['stun', 'splash', 'crit', 'obstacle', 'recall', 'teamLevel', 'allAttack']
 
 export const ABILITY_NAMES: Readonly<Record<AbilityKind, string>> = {
   stun: '스턴',
@@ -30,6 +31,7 @@ export const ABILITY_NAMES: Readonly<Record<AbilityKind, string>> = {
   obstacle: '장애물 추가',
   recall: '출발지로 보내기',
   teamLevel: '아군 전체 레벨업',
+  allAttack: '전체 공격',
 }
 
 /** 쿨타임 (0 = 없음). 장애물은 판당 1회라 따로 */
@@ -40,6 +42,7 @@ export const ABILITY_COOLDOWN_MS: Readonly<Record<AbilityKind, number>> = {
   obstacle: 0,
   recall: 20_000,
   teamLevel: 30_000,
+  allAttack: 2000,
 }
 
 /** 뽑기 표 (docs/spec 그대로) */
@@ -50,6 +53,7 @@ export const ROLL_TABLE = {
   obstacle: { chanceBp: [500, 1000], obstacle: ['damage', 'slow'] as ObstacleKind[] },
   recall: { chanceBp: [300, 500] },
   teamLevel: { chanceBp: [500], stat: ['atk', 'range', 'speed', 'agility', 'all'] as BuffStat[], level: [1, 2, 3] },
+  allAttack: { chanceBp: [200, 300, 400, 500] },
 } as const
 
 // ── 추천값으로 임시 적용 (사용자 확인 전) ──
@@ -70,7 +74,7 @@ export function levelBonus(stat: Exclude<BuffStat, 'all'>, level: number): numbe
     case 'range':
       return level >= 3 ? 2 : 1
     case 'speed':
-      return 100 * level // 공격 간격 −0.1초씩
+      return level // 공속 +1씩 (뽑기 최대 5 → 레벨업으로 최대 8)
     case 'agility':
       return level // 민첩 최대 10 → 레벨업으로 11~13
   }
@@ -94,6 +98,8 @@ export function rollAbility(rng: Rng): Ability {
       return { kind, chanceBp: pick(rng, t.recall.chanceBp) }
     case 'teamLevel':
       return { kind, chanceBp: pick(rng, t.teamLevel.chanceBp), stat: pick(rng, t.teamLevel.stat), level: pick(rng, t.teamLevel.level) }
+    case 'allAttack':
+      return { kind, chanceBp: pick(rng, t.allAttack.chanceBp) }
   }
 }
 
@@ -104,7 +110,7 @@ export const STAT_NAMES: Readonly<Record<BuffStat, string>> = { atk: '공격력'
 function levelText(stat: BuffStat, level: number): string {
   const one = (s: Exclude<BuffStat, 'all'>) => {
     const v = levelBonus(s, level)
-    return s === 'speed' ? `공격 간격 −${v / 1000}초` : `${STAT_NAMES[s]} +${v}`
+    return `${STAT_NAMES[s]} +${v}`
   }
   return stat === 'all' ? (['atk', 'range', 'speed', 'agility'] as const).map(one).join(', ') : one(stat)
 }
@@ -127,5 +133,7 @@ export function abilityDesc(a: Ability): string {
       return `${pct(a.chanceBp)} 확률로 때린 몬스터를 출발지로${tail}`
     case 'teamLevel':
       return `${pct(a.chanceBp)} 확률로 아군 전체 레벨 +${a.level}: ${levelText(a.stat, a.level)} (${sec(TEAM_LEVEL_MS)})${tail}`
+    case 'allAttack':
+      return `${pct(a.chanceBp)} 확률로 맵에 있는 몬스터 전체 공격 (공격력 − 방어력)${tail}`
   }
 }

@@ -14,10 +14,12 @@ header { display: flex; align-items: baseline; justify-content: space-between; f
 header h1 { font-size: 20px; margin: 0 0 8px; }
 .stats { display: flex; gap: 16px; font-size: 15px; }
 main { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
-.board { position: relative; }
-.board canvas { display: block; background: #15181c; border-radius: 6px; cursor: pointer; }
+.board { position: relative; min-width: 0; max-width: 100%; }
+/* 폭은 JS 가 논리 크기로 정하고, 좁은 화면에선 100% 로 줄어듦 (높이는 비율 유지) */
+.board canvas { display: block; max-width: 100%; height: auto; background: #15181c; border-radius: 6px; cursor: pointer; touch-action: manipulation; }
 .controls { display: flex; gap: 6px; margin-top: 8px; }
-aside { flex: 1; min-width: 320px; display: flex; flex-direction: column; gap: 12px; }
+aside { flex: 1; min-width: min(320px, 100%); display: flex; flex-direction: column; gap: 12px; }
+
 section { background: #242a31; border-radius: 8px; padding: 10px 12px; }
 section h3 { margin: 0 0 8px; font-size: 15px; }
 .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -62,3 +64,14 @@ button.link.back { font-size: 20px; }
 .result { flex-direction: column; align-items: stretch; }
 .lvl { color: #ffeb3b; }
 .fps b { color: #69f0ae; font-size: 18px; }
+
+/* 휴대폰 */
+@media (max-width: 520px) {
+  .app { padding: 8px; }
+  main { gap: 10px; }
+  .board { width: 100%; }
+  .board canvas { margin: 0 auto; }
+  .stats { gap: 10px; font-size: 13px; }
+  .settings { grid-template-columns: 1fr; }
+  button.stage { padding: 9px 0; }
+}

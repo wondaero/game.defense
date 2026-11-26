@@ -10,12 +10,16 @@ import {
   MONSTER_ABILITIES,
   monsterAbilityDesc,
   parseMap,
+  REFERENCE_MAX_STAGE,
+  referenceSummary,
+  stageHpBp,
   rollRoster,
   stageDef,
   stageSummary,
   stepWave,
   type Cell,
   type DefenseConfig,
+  type MonsterAbilityKind,
   type MonsterSpec,
   type Placements,
   type UnitInstance,
@@ -50,8 +54,22 @@ function loadSave(): Save {
   }
 }
 
+/** 몬스터 능력 효과 색 */
+const MSKILL_COLOR: Record<MonsterAbilityKind, string> = {
+  freeze: '#81d4fa',
+  fullHeal: '#69f0ae',
+  groupHeal: '#69f0ae',
+  haste: '#ffab40',
+  blink: '#ce93d8',
+  invincible: '#ffd54f',
+  scatter: '#ce93d8',
+  weaken: '#b388ff',
+  armorUp: '#cfd8dc',
+}
+
 const pct = (bp: number) => `${Math.round(bp / 100)}%`
-const sec = (ms: number) => `${(ms / 1000).toFixed(1)}초`
+/** 뽑기 공속은 1~5 */
+const clampSpeed = (v: number) => Math.min(5, Math.max(1, Math.round(v)))
 
 export function App() {
   const [cfg, setCfg] = useState<DefenseConfig>({ ...DEFAULT_CONFIG })
@@ -123,16 +141,20 @@ export function App() {
         setUiTick((t) => t + 1)
       }
       fxRef.current = fxRef.current.filter((f) => now - f.born < f.life)
+      // 판은 논리 크기(W×H)로 그리고, 화면이 좁으면 CSS(max-width:100%)로 줄어든다.
+      // 실제 표시 폭 × dpr 로 비트맵을 다시 잡아서 줄어들어도 흐려지지 않게.
       const dpr = window.devicePixelRatio || 1
       const W = L.map.width * CELL_PX + PAD * 2
       const H = L.map.height * CELL_PX + PAD * 2
-      if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
-        canvas.width = W * dpr
-        canvas.height = H * dpr
-        canvas.style.width = `${W}px`
-        canvas.style.height = `${H}px`
+      if (canvas.style.width !== `${W}px`) canvas.style.width = `${W}px`
+      const scale = (canvas.clientWidth || W) / W
+      const bw = Math.round(W * scale * dpr)
+      const bh = Math.round(H * scale * dpr)
+      if (canvas.width !== bw || canvas.height !== bh) {
+        canvas.width = bw
+        canvas.height = bh
       }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0)
       const s = L.screen === 'prepare' ? null : simRef.current
       const anim = animRef.current
       // 애니메이션 시계: 진행 중엔 게임 시간(일시정지·배속 따라감), 준비 화면은 실제 시간
@@ -202,14 +224,18 @@ export function App() {
       } else if (ev.type === 'leak') {
         const e = map.path.at(-1)!
         fxRef.current.push({ kind: 'leak', born: now, life: 500, to: { x: (e.x + 0.5) * CELL_PX, y: (e.y + 0.5) * CELL_PX } })
-      } else if (ev.type === 'armorUp') {
-        fxRef.current.push({ kind: 'text', born: now, life: 800, to: monsterScreenPos(map, ev.dist, ev.monsterId), text: '단단해짐!', color: '#cfd8dc' })
-      } else if (ev.type === 'freeze') {
+      } else if (ev.type === 'block') {
+        anim.unitAttackAt.set(ev.unitId, at)
+        fxRef.current.push({ kind: 'text', born: now, life: 600, to: monsterScreenPos(map, ev.dist, ev.monsterId), text: '무적', color: '#ffd54f' })
+      } else if (ev.type === 'mskill') {
         const to = monsterScreenPos(map, ev.dist, ev.monsterId)
-        fxRef.current.push({ kind: 'skill', born: now, life: 600, to, color: '#81d4fa' })
+        const def = MONSTER_ABILITIES[ev.kind]
+        const color = MSKILL_COLOR[ev.kind]
+        fxRef.current.push({ kind: 'text', born: now, life: 900, to: { x: to.x, y: to.y - 14 }, text: `${def.icon} ${def.name}!`, color })
+        fxRef.current.push({ kind: 'skill', born: now, life: 600, to, color })
         for (const id of ev.unitIds) {
           const p = unitPos(id)
-          if (p) fxRef.current.push({ kind: 'shot', born: now, life: 300, from: to, to: p, color: '#81d4fa' })
+          if (p) fxRef.current.push({ kind: 'shot', born: now, life: 300, from: to, to: p, color })
         }
         for (const id of ev.dodgedIds) {
           const p = unitPos(id)
@@ -255,14 +281,16 @@ export function App() {
   const placedCount = Object.keys(placements).length
 
   const onCellClick = (c: Cell) => {
+    if (screen !== 'prepare') {
+      // 진행 중엔 지금 서 있는 자리 기준 (날려 보내기로 옮겨졌을 수 있음)
+      const su = simRef.current?.units.find((u) => u.cell.x === c.x && u.cell.y === c.y)
+      setSelectedId(su?.inst.id ?? null)
+      return
+    }
     const occupant = roster.find((u) => {
       const p = placements[u.id]
       return p && p.x === c.x && p.y === c.y
     })
-    if (screen !== 'prepare') {
-      setSelectedId(occupant?.id ?? null)
-      return
-    }
     if (map.tiles[c.y]?.[c.x] !== 'slot') return
     const sel = roster.find((u) => u.id === selectedId)
     if (!sel) {
@@ -293,8 +321,10 @@ export function App() {
   }
 
   const cellFromEvent = (e: React.MouseEvent<HTMLCanvasElement>): Cell => {
+    // 화면에서 줄어든 비율만큼 되돌려서 논리 좌표로
     const r = e.currentTarget.getBoundingClientRect()
-    return { x: Math.floor((e.clientX - r.left - PAD) / CELL_PX), y: Math.floor((e.clientY - r.top - PAD) / CELL_PX) }
+    const k = (map.width * CELL_PX + PAD * 2) / r.width
+    return { x: Math.floor(((e.clientX - r.left) * k - PAD) / CELL_PX), y: Math.floor(((e.clientY - r.top) * k - PAD) / CELL_PX) }
   }
 
   const sim = simRef.current
@@ -432,6 +462,11 @@ export function App() {
             <h3>
               출연 몬스터 <span className="dim">· 맵 {map.name} · 길 {map.path.length}칸</span>
             </h3>
+            <p className="dim" style={{ margin: '0 0 6px' }}>
+              {stageNo <= REFERENCE_MAX_STAGE
+                ? `기준: 특수능력 없는 10명이 평균 ${referenceSummary(stageNo)} 이면 목숨 절반 남기고 겨우 깸`
+                : `기준 덱(능력치 최고 10명)으로는 못 깸 — 특수능력이 있어야 함 (70탄보다 체력 +${Math.round((stageHpBp(stageNo) / stageHpBp(REFERENCE_MAX_STAGE) - 1) * 100)}%)`}
+            </p>
             <ul className="monsters">
               {summary.map(({ spec, count }) => (
                 <MonsterRow key={spec.id} spec={spec} count={count} cfg={cfg} />
@@ -523,7 +558,7 @@ function UnitRow(props: {
       </span>
       <div className="info">
         <div>
-          <b>{img.name}</b> 공격 {u.atk} · 사거리 {u.range} · 공속 {sec(u.interval)} · 민첩 {u.agility}
+          <b>{img.name}</b> 공격 {u.atk} · 사거리 {u.range} · 공속 {u.attackSpeed} · 민첩 {u.agility}
           {props.placed && <span className="tag">출전</span>}
         </div>
         {ab && (
@@ -562,8 +597,8 @@ function Settings({ cfg, onChange }: { cfg: DefenseConfig; onChange: (p: Partial
       {num('출전 수', cfg.maxDeploy, (v) => ({ maxDeploy: Math.max(1, v) }), 1, 1)}
       {range('공격력', 'atk')}
       {range('사거리', 'range', 1, 1)}
-      {num('공격 간격 최소 (밀리초)', cfg.attackInterval.min, (v) => ({ attackInterval: { min: Math.max(50, v), max: Math.max(v, cfg.attackInterval.max) } }), 100, 50)}
-      {num('공격 간격 최대 (밀리초)', cfg.attackInterval.max, (v) => ({ attackInterval: { min: Math.min(v, cfg.attackInterval.min), max: Math.max(50, v) } }), 100, 50)}
+      {num('공속 최소 (1초에 N대)', cfg.attackSpeed.min, (v) => ({ attackSpeed: { min: clampSpeed(v), max: Math.max(clampSpeed(v), cfg.attackSpeed.max) } }), 1, 1)}
+      {num('공속 최대 (1초에 N대)', cfg.attackSpeed.max, (v) => ({ attackSpeed: { min: Math.min(clampSpeed(v), cfg.attackSpeed.min), max: clampSpeed(v) } }), 1, 1)}
       {num('민첩 최소', cfg.agility.min, (v) => ({ agility: { min: v, max: Math.max(v, cfg.agility.max) } }), 1, 1)}
       {num('민첩 최대', cfg.agility.max, (v) => ({ agility: { min: Math.min(v, cfg.agility.min), max: v } }), 1, 1)}
       {num('몬스터 속도 (%)', cfg.monsterSpeedBp / 100, (v) => ({ monsterSpeedBp: Math.max(10, v) * 100 }), 10, 10)}

@@ -1,4 +1,4 @@
-import { inRange, positionAt, type Cell, type DefenseConfig, type GameMap, type Placements, type UnitInstance, type WaveSim } from '@def/defense'
+import { inRange, MONSTER_ABILITIES, positionAt, type Cell, type DefenseConfig, type GameMap, type Placements, type UnitInstance, type WaveSim } from '@def/defense'
 import { imageOf } from './format.ts'
 import { drawSprite, motionDuration, spritesReady } from './sprites.ts'
 
@@ -73,14 +73,18 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
   ctx.save()
   ctx.translate(PAD, PAD)
 
+  // 진행 중엔 sim 의 실제 자리 (날려 보내기로 옮겨질 수 있음), 준비 중엔 배치
   const unitAt = new Map<string, UnitInstance>()
-  for (const u of d.roster) {
-    const c = d.placements[u.id]
-    if (c) unitAt.set(`${c.x},${c.y}`, u)
-  }
+  if (d.sim) for (const su of d.sim.units) unitAt.set(`${su.cell.x},${su.cell.y}`, su.inst)
+  else
+    for (const u of d.roster) {
+      const c = d.placements[u.id]
+      if (c) unitAt.set(`${c.x},${c.y}`, u)
+    }
   const selected = d.roster.find((u) => u.id === d.selectedId) ?? null
   // 사거리 미리 보기: 선택한 캐릭을 마우스 칸(배치 중) 또는 선 자리 기준으로
-  const rangeOrigin = selected ? (d.hover && map.tiles[d.hover.y]?.[d.hover.x] === 'slot' && !d.sim ? d.hover : d.placements[selected.id]) : null
+  const selectedCell = selected ? (d.sim?.units.find((s) => s.inst.id === selected.id)?.cell ?? d.placements[selected.id]) : null
+  const rangeOrigin = selected ? (d.hover && map.tiles[d.hover.y]?.[d.hover.x] === 'slot' && !d.sim ? d.hover : selectedCell) : null
 
   // 칸
   for (let y = 0; y < map.height; y++) {
@@ -146,6 +150,7 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
     const img = imageOf(u.image)
     const su = d.sim?.units.find((s) => s.inst.id === u.id)
     const frozen = !!(su && d.sim && d.sim.tick < su.frozenUntil)
+    const weakened = !!(su && d.sim && d.sim.tick < su.weakenedUntil)
     if (u.id === d.selectedId) {
       ctx.fillStyle = 'rgba(255,245,157,0.35)'
       ctx.strokeStyle = '#fff59d'
@@ -173,6 +178,16 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
         ctx.fillStyle = 'rgba(129,212,250,0.6)'
         ctx.fillRect(x * CELL_PX + 3, y * CELL_PX + 3, CELL_PX - 6, CELL_PX - 6)
       }
+    }
+    if (weakened) {
+      // 약화: 보라 아래 화살표
+      ctx.font = 'bold 14px sans-serif'
+      ctx.fillStyle = '#b388ff'
+      ctx.strokeStyle = '#000'
+      ctx.lineWidth = 3
+      ctx.strokeText('↓', cx - CELL_PX * 0.36, cy - CELL_PX * 0.34)
+      ctx.fillText('↓', cx - CELL_PX * 0.36, cy - CELL_PX * 0.34)
+      ctx.lineWidth = 1
     }
     if (u.ability) {
       ctx.fillStyle = '#ffeb3b'
@@ -207,6 +222,28 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
       const motion = stunned ? 'stun' : hitT < motionDuration(`mon_${m.type}`, 'hit') ? 'hit' : 'walk'
       const mt = motion === 'hit' ? hitT : d.anim.clock + m.id * 137
       const foot = p.y + size * 0.42
+      if (d.sim.tick < m.invincibleUntil) {
+        // 무적: 금색 원
+        ctx.strokeStyle = '#ffd54f'
+        ctx.lineWidth = 2.5
+        ctx.beginPath()
+        ctx.arc(p.x, foot - size * 0.42, size * 0.5, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.lineWidth = 1
+      }
+      if (d.sim.tick < m.hasteUntil) {
+        // 질주: 뒤쪽 주황 줄
+        ctx.strokeStyle = '#ffab40'
+        ctx.lineWidth = 2
+        const back = flip ? 1 : -1
+        for (const dy of [-0.2, 0, 0.2]) {
+          ctx.beginPath()
+          ctx.moveTo(p.x + back * size * 0.35, foot - size * (0.42 + dy))
+          ctx.lineTo(p.x + back * size * 0.6, foot - size * (0.42 + dy))
+          ctx.stroke()
+        }
+        ctx.lineWidth = 1
+      }
       if (d.sim.tick < m.armorUpUntil) {
         // 단단해지기: 발밑 회색 방패 고리
         ctx.strokeStyle = '#eceff1'
@@ -235,7 +272,9 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
       if (t.abilities.length) {
         ctx.font = 'bold 9px sans-serif'
         ctx.fillStyle = '#fff'
-        ctx.fillText(t.abilities.map((a) => (a === 'armorUp' ? '🛡' : '❄')).join(''), p.x + bw / 2 + 7, top + 2)
+        ctx.textAlign = 'left'
+        ctx.fillText(t.abilities.map((a) => MONSTER_ABILITIES[a].icon).join(''), p.x + bw / 2 + 3, top + 2)
+        ctx.textAlign = 'center'
       }
     }
   }

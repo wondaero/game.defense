@@ -11,7 +11,8 @@
     "build": "npm -w @def/web run build",
     "test": "vitest run",
     "typecheck": "tsc -p packages/defense && tsc -p apps/web",
-    "sprites": "node scripts/sprites/build.mjs"
+    "sprites": "node scripts/sprites/build.mjs",
+    "calibrate": "vite-node scripts/calibrate.ts"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",

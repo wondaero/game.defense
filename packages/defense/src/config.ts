@@ -16,7 +16,7 @@ export interface DefenseConfig {
   tickRate: number
   /** 출전 수 (한 번에 판에 세울 수 있는 캐릭 수) */
   maxDeploy: number
-  /** 보관함(시험판 후보) 캐릭 수. 그림 8종이라 최대 8 */
+  /** 보관함(시험판 후보) 캐릭 수. 그림은 겹쳐도 됨 */
   rosterSize: number
   /** 사거리 모양: 마름모(가로+세로 칸 수) / 사각형(대각선도 1칸) */
   rangeShape: 'diamond' | 'square'
@@ -25,10 +25,8 @@ export interface DefenseConfig {
   range: Range
   /** 민첩 뽑기 범위 (최대 10, 레벨업으로 11~13 가능). 명중률 = 내 민첩 ÷ (내 민첩 + 몬스터 민첩) */
   agility: Range
-  /** 공격 간격 (밀리초) 뽑기 범위 */
-  attackInterval: Range
-  /** 공격 간격 뽑기 단위 (밀리초) */
-  attackIntervalStep: number
+  /** 공속 뽑기 범위 (1~5, 같은 확률). 공속 N = 1초에 N대 (레벨업 중엔 최대 8) */
+  attackSpeed: Range
   /** 시작 목숨 */
   startLives: number
   /** 몬스터 속도·체력 배율 */
@@ -40,14 +38,13 @@ export interface DefenseConfig {
 
 export const DEFAULT_CONFIG: Readonly<DefenseConfig> = Object.freeze({
   tickRate: 20,
-  maxDeploy: 6,
-  rosterSize: 8,
+  maxDeploy: 10,
+  rosterSize: 12,
   rangeShape: 'diamond',
   atk: { min: 10, max: 30 },
   range: { min: 1, max: 2 },
   agility: { min: 5, max: 10 },
-  attackInterval: { min: 600, max: 1500 },
-  attackIntervalStep: 100,
+  attackSpeed: { min: 1, max: 5 },
   startLives: 20,
   monsterSpeedBp: 10_000,
   monsterHpBp: 10_000,
@@ -57,6 +54,11 @@ export const DEFAULT_CONFIG: Readonly<DefenseConfig> = Object.freeze({
 export function makeConfig(overrides: Partial<DefenseConfig> = {}): DefenseConfig {
   return { ...DEFAULT_CONFIG, ...overrides }
 }
+
+/** 공속 N = 이 시간(밀리초) 동안 N대 = 1초에 N대 (2026-11-26 사용자 결정) */
+export const ATTACK_WINDOW_MS = 1000
+/** 레벨업(아군 전체 레벨업)으로 올라갈 수 있는 공속 최대 (뽑기는 최대 5, +3 까지) */
+export const MAX_ATTACK_SPEED = 8
 
 /** 밀리초 → 틱 (최소 1) */
 export const msToTicks = (cfg: DefenseConfig, ms: number) => Math.max(1, Math.round((ms * cfg.tickRate) / 1000))
