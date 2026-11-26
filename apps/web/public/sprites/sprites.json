@@ -1,0 +1,341 @@
+{
+  "frameSize": 192,
+  "entities": {
+    "img1": {
+      "name": "늑대",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "img2": {
+      "name": "여우",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "img3": {
+      "name": "곰",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "img4": {
+      "name": "매",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "img5": {
+      "name": "뱀",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "img6": {
+      "name": "사자",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "img7": {
+      "name": "거북",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "img8": {
+      "name": "토끼",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "mon_normal": {
+      "name": "보통 (슬라임)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_fast": {
+      "name": "날쌘돌이 (벌)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_tank": {
+      "name": "단단이 (바위)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_boss": {
+      "name": "우두머리 (뿔 괴물)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    }
+  }
+}

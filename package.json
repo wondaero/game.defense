@@ -1,0 +1,21 @@
+{
+  "name": "game-defense",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm -w @def/web run dev",
+    "build": "npm -w @def/web run build",
+    "test": "vitest run",
+    "typecheck": "tsc -p packages/defense && tsc -p apps/web",
+    "sprites": "node scripts/sprites/build.mjs"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.8"
+  }
+}
