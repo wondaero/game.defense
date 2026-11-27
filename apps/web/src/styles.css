@@ -163,3 +163,10 @@ button.link.back { font-size: 20px; }
 .roster li.rainbow-row.sel { border-color: #fff59d; }
 .roster li.rainbow-row .face.sprite { background-color: #4a2f6b; box-shadow: 0 0 0 2px rgba(255,255,255,.8), 0 0 10px 2px rgba(224,64,251,.7); }
 @keyframes rainbow-flow { from { background-position: 0% 0; } to { background-position: 300% 0; } }
+
+/* 캐릭 목록 필터·정렬 (2026-11-27) */
+.roster-tools { display: flex; flex-direction: column; gap: 4px; margin: 0 0 6px; position: sticky; top: 0; z-index: 2; background: inherit; padding-bottom: 4px; }
+.roster-tools .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.roster-tools button { padding: 2px 9px; font-size: 12px; border-radius: 12px; }
+.roster-tools button.on { background: #fdd835; color: #222; border-color: #fdd835; }
+.roster-tools .dim { font-size: 12px; margin: 0 2px; }

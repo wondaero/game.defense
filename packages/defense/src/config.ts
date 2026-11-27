@@ -42,7 +42,8 @@ export interface DefenseConfig {
 export const DEFAULT_CONFIG: Readonly<DefenseConfig> = Object.freeze({
   tickRate: 20,
   maxDeploy: 10,
-  rosterSize: 12,
+  /** 보관함 최대 100명 (2026-11-27 *임시*). 시험판은 100명을 뽑아 둠 */
+  rosterSize: 100,
   rangeShape: 'diamond',
   atk: { min: 10, max: 30 },
   range: { min: 1, max: 2 },

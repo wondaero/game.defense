@@ -15,6 +15,7 @@ import {
   referenceSummary,
   stageHpBp,
   rollRoster,
+  statScore,
   stageDef,
   stageSummary,
   stepWave,
@@ -79,6 +80,8 @@ const clampSpeed = (v: number) => Math.min(5, Math.max(1, Math.round(v)))
 
 export function App() {
   const [cfg, setCfg] = useState<DefenseConfig>({ ...DEFAULT_CONFIG })
+  // 캐릭 목록 필터·정렬 (두 화면 공통)
+  const [view, setView] = useState<RosterView>({ filter: 'all', sort: 'score' })
   const [save, setSave] = useState<Save>(loadSave)
   const [screen, setScreen] = useState<Screen>('select')
   const [stageNo, setStageNo] = useState(1)
@@ -448,9 +451,10 @@ export function App() {
           </div>
         </section>
         <section>
-          <h3>내 캐릭 ({roster.length}명)</h3>
+          <h3>내 캐릭 ({roster.length} / {cfg.rosterSize}명)</h3>
+          <RosterTools view={view} onChange={setView} shown={viewRoster(cfg, roster, view).length} total={roster.length} />
           <ul className="roster">
-            {roster.map((u) => (
+            {viewRoster(cfg, roster, view).map((u) => (
               <UnitRow key={u.id} u={u} cfg={cfg} />
             ))}
           </ul>
@@ -584,8 +588,9 @@ export function App() {
             <h3>
               덱 ({placedCount} / {cfg.maxDeploy} 출전)
             </h3>
+            <RosterTools view={view} onChange={setView} shown={viewRoster(cfg, roster, view).length} total={roster.length} />
             <ul className="roster">
-              {roster.map((u) => {
+              {viewRoster(cfg, roster, view).map((u) => {
                 const placed = !!placements[u.id]
                 return (
                   <UnitRow
@@ -614,6 +619,55 @@ export function App() {
           </section>
         </aside>
       </main>
+    </div>
+  )
+}
+
+/** 캐릭 목록 보기: 필터(특수능력 있음/없음) + 정렬(높은 순) — 2026-11-27 */
+type RosterView = { filter: 'all' | 'ability' | 'none'; sort: 'score' | 'atk' | 'attackSpeed' | 'agility' | 'range' }
+const SORT_LABELS: [RosterView['sort'], string][] = [
+  ['score', '점수'],
+  ['atk', '공격력'],
+  ['attackSpeed', '공속'],
+  ['agility', '민첩'],
+  ['range', '사거리'],
+]
+const FILTER_LABELS: [RosterView['filter'], string][] = [
+  ['all', '전체'],
+  ['ability', '특수능력 있음'],
+  ['none', '없음'],
+]
+
+function viewRoster(cfg: DefenseConfig, roster: UnitInstance[], view: RosterView): UnitInstance[] {
+  const list = roster.filter((u) => (view.filter === 'all' ? true : view.filter === 'ability' ? !!u.ability : !u.ability))
+  // 실제로 쓰는 값(전체 강화·호크아이 반영)으로 높은 순, 같으면 점수 → 원래 순서
+  const key = (u: UnitInstance) => (view.sort === 'score' ? statScore(cfg, u) : baseStats(cfg, u)[view.sort])
+  return list
+    .map((u, i) => ({ u, i, k: key(u), s: statScore(cfg, u) }))
+    .sort((a, b) => b.k - a.k || b.s - a.s || a.i - b.i)
+    .map((x) => x.u)
+}
+
+function RosterTools(props: { view: RosterView; onChange: (v: RosterView) => void; shown: number; total: number }) {
+  const { view } = props
+  return (
+    <div className="roster-tools">
+      <div className="chips">
+        {FILTER_LABELS.map(([k, label]) => (
+          <button key={k} className={view.filter === k ? 'on' : ''} onClick={() => props.onChange({ ...view, filter: k })}>
+            {label}
+          </button>
+        ))}
+        <span className="dim">{props.shown}명</span>
+      </div>
+      <div className="chips">
+        <span className="dim">정렬</span>
+        {SORT_LABELS.map(([k, label]) => (
+          <button key={k} className={view.sort === k ? 'on' : ''} onClick={() => props.onChange({ ...view, sort: k })}>
+            {label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
