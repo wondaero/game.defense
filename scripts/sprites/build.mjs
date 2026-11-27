@@ -18,7 +18,11 @@ const outDir = join(root, 'apps', 'web', 'public', 'sprites')
 mkdirSync(outDir, { recursive: true })
 
 const SCALE = 2
-const meta = { frameSize: SIZE * SCALE, entities: {} }
+/** 프레임 둘레 여백 (그림 단위). 휘두르는 도구·별이 프레임 밖으로 나가 잘리거나 옆 프레임에 닿지 않게 (2026-11-27) */
+const PAD = 16
+const FRAME = SIZE + PAD * 2
+// frameSize = PNG 안 프레임 한 칸(px), content = 그림(96)이 프레임에서 차지하는 비율, footY = 발밑 높이(프레임 안 비율)
+const meta = { frameSize: FRAME * SCALE, content: SIZE / FRAME, footY: (PAD + 88) / FRAME, entities: {} }
 const previews = []
 
 for (const e of entities()) {
@@ -31,11 +35,11 @@ for (const e of entities()) {
     const m = e.motions[name]
     motions[name] = { row, frames: m.frames.length, fps: m.fps, loop: m.loop }
     m.frames.forEach((pose, col) => {
-      body += `<g transform="translate(${col * SIZE} ${row * SIZE})">${e.draw(pose)}</g>\n`
+      body += `<g transform="translate(${col * FRAME + PAD} ${row * FRAME + PAD})">${e.draw(pose)}</g>\n`
     })
   })
-  const w = cols * SIZE
-  const h = rows * SIZE
+  const w = cols * FRAME
+  const h = rows * FRAME
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">\n${body}</svg>\n`
   writeFileSync(join(outDir, `${e.id}.svg`), svg)
   const png = new Resvg(svg, { fitTo: { mode: 'zoom', value: SCALE } }).render().asPng()

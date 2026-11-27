@@ -20,6 +20,10 @@ interface EntityInfo {
 }
 interface Meta {
   frameSize: number
+  /** 프레임 안에서 그림(96 단위)이 차지하는 비율 — 둘레는 여백 */
+  content?: number
+  /** 발밑 높이 (프레임 안 비율) */
+  footY?: number
   entities: Record<string, EntityInfo>
 }
 
@@ -73,8 +77,12 @@ export function drawSprite(ctx: CanvasRenderingContext2D, id: string, motion: st
   let f = Math.floor((Math.max(0, t) * m.fps) / 1000)
   f = m.loop ? f % m.frames : Math.min(f, m.frames - 1)
   const S = meta.frameSize
+  // size = 그림(여백 뺀) 크기 → 실제로 그릴 프레임은 여백만큼 더 큼
+  const content = meta.content ?? 1
+  const footY = meta.footY ?? 88 / 96
+  size = size / content
   // 프레임 안에서 발밑은 88/96 지점
-  const top = y - size * (88 / 96)
+  const top = y - size * footY
   if (flip) {
     ctx.save()
     ctx.translate(x, 0)

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ABILITY_NAMES,
-  STAT_NAMES,
   createRngState,
   createWave,
   DEFAULT_CONFIG,
@@ -82,6 +81,10 @@ export function App() {
   const [hover, setHover] = useState<Cell | null>(null)
   const [speed, setSpeed] = useState(1)
   const [paused, setPaused] = useState(false)
+  /** 진행 중 뒤로 가기를 눌렀을 때 묻는 창 (wasPaused = 창을 띄우기 전 일시정지였나) */
+  const [askLeave, setAskLeave] = useState<{ wasPaused: boolean } | null>(null)
+  /** 화면 버튼으로 탄 고르기에 돌아가는 중 (history.back 뒤 popstate 에서 묻지 않고 이동) */
+  const leavingRef = useRef(false)
   const [showSettings, setShowSettings] = useState(false)
   const [, setUiTick] = useState(0)
 
@@ -263,7 +266,48 @@ export function App() {
     setScreen('result')
   }
 
+  /**
+   * 뒤로 가기 (2026-11-27): 탄 고르기가 아닌 화면(탄 준비·진행·결과·성능 시험)에 들어갈 때 브라우저 기록을 한 칸 쌓음
+   * → 그 화면에서 뒤로 가기 = 탄 고르기로 (진행 중이면 일시정지하고 물어봄), 탄 고르기에서 뒤로 가기 = 진짜 이전 페이지
+   */
+  const enterSubScreen = () => {
+    if (live.current.screen === 'select') history.pushState({ sub: true }, '')
+  }
+  /** 화면 버튼으로 탄 고르기에 돌아가기: 쌓은 기록 한 칸을 되돌림 → popstate 에서 이동 */
+  const goSelect = () => {
+    leavingRef.current = true
+    history.back()
+  }
+  /** 진행 중 나가기: 일시정지하고 물어봄 */
+  const askToLeave = () => {
+    setAskLeave({ wasPaused: live.current.paused })
+    setPaused(true)
+  }
+
+  useEffect(() => {
+    const onPop = () => {
+      const sc = live.current.screen
+      if (leavingRef.current || sc === 'prepare' || sc === 'result' || sc === 'bench') {
+        leavingRef.current = false
+        setAskLeave(null)
+        live.current.screen = 'select'
+        setScreen('select')
+        return
+      }
+      if (sc === 'play') {
+        // 바로 나가지 않음: 기록을 다시 채워 두고 물어봄
+        history.pushState({ sub: true }, '')
+        askToLeave()
+      }
+      // 탄 고르기: 브라우저가 이전 페이지로 감
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const openStage = (n: number) => {
+    enterSubScreen()
     setStageNo(n)
     simRef.current = null
     fxRef.current = []
@@ -337,7 +381,7 @@ export function App() {
   const sim = simRef.current
   const maxOpen = save.unlockAll ? Infinity : save.best + 1
 
-  if (screen === 'bench') return <Bench onBack={() => setScreen('select')} />
+  if (screen === 'bench') return <Bench onBack={goSelect} />
 
   // ── 탄 고르기 ──
   if (screen === 'select') {
@@ -364,7 +408,15 @@ export function App() {
               <input type="checkbox" checked={save.unlockAll} onChange={(e) => setSave({ ...save, unlockAll: e.target.checked })} /> 시험용: 모든 탄 열기
             </label>
             <button onClick={() => confirm('최고 기록을 0으로 되돌릴까요?') && setSave({ ...save, best: 0 })}>기록 지우기</button>
-            <button onClick={() => setScreen('bench')}>🧪 그리기 성능 시험 (200개~)</button>
+            <button
+              onClick={() => {
+                enterSubScreen()
+                live.current.screen = 'bench'
+                setScreen('bench')
+              }}
+            >
+              🧪 그리기 성능 시험 (200개~)
+            </button>
             <a className="dim" href="sprites/preview.html" target="_blank">스프라이트 모아 보기</a>
           </div>
         </section>
@@ -396,7 +448,7 @@ export function App() {
     <div className="app">
       <header>
         <h1>
-          <button className="link back" disabled={screen === 'play'} onClick={() => setScreen('select')}>
+          <button className="link back" onClick={() => (screen === 'play' ? askToLeave() : goSelect())} title="탄 고르기로">
             ←
           </button>{' '}
           {stageNo}탄 {stage.isBoss && <span className="boss-tag">우두머리</span>}
@@ -409,13 +461,37 @@ export function App() {
               ⏱ {(sim.tick / cfg.tickRate).toFixed(1)}초 · 남은 몬스터 {sim.spawns.length - sim.spawnIdx + sim.monsters.length}
             </span>
           )}
-          {sim && screen === 'play' && sim.levelBuffs.length > 0 && (
-            <span className="lvl">⬆ 레벨업 {sim.levelBuffs.map((b) => `${STAT_NAMES[b.stat]} +${b.level}`).join(', ')}</span>
-          )}
           <span>🏆 {save.best}탄</span>
         </div>
       </header>
 
+      {askLeave && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <div className="modal-title">⏸ 일시정지</div>
+            <p>탄 고르기로 갈까요?<br />지금 하던 판은 사라집니다.</p>
+            <div className="row">
+              <button
+                className="primary inline"
+                onClick={() => {
+                  setPaused(askLeave.wasPaused)
+                  setAskLeave(null)
+                }}
+              >
+                계속하기
+              </button>
+              <button
+                onClick={() => {
+                  setAskLeave(null)
+                  goSelect()
+                }}
+              >
+                탄 고르기로
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <main>
         <div className="board">
           <canvas
@@ -448,7 +524,7 @@ export function App() {
               <div className="row">
                 {result.cleared && <button className="primary inline" onClick={() => openStage(stageNo + 1)}>다음 탄 ({stageNo + 1}) →</button>}
                 <button onClick={() => openStage(stageNo)}>{result.cleared ? '다시 하기' : '배치 바꿔서 다시'}</button>
-                <button onClick={() => setScreen('select')}>탄 고르기</button>
+                <button onClick={goSelect}>탄 고르기</button>
               </div>
             </div>
           )}
@@ -559,7 +635,7 @@ function UnitRow(props: {
       <UnitFace body={look.body} tool={look.tool} />
       <div className="info">
         <div>
-          <b className="tier" style={{ color: look.color }}>{look.tierName} {look.score}</b> 공격 {u.atk} · 사거리 {u.range} · 공속 {u.attackSpeed} · 민첩 {u.agility}
+          <b className={`tier ${look.tierName === '무지개' ? 'rainbow' : ''}`} style={{ color: look.color }}>{look.tierName} {look.score}</b> 공격 {u.atk} · 사거리 {u.range} · 공속 {u.attackSpeed} · 민첩 {u.agility}
           {props.placed && <span className="tag">출전</span>}
         </div>
         {ab && (

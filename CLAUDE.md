@@ -19,7 +19,7 @@
   - `reference.ts` 탄 난이도 기준 덱, `autoplace.ts` 자동 배치, `stageHp.ts` 탄별 체력 표 (**`npm run calibrate` 가 생성 — 규칙·몬스터·맵을 바꾸면 다시 실행**, 스크립트는 `scripts/calibrate.ts`)
 - `apps/web` 브라우저 시험판 (Vite + React, 판은 canvas)
   - `sprites.ts` 스프라이트 불러오기·그리기, `draw.ts` 판 그리기(개체별 애니메이션 상태 AnimState), `ground.ts` 바닥 그림(풀밭·길·입구/출구, 맵마다 한 번 그려 캐시. 배치 중에만 배치 칸 네모), `StageMap.tsx` 탄 고르기 지도(구불구불한 길 위 동그라미 탄), `Bench.tsx` 그리기 성능 시험
-- `scripts/sprites/` 그림 (SVG 코드로 직접 그림): `art.mjs` 캐릭(헬멧 쓴 사람: 헬멧 색 6등급 `unit_t1~6` + 특수능력 도구 겹 그림 `tool_*`)·몬스터 12종(슬라임 + 특성 소품 `mon_*`)·소품 시안(`acc_*`)의 모션별 프레임. 캐릭 모습은 `apps/web/src/format.ts` unitLook, `build.mjs` → `npm run sprites` 가 `apps/web/public/sprites/` 에 시트(SVG·PNG 2배)·`sprites.json`·`preview.html` 생성. 그림을 고치면 다시 실행
+- `scripts/sprites/` 그림 (SVG 코드로 직접 그림): `art.mjs` 캐릭(헬멧 쓴 사람: 헬멧 색 6등급 `unit_t1~6` + 특수능력 도구 겹 그림 `tool_*`)·몬스터 12종(슬라임 + 특성 소품 `mon_*`)·소품 시안(`acc_*`)의 모션별 프레임. 캐릭 모습은 `apps/web/src/format.ts` unitLook, `build.mjs` → `npm run sprites` 가 `apps/web/public/sprites/` 에 시트(SVG·PNG 2배, 프레임마다 둘레 여백 16 — 그림은 96 안에 그리고 휘두르는 것만 여백까지)·`sprites.json`·`preview.html` 생성. 그림을 고치면 다시 실행
 - 확인: `npm run typecheck`, `npx vitest run`, `npm run build`. 실행: `npm run dev` → http://localhost:5180
 - 난이도 곡선 확인: `SIM=1 npx vitest run` → 덱별로 몇 탄까지 가는지 출력 (PowerShell: `$env:SIM=1; npx vitest run`)
 - 시험판 저장(최고 기록·캐릭 씨앗·맵별 배치)은 브라우저 localStorage `defense.save.v1`

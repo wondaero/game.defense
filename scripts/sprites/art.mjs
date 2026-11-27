@@ -104,7 +104,14 @@ function human(h, p) {
   s += ell(67, 70, 5.5, 8, T(SKIN), { transform: armRot(p) })
   // 머리 + 헬멧
   s += circ(48, 41, 22, T(SKIN))
-  s += path('M25,41 Q24,14 48,13 Q72,14 71,41 Z', helmet)
+  if (h.rainbow) {
+    // 무지개 헬멧: 빨주노초파남보 줄무늬 (맞음·얼음 물들이기는 위에 반투명으로 덮음)
+    s += '<defs><linearGradient id="rainbow" x1="0" y1="0" x2="1" y2="0.35">' +
+      ['#ff1744', '#ff9100', '#ffea00', '#00e676', '#2979ff', '#3d5afe', '#d500f9'].map((c, i) => `<stop offset="${i / 6}" stop-color="${c}"/>`).join('') +
+      '</linearGradient></defs>'
+    s += path('M25,41 Q24,14 48,13 Q72,14 71,41 Z', 'url(#rainbow)')
+    if (p.tint) s += path('M25,41 Q24,14 48,13 Q72,14 71,41 Z', p.tint[0], { opacity: p.tint[1], 'stroke-width': 0 })
+  } else s += path('M25,41 Q24,14 48,13 Q72,14 71,41 Z', helmet)
   s += `<rect x="22" y="37" width="52" height="7" rx="3.5" fill="${dark}" stroke="${OUT}" stroke-width="${SW}"/>`
   s += path('M32,27 Q36,19 45,17', 'none', { stroke: '#ffffff', 'stroke-width': 3, opacity: 0.6 })
   s += star(48, 26, 5, light)
@@ -120,12 +127,12 @@ function human(h, p) {
 
 /** 헬멧 색 6등급 (roster.ts STAT_TIERS) */
 const TIERS = [
-  { id: 'unit_t1', name: '회색 헬멧 (능력치 하)', helmet: '#9e9e9e' },
-  { id: 'unit_t2', name: '초록 헬멧', helmet: '#43a047' },
-  { id: 'unit_t3', name: '파랑 헬멧', helmet: '#1e88e5' },
-  { id: 'unit_t4', name: '보라 헬멧', helmet: '#8e24aa' },
-  { id: 'unit_t5', name: '주황 헬멧', helmet: '#fb8c00' },
-  { id: 'unit_t6', name: '금 헬멧 (능력치 최상)', helmet: '#fdd835', sparkle: true },
+  { id: 'unit_t1', name: '흰색 헬멧 (능력치 하)', helmet: '#f5f5f5' },
+  { id: 'unit_t2', name: '노랑 헬멧', helmet: '#fdd835' },
+  { id: 'unit_t3', name: '초록 헬멧', helmet: '#43a047' },
+  { id: 'unit_t4', name: '파랑 헬멧', helmet: '#1e88e5' },
+  { id: 'unit_t5', name: '보라 헬멧', helmet: '#8e24aa' },
+  { id: 'unit_t6', name: '무지개 헬멧 (능력치 최상)', helmet: '#7c4dff', rainbow: true, sparkle: true },
 ]
 
 /** 특수능력 도구 (손 기준 좌표: 손 = 0,0 / 위쪽 = 음수). 오른팔과 같이 돌아감 */
@@ -169,7 +176,7 @@ const UNIT_MOTIONS = {
 // 오른쪽을 보고 그림. 소품은 겹 3개: back(몸 뒤) · face(몸 위, 눈 아래) · front(맨 앞)
 // p.phase = 걷기 프레임 번호(0~5) → 날개·망토·목도리가 흔들림
 function slimeBody(p, body) {
-  let s = path('M12,88 Q10,44 48,36 Q86,44 84,88 Z', body)
+  let s = path('M22,88 Q11,88 11,76 Q10,44 48,36 Q86,44 85,76 Q85,88 74,88 Z', body) // 아래 양쪽 모서리를 둥글게 (2026-11-27)
   s += path('M24,52 Q30,44 40,42', 'none', { stroke: '#ffffff', 'stroke-width': 3, opacity: 0.7 })
   return s
 }

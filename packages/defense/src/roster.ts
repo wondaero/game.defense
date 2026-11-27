@@ -52,15 +52,15 @@ export function statScore(cfg: DefenseConfig, u: Pick<UnitInstance, 'atk' | 'ran
 }
 
 /**
- * 능력치 등급 = 헬멧 색. 기본 범위에서 뽑으면 대략 회색 22% · 초록 27% · 파랑 23% · 보라 17% · 주황 8.5% · 금 2.4%
+ * 능력치 등급 = 헬멧 색. 기본 범위에서 뽑으면 대략 흰색 22% · 노랑 27% · 초록 23% · 파랑 17% · 보라 8.5% · 무지개 2.4% (2026-11-27 색 바꿈, 기준 점수·확률은 그대로)
  */
 export const STAT_TIERS = [
-  { tier: 1, min: 0, name: '회색', color: '#9e9e9e' },
-  { tier: 2, min: 35, name: '초록', color: '#43a047' },
-  { tier: 3, min: 50, name: '파랑', color: '#1e88e5' },
-  { tier: 4, min: 62, name: '보라', color: '#8e24aa' },
-  { tier: 5, min: 75, name: '주황', color: '#fb8c00' },
-  { tier: 6, min: 88, name: '금', color: '#fdd835' },
+  { tier: 1, min: 0, name: '흰색', color: '#eeeeee' },
+  { tier: 2, min: 35, name: '노랑', color: '#fdd835' },
+  { tier: 3, min: 50, name: '초록', color: '#43a047' },
+  { tier: 4, min: 62, name: '파랑', color: '#1e88e5' },
+  { tier: 5, min: 75, name: '보라', color: '#8e24aa' },
+  { tier: 6, min: 88, name: '무지개', color: '#e040fb' },
 ] as const
 
 export function statTier(cfg: DefenseConfig, u: Pick<UnitInstance, 'atk' | 'range' | 'attackSpeed' | 'agility'>) {

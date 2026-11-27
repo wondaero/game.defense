@@ -107,7 +107,14 @@ button.link.back { font-size: 20px; }
 .stage-map .node .badge.lock { background: none; border: none; font-size: 12px; right: -8px; }
 .stage-map .node.boss.current { border-color: #ffd54f; animation: stage-pulse 1.4s infinite; }
 /* 캐릭 얼굴: 스프라이트 첫 프레임 (시트 6×3, 프레임 하나 = 얼굴 칸) */
-.face.sprite { background-color: #3d5a40; background-size: 600% 300%; background-position: 0 0; background-repeat: no-repeat; width: 40px; height: 40px; border-radius: 10px; }
+.face.sprite { background-color: #3d5a40; /* 프레임 둘레 여백(12.5%)을 잘라 그림만 크게: 시트 6×3 ÷ 0.75 */ background-size: 800% 400%; background-position: -6.7px -6.7px; background-repeat: no-repeat; width: 40px; height: 40px; border-radius: 10px; }
 .tier { text-shadow: 0 1px 0 rgba(0,0,0,0.6); }
+.tier.rainbow { background: linear-gradient(90deg, #ff1744, #ff9100, #ffea00, #00e676, #2979ff, #d500f9); -webkit-background-clip: text; background-clip: text; color: transparent !important; text-shadow: none; }
 /* 탄 준비·진행 화면: 판은 위에 고정, 아래(옆) 목록만 스크롤 (2026-11-27) */
 .board { position: sticky; top: 0; z-index: 5; background: #1b1f24; padding-bottom: 6px; align-self: flex-start; }
+/* 진행 중 뒤로 가기 → 묻는 창 */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+.modal { background: #242a31; border-radius: 14px; padding: 18px 20px; max-width: 320px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; }
+.modal-title { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+.modal p { color: #cfd8dc; margin: 0 0 14px; line-height: 1.5; }
+.modal .row { justify-content: center; }

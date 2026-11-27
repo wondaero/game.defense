@@ -6,6 +6,8 @@ import { groundImage, type GroundMode } from './ground.ts'
 export const CELL_PX = 60
 /** 판 둘레 여백 (가장자리 몬스터·입구 밖 몬스터가 잘리지 않게) */
 export const PAD = 28
+/** 캐릭 그림 크기 = 칸 × 이 값. 원래 크기 그대로 — 도구·모션이 칸 밖으로 넘쳐도 자르지 않음(넘침 허용, 2026-11-27) */
+export const UNIT_SCALE = 0.98
 
 /** 화면 효과 (시간은 performance.now 밀리초) */
 export interface Fx {
@@ -149,7 +151,11 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
   ctx.textBaseline = 'middle'
   const sprites = spritesReady()
   let idx = 0
-  for (const [k, u] of unitAt) {
+  // 칸보다 크게 그려도 되게(넘침 허용): 위쪽 칸부터 그려서 아래 칸 캐릭이 앞에 보이게
+  const lvl = d.sim ? Math.max(0, ...d.sim.levelBuffs.filter((b) => d.sim!.tick < b.until).map((b) => b.level)) : 0
+  const levelScale = 1 + lvl * 0.1
+  const unitsInOrder = [...unitAt].sort(([a], [b]) => Number(a.split(',')[1]) - Number(b.split(',')[1]) || Number(a.split(',')[0]) - Number(b.split(',')[0]))
+  for (const [k, u] of unitsInOrder) {
     const [x, y] = k.split(',').map(Number) as [number, number]
     const cx = (x + 0.5) * CELL_PX
     const cy = (y + 0.5) * CELL_PX
@@ -174,7 +180,8 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
     idx++
     // 몸(헬멧 색 = 능력치 등급) + 손 도구(특수능력). 얼었을 땐 도구를 얼음 뒤에
     const foot = cy + CELL_PX * 0.42
-    const size = CELL_PX * 0.98
+    // 아군 전체 레벨업 중엔 캐릭이 커짐: +1 = 1.1배 · +2 = 1.2배 · +3 = 1.3배 (여러 개면 가장 높은 것) — 글자 대신 (2026-11-27)
+    const size = CELL_PX * UNIT_SCALE * levelScale
     if (frozen && look.tool && sprites) drawSprite(ctx, look.tool, motion, t, cx, foot, size)
     const drawn = sprites && drawSprite(ctx, look.body, motion, t, cx, foot, size)
     if (!frozen && look.tool && drawn) drawSprite(ctx, look.tool, motion, t, cx, foot, size)

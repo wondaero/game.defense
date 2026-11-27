@@ -1,8 +1,10 @@
 {
-  "frameSize": 192,
+  "frameSize": 256,
+  "content": 0.75,
+  "footY": 0.8125,
   "entities": {
     "unit_t1": {
-      "name": "회색 헬멧 (능력치 하)",
+      "name": "흰색 헬멧 (능력치 하)",
       "kind": "unit",
       "cols": 6,
       "rows": 3,
@@ -28,7 +30,7 @@
       }
     },
     "unit_t2": {
-      "name": "초록 헬멧",
+      "name": "노랑 헬멧",
       "kind": "unit",
       "cols": 6,
       "rows": 3,
@@ -54,7 +56,7 @@
       }
     },
     "unit_t3": {
-      "name": "파랑 헬멧",
+      "name": "초록 헬멧",
       "kind": "unit",
       "cols": 6,
       "rows": 3,
@@ -80,7 +82,7 @@
       }
     },
     "unit_t4": {
-      "name": "보라 헬멧",
+      "name": "파랑 헬멧",
       "kind": "unit",
       "cols": 6,
       "rows": 3,
@@ -106,7 +108,7 @@
       }
     },
     "unit_t5": {
-      "name": "주황 헬멧",
+      "name": "보라 헬멧",
       "kind": "unit",
       "cols": 6,
       "rows": 3,
@@ -132,7 +134,7 @@
       }
     },
     "unit_t6": {
-      "name": "금 헬멧 (능력치 최상)",
+      "name": "무지개 헬멧 (능력치 최상)",
       "kind": "unit",
       "cols": 6,
       "rows": 3,
