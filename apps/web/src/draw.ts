@@ -1,6 +1,7 @@
 import { inRange, MONSTER_ABILITIES, positionAt, type Cell, type DefenseConfig, type GameMap, type Placements, type UnitInstance, type WaveSim } from '@def/defense'
 import { imageOf } from './format.ts'
 import { drawSprite, motionDuration, spritesReady } from './sprites.ts'
+import { groundImage, type GroundMode } from './ground.ts'
 
 export const CELL_PX = 60
 /** 판 둘레 여백 (가장자리 몬스터·입구 밖 몬스터가 잘리지 않게) */
@@ -86,55 +87,60 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
   const selectedCell = selected ? (d.sim?.units.find((s) => s.inst.id === selected.id)?.cell ?? d.placements[selected.id]) : null
   const rangeOrigin = selected ? (d.hover && map.tiles[d.hover.y]?.[d.hover.x] === 'slot' && !d.sim ? d.hover : selectedCell) : null
 
-  // 칸
-  for (let y = 0; y < map.height; y++) {
-    for (let x = 0; x < map.width; x++) {
-      const t = map.tiles[y]![x]!
-      ctx.fillStyle = t === 'path' ? '#c8a97e' : t === 'slot' ? '#3d5a40' : '#222'
-      ctx.fillRect(x * CELL_PX, y * CELL_PX, CELL_PX, CELL_PX)
-      if (rangeOrigin && selected && inRange(rangeOrigin, { x, y }, selected.range, cfg.rangeShape)) {
-        ctx.fillStyle = t === 'path' ? 'rgba(255,240,120,0.45)' : 'rgba(255,240,120,0.15)'
-        ctx.fillRect(x * CELL_PX, y * CELL_PX, CELL_PX, CELL_PX)
+  // 바닥: 풀밭 + 부드러운 길 (배치 중에만 배치 칸 네모·길 방향 화살표). 맵마다 한 번 그려 둔 그림을 씀
+  const mode: GroundMode = d.sim ? 'play' : 'prepare'
+  ctx.drawImage(groundImage(map, mode, CELL_PX, Math.max(1, ctx.getTransform().a)), 0, 0, map.width * CELL_PX, map.height * CELL_PX)
+
+  // 사거리 미리 보기: 닿는 칸을 노랗게 (길 칸은 진하게)
+  if (rangeOrigin && selected) {
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        if (!inRange(rangeOrigin, { x, y }, selected.range, cfg.rangeShape)) continue
+        ctx.fillStyle = map.tiles[y]![x] === 'path' ? 'rgba(255,240,120,0.42)' : 'rgba(255,240,120,0.16)'
+        ctx.beginPath()
+        ctx.roundRect(x * CELL_PX + 2, y * CELL_PX + 2, CELL_PX - 4, CELL_PX - 4, 8)
+        ctx.fill()
       }
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)'
-      ctx.strokeRect(x * CELL_PX + 0.5, y * CELL_PX + 0.5, CELL_PX - 1, CELL_PX - 1)
     }
   }
 
-  // 길 방향 선 + 입구·출구
-  ctx.strokeStyle = 'rgba(90,60,30,0.35)'
-  ctx.lineWidth = 3
-  ctx.setLineDash([6, 8])
-  ctx.beginPath()
-  for (let dist = 0; dist <= map.length; dist += 100) {
-    const p = positionAt(map, dist)
-    if (dist === 0) ctx.moveTo(p.x * CELL_PX, p.y * CELL_PX)
-    else ctx.lineTo(p.x * CELL_PX, p.y * CELL_PX)
-  }
-  ctx.stroke()
-  ctx.setLineDash([])
-  ctx.lineWidth = 1
-  const s = map.path[0]!
-  const e = map.path.at(-1)!
-  label(ctx, '입구', (s.x + 0.5) * CELL_PX, (s.y + 0.5) * CELL_PX, '#1565c0')
-  label(ctx, '출구', (e.x + 0.5) * CELL_PX, (e.y + 0.5) * CELL_PX, '#c62828')
-
-  // 장애물 (가시 = 빨강, 늪 = 파랑)
+  // 장애물: 가시(갈색 뾰족) · 늪(파란 웅덩이)
   for (const o of d.sim?.obstacles ?? []) {
     const c = map.path[o.index]!
-    ctx.fillStyle = o.kind === 'damage' ? 'rgba(229,57,53,0.45)' : 'rgba(30,136,229,0.45)'
-    ctx.fillRect(c.x * CELL_PX + 4, c.y * CELL_PX + 4, CELL_PX - 8, CELL_PX - 8)
-    ctx.font = '22px serif'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(o.kind === 'damage' ? '▲' : '≈', (c.x + 0.5) * CELL_PX, (c.y + 0.5) * CELL_PX)
+    const cx = (c.x + 0.5) * CELL_PX
+    const cy = (c.y + 0.5) * CELL_PX
+    if (o.kind === 'damage') {
+      ctx.fillStyle = '#6d4c41'
+      ctx.strokeStyle = '#3e2723'
+      ctx.lineWidth = 1.5
+      for (const [dx, dy] of [[-11, 6], [0, -6], [11, 6], [-4, 10], [6, -1]] as const) {
+        ctx.beginPath()
+        ctx.moveTo(cx + dx - 6, cy + dy + 6)
+        ctx.lineTo(cx + dx, cy + dy - 8)
+        ctx.lineTo(cx + dx + 6, cy + dy + 6)
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+      }
+    } else {
+      ctx.fillStyle = 'rgba(30,136,229,0.55)'
+      ctx.strokeStyle = 'rgba(187,222,251,0.9)'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.ellipse(cx, cy, CELL_PX * 0.36, CELL_PX * 0.24, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+    }
+    ctx.lineWidth = 1
   }
 
-  // 마우스 칸
-  if (d.hover && !d.sim) {
+  // 마우스 칸 (배치 중)
+  if (d.hover && !d.sim && map.tiles[d.hover.y]?.[d.hover.x] === 'slot') {
     ctx.strokeStyle = '#fff'
-    ctx.lineWidth = 2
-    ctx.strokeRect(d.hover.x * CELL_PX + 2, d.hover.y * CELL_PX + 2, CELL_PX - 4, CELL_PX - 4)
+    ctx.lineWidth = 2.5
+    ctx.beginPath()
+    ctx.roundRect(d.hover.x * CELL_PX + 3, d.hover.y * CELL_PX + 3, CELL_PX - 6, CELL_PX - 6, 8)
+    ctx.stroke()
     ctx.lineWidth = 1
   }
 
@@ -254,6 +260,25 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
         ctx.lineWidth = 1
       }
       const drawn = sprites && drawSprite(ctx, `mon_${m.type}`, motion, mt, p.x, foot, size, flip)
+      if (m.poisonDmg > 0) {
+        // 맹독: 발밑 보라 고리 + 위로 올라가는 보라 방울
+        ctx.strokeStyle = 'rgba(142,36,170,0.9)'
+        ctx.fillStyle = 'rgba(186,104,200,0.25)'
+        ctx.lineWidth = 2.5
+        ctx.beginPath()
+        ctx.ellipse(p.x, foot - 2, size * 0.4, size * 0.13, 0, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.stroke()
+        ctx.lineWidth = 1
+        const ph = (d.anim.clock / 600 + m.id * 0.37) % 1
+        ctx.fillStyle = 'rgba(186,104,200,0.85)'
+        for (let k = 0; k < 3; k++) {
+          const q = (ph + k / 3) % 1
+          ctx.beginPath()
+          ctx.arc(p.x + (k - 1) * size * 0.18, foot - size * (0.55 + q * 0.45), 2 + (1 - q) * 2, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
       if (!drawn) {
         ctx.fillStyle = t.color
         ctx.strokeStyle = '#000'
@@ -311,14 +336,4 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
     ctx.globalAlpha = 1
   }
   ctx.restore()
-}
-
-function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color: string) {
-  ctx.font = 'bold 12px sans-serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillStyle = color
-  ctx.fillRect(x - 16, y - 9, 32, 18)
-  ctx.fillStyle = '#fff'
-  ctx.fillText(text, x, y + 1)
 }

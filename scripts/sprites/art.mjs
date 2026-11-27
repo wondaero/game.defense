@@ -186,54 +186,163 @@ const UNIT_MOTIONS = {
   frozen: { fps: 1, loop: true, frames: [{ eyes: 'closed', mouth: 'flat', tint: ['#b3e5fc', 0.45], fx: iceBlock }] },
 }
 
-// ── 몬스터 4종 (오른쪽 보기) ──
-function slime(p, c) {
-  const T = tinter(p)
-  const b = T(c.body)
-  let s = path('M12,88 Q10,44 48,36 Q86,44 84,88 Z', b)
+// ── 몬스터: 슬라임 1종 + 소품(옷)으로 특성 구분 (2026-11-27 확정) ──
+// 오른쪽을 보고 그림. 소품은 겹 3개: back(몸 뒤) · face(몸 위, 눈 아래) · front(맨 앞)
+// p.phase = 걷기 프레임 번호(0~5) → 날개·망토·목도리가 흔들림
+function slimeBody(p, body) {
+  let s = path('M12,88 Q10,44 48,36 Q86,44 84,88 Z', body)
   s += path('M24,52 Q30,44 40,42', 'none', { stroke: '#ffffff', 'stroke-width': 3, opacity: 0.7 })
-  s += eyes(p, 54, 70, 60)
-  s += mouth(p, 63, 70, 4)
   return s
 }
-function bee(p, c) {
-  const T = tinter(p)
-  const flap = p.flap ?? 0
-  let s = ''
-  s += path('M20,60 L8,58 M22,68 L10,70 M22,52 L12,48', 'none', { stroke: T('#ffffff'), 'stroke-width': 2.5, opacity: 0.8 })
-  s += ell(44, 38 - flap * 4, 9, 14, T('#e1f5fe'), { opacity: 0.85, transform: `rotate(${-25 - flap * 30} 46 46)` })
-  s += path('M22,62 L14,64 L22,66 Z', T('#424242'))
-  s += ell(48, 62, 26, 20, T(c.body))
-  s += path('M40,43 Q36,62 40,81 M54,43 Q50,62 54,81', 'none', { stroke: T('#424242'), 'stroke-width': 6 })
-  s += ell(52, 38 - flap * 4, 9, 14, T('#e1f5fe'), { opacity: 0.9, transform: `rotate(${20 + flap * 30} 52 46)` })
-  s += eyes(p, 62, 72, 58, 0.9)
-  s += mouth(p, 68, 68, 3)
-  return s
+const slimeFace = (p) => eyes(p, 54, 70, 60) + mouth(p, 63, 70, 4)
+
+/** 소품 그리기. T = 물들이기(맞음·얼음) */
+const ACCESSORIES = {
+  plain: () => ({}),
+  cape: (p, T, c = '#7b1fa2') => {
+    // 몸 왼쪽(등)을 덮고 펄럭이는 망토. 프레임 밖(x<4)으로 안 나가게
+    const f = [0, 1, 2, 1, 0, -1][p.phase ?? 0]
+    return {
+      face:
+        path(`M48,43 Q26,48 ${7 - f},${86 - f} L40,88 Q34,66 52,45 Z`, T(c)) +
+        path(`M44,52 Q30,64 ${16 - f},84`, 'none', { stroke: T(mix(c, '#000000', 0.3)), 'stroke-width': 1.8 }),
+      front: circ(49, 45, 3.5, T('#ffca28')),
+    }
+  },
+  hat: (p, T) => ({
+    front:
+      path(`M62,38 Q70,${14 + ((p.phase ?? 0) % 2) * 2} 90,8 Q84,26 70,40 Z`, T('#e53935')) +
+      ell(50, 44, 25, 4.5, T('#1b5e20')) +
+      path('M30,43 Q44,16 70,42 Z', T('#2e7d32')),
+  }),
+  helmet: (p, T) => ({
+    front:
+      path('M17,54 Q17,27 48,25 Q79,27 80,54 Z', T('#cfd8dc')) +
+      `<rect x="15" y="49" width="67" height="7" rx="3" fill="${T('#90a4ae')}" stroke="${OUT}" stroke-width="${SW}"/>` +
+      path('M48,25 L48,16', 'none', { stroke: T('#e53935'), 'stroke-width': 5 }) +
+      circ(28, 52, 1.6, OUT, { 'stroke-width': 0 }) +
+      circ(68, 52, 1.6, OUT, { 'stroke-width': 0 }),
+  }),
+  backpack: (p, T) => ({
+    back:
+      `<rect x="3" y="48" width="21" height="30" rx="6" fill="${T('#6d4c41')}" stroke="${OUT}" stroke-width="${SW}"/>` +
+      path('M3,58 L24,58', 'none', { 'stroke-width': 2 }),
+    face: path('M24,50 Q40,58 44,84', 'none', { stroke: T('#4e342e'), 'stroke-width': 4 }),
+  }),
+  armor: (p, T) => ({
+    face:
+      path('M26,76 Q50,70 82,76 L80,88 L28,88 Z', T('#b0bec5')) +
+      path('M54,72 L54,88', 'none', { 'stroke-width': 1.5 }) +
+      ell(22, 70, 9, 7, T('#90a4ae')) +
+      circ(40, 81, 1.6, OUT, { 'stroke-width': 0 }) +
+      circ(68, 81, 1.6, OUT, { 'stroke-width': 0 }),
+  }),
+  wings: (p, T) => {
+    const f = (p.phase ?? 0) % 2
+    return {
+      back:
+        ell(26, 40 - f * 4, 17, 9, T('#ffffff'), { transform: `rotate(${-30 - f * 20} 34 50)` }) +
+        ell(34, 30 - f * 4, 15, 8, T('#e3f2fd'), { transform: `rotate(${-60 - f * 20} 40 46)` }),
+    }
+  },
+  ribbon: (p, T) => ({
+    front: path('M38,40 L24,30 L26,48 Z', T('#e91e63')) + path('M38,40 L52,28 L54,46 Z', T('#e91e63')) + circ(38, 40, 4.5, T('#f06292')),
+  }),
+  scarf: (p, T) => {
+    const f = [0, 2, 4, 2, 0, -2][p.phase ?? 0]
+    return {
+      face:
+        path(`M22,70 L${10 - f},86 L20,88 L30,74 Z`, T('#1565c0')) +
+        path('M14,66 Q48,77 84,66 L85,74 Q48,85 13,74 Z', T('#1e88e5')) +
+        path('M30,70 L32,78 M46,72 L46,80 M62,72 L60,80', 'none', { stroke: T('#ffffff'), 'stroke-width': 2.5 }),
+      front: star(80, 40, 5, T('#e1f5fe')),
+    }
+  },
+  flower: (p, T) => {
+    let s = ''
+    for (let k = 0; k < 5; k++) {
+      const a = (Math.PI * 2 * k) / 5
+      s += circ(38 + Math.cos(a) * 6, 36 + Math.sin(a) * 6, 5, T('#f48fb1'))
+    }
+    return { front: s + circ(38, 36, 4, T('#ffeb3b')) + path('M44,42 Q50,46 54,44', 'none', { stroke: T('#43a047'), 'stroke-width': 3 }) }
+  },
+  mushroom: (p, T) => ({
+    front:
+      path('M8,52 Q10,14 48,13 Q86,14 88,52 Q48,60 8,52 Z', T('#e53935')) +
+      circ(28, 34, 5, T('#ffffff'), { 'stroke-width': 0 }) +
+      circ(50, 24, 6, T('#ffffff'), { 'stroke-width': 0 }) +
+      circ(70, 36, 5, T('#ffffff'), { 'stroke-width': 0 }) +
+      circ(42, 44, 3.5, T('#ffffff'), { 'stroke-width': 0 }),
+  }),
+  sneakers: (p, T) => {
+    const f = [2, 1, 0, -1, -2, -1][p.phase ?? 0]
+    const shoe = (x) => ell(x, 87, 12, 6.5, T('#e53935')) + path(`M${x - 11},90 L${x + 11},90`, 'none', { stroke: T('#ffffff'), 'stroke-width': 2.5 })
+    return {
+      front: shoe(32 + f * 2) + shoe(64 - f * 2) + path('M14,58 L5,56 M14,66 L5,66', 'none', { stroke: T('#ffffff'), 'stroke-width': 2.5, opacity: 0.8 }),
+    }
+  },
+  spring: (p, T) => {
+    // 몸 아래에 튀어나온 큰 용수철 두 개 (앞에 그려서 잘 보이게)
+    const coil = (x) =>
+      path(`M${x - 8},80 L${x + 8},83 L${x - 8},86 L${x + 8},89 L${x - 8},92 L${x + 8},95`, 'none', { stroke: OUT, 'stroke-width': 5 }) +
+      path(`M${x - 8},80 L${x + 8},83 L${x - 8},86 L${x + 8},89 L${x - 8},92 L${x + 8},95`, 'none', { stroke: T('#cfd8dc'), 'stroke-width': 2.5 })
+    return { front: coil(30) + coil(66) }
+  },
+  halo: (p, T) => ({
+    front: ell(48, 22, 17, 5, 'none', { stroke: T('#ffca28'), 'stroke-width': 4.5 }) + ell(48, 22, 17, 5, 'none', { stroke: '#fff59d', 'stroke-width': 1.5 }),
+  }),
+  fan: (p, T) => {
+    const a = (p.phase ?? 0) % 2 ? 6 : 0
+    return {
+      front: g(
+        `rotate(${a} 80 74)`,
+        path('M80,74 L62,52 Q78,38 94,54 Z', T('#ef5350')) +
+          path('M80,74 L70,46 M80,74 L80,44 M80,74 L90,48', 'none', { stroke: T('#ffffff'), 'stroke-width': 1.8 }) +
+          path('M80,74 L84,84', 'none', { stroke: T('#6d4c41'), 'stroke-width': 4 }),
+      ),
+    }
+  },
+  brush: (p, T) => ({
+    front:
+      path('M92,48 L72,80', 'none', { stroke: T('#8d6e63'), 'stroke-width': 5 }) +
+      path('M74,77 Q64,86 68,92 Q76,90 77,81 Z', T('#212121')) +
+      circ(58, 90, 2.5, T('#212121'), { 'stroke-width': 0 }) +
+      circ(86, 92, 2, T('#212121'), { 'stroke-width': 0 }),
+  }),
+  // 소라 껍데기를 등에 짊어짐 (맞으면 숨는 느낌) — 부채와 모양이 겹치지 않게 등 쪽
+  shell: (p, T) => ({
+    back:
+      path('M8,14 L18,26 Q4,36 8,52 Q14,64 30,62 Q44,58 42,42 Q40,26 22,24 Z', T('#ffab91')) +
+      path('M24,32 Q36,32 35,44 Q33,54 23,53 Q15,51 16,43 Q18,37 25,39 Q30,41 28,46', 'none', { stroke: T('#e64a19'), 'stroke-width': 2.2 }),
+  }),
+  mask: (p, T) => ({
+    face:
+      `<rect x="42" y="53" width="40" height="14" rx="6" fill="${T('#263238')}" stroke="${OUT}" stroke-width="${SW}"/>` +
+      path('M42,58 L32,54 M42,62 L30,64', 'none', { stroke: T('#263238'), 'stroke-width': 3 }) +
+      ell(54, 60, 5, 5.5, '#ffffff', { 'stroke-width': 0 }) +
+      ell(70, 60, 5, 5.5, '#ffffff', { 'stroke-width': 0 }),
+  }),
+  glasses: () => ({
+    front:
+      circ(54, 60, 7.5, 'none', { 'stroke-width': 2.5 }) +
+      circ(70, 60, 7.5, 'none', { 'stroke-width': 2.5 }) +
+      path('M61.5,60 L62.5,60 M46.5,59 L38,56', 'none', { 'stroke-width': 2.5 }),
+  }),
+  crown: (p, T) => ({
+    front:
+      path('M30,42 L31,20 L40,31 L48,15 L56,31 L65,20 L66,42 Z', T('#ffc107')) +
+      circ(48, 34, 3, T('#e53935')) +
+      circ(37, 37, 2.2, T('#42a5f5')) +
+      circ(59, 37, 2.2, T('#42a5f5')),
+  }),
 }
-function golem(p, c) {
+
+/** 소품을 입은 슬라임 한 장 */
+function dressedSlime(p, m) {
   const T = tinter(p)
-  const step = p.step ?? 0
-  let s = ''
-  s += `<rect x="${26 + step * 3}" y="74" width="14" height="14" rx="4" fill="${T(mix(c.body, '#000000', 0.25))}" stroke="${OUT}" stroke-width="${SW}"/>`
-  s += `<rect x="${56 - step * 3}" y="74" width="14" height="14" rx="4" fill="${T(mix(c.body, '#000000', 0.25))}" stroke="${OUT}" stroke-width="${SW}"/>`
-  s += `<rect x="14" y="28" width="68" height="52" rx="16" fill="${T(c.body)}" stroke="${OUT}" stroke-width="${SW}"/>`
-  s += path('M26,40 L34,48 L30,56 M64,66 L72,58', 'none', { stroke: T(mix(c.body, '#000000', 0.4)), 'stroke-width': 2 })
-  s += ell(30, 32, 10, 5, T('#7cb342'), { 'stroke-width': 0 })
-  s += eyes({ ...p, eyes: p.eyes ?? 'angry' }, 56, 70, 50)
-  s += path('M58,64 L72,64', 'none', { 'stroke-width': 3 })
-  return s
-}
-function demon(p, c) {
-  const T = tinter(p)
-  let s = ''
-  s += path('M26,40 Q14,22 22,8 Q28,26 38,34 Z', T('#fff8e1'))
-  s += path('M70,40 Q82,22 74,8 Q68,26 58,34 Z', T('#fff8e1'))
-  s += path('M8,88 Q6,36 48,28 Q90,36 88,88 Z', T(c.body))
-  s += path('M20,60 Q24,46 36,40', 'none', { stroke: '#ffffff', 'stroke-width': 3, opacity: 0.5 })
-  s += eyes({ ...p, eyes: p.eyes ?? 'angry' }, 54, 72, 54, 1.2)
-  s += path('M50,70 Q63,80 78,70 Z', T('#4a0000'))
-  s += path('M54,71 L57,77 L60,72 M68,72 L71,77 L74,71', '#ffffff', { 'stroke-width': 1.2 })
-  return s
+  const parts = m.acc.map((a) => ACCESSORIES[a](p, T))
+  const layer = (k) => parts.map((x) => x[k] ?? '').join('')
+  return layer('back') + slimeBody(p, T(m.body)) + layer('face') + slimeFace(p) + layer('front')
 }
 
 const stunStars = (i) => {
@@ -297,12 +406,54 @@ function monsterMotions(extraWalk) {
   }
 }
 
-const MONSTERS = {
-  mon_normal: { name: '보통 (슬라임)', body: '#7cb342', draw: slime, walk: () => ({}) },
-  mon_fast: { name: '날쌘돌이 (벌)', body: '#fdd835', draw: bee, walk: (i) => ({ flap: i % 2, dy: [-4, -6, -8, -6, -4, -2][i] - 0, sy: 1, sx: 1 }) },
-  mon_tank: { name: '단단이 (바위)', body: '#8d6e63', draw: golem, walk: (i) => ({ step: [1, 0.5, 0, -0.5, -1, -0.5][i], sy: 1, sx: 1, dy: i % 3 === 0 ? 0 : -1 }) },
-  mon_boss: { name: '우두머리 (뿔 괴물)', body: '#e53935', draw: demon, walk: () => ({}) },
+/**
+ * 몬스터 12종 (게임에 나옴): 슬라임 + 높은 능력치의 소품 (2026-11-27)
+ * 체력 = 배낭, 방어 = 갑옷, 민첩 = 깃털 모자, 속도 = 운동화 → 두 가지 높은 종류는 소품 두 개
+ * 몸 색은 packages/defense/src/stages.ts 의 MONSTER_BASES 와 같게
+ */
+/** 소품 겹치는 순서 (뒤 → 앞) */
+const ACC_ORDER = ['cape', 'backpack', 'armor', 'sneakers', 'hat', 'crown']
+const TRAIT_ACC = { hp: 'backpack', armor: 'armor', agi: 'hat', spd: 'sneakers' }
+const GAME_MONSTERS = {
+  normal: { name: '보통', body: '#7cb342', traits: [] },
+  hp: { name: '튼튼이 (체력)', body: '#a1887f', traits: ['hp'] },
+  armor: { name: '단단이 (방어)', body: '#90a4ae', traits: ['armor'] },
+  agi: { name: '날렵이 (민첩)', body: '#4db6ac', traits: ['agi'] },
+  spd: { name: '날쌘돌이 (속도)', body: '#ffd54f', traits: ['spd'] },
+  hp_armor: { name: '철벽이 (체력·방어)', body: '#78909c', traits: ['hp', 'armor'] },
+  hp_agi: { name: '끈질이 (체력·민첩)', body: '#81c784', traits: ['hp', 'agi'] },
+  hp_spd: { name: '돌진이 (체력·속도)', body: '#ff8a65', traits: ['hp', 'spd'] },
+  armor_agi: { name: '방패꾼 (방어·민첩)', body: '#9575cd', traits: ['armor', 'agi'] },
+  armor_spd: { name: '기사 (방어·속도)', body: '#64b5f6', traits: ['armor', 'spd'] },
+  agi_spd: { name: '바람이 (민첩·속도)', body: '#f06292', traits: ['agi', 'spd'] },
+  boss: { name: '우두머리 (왕관 + 망토)', body: '#e53935', traits: [], extra: ['cape', 'crown'] },
 }
+const MONSTERS = Object.fromEntries(
+  Object.entries(GAME_MONSTERS).map(([id, m]) => [
+    `mon_${id}`,
+    { name: m.name, body: m.body, acc: [...m.traits.map((t) => TRAIT_ACC[t]), ...(m.extra ?? [])].sort((x, y) => ACC_ORDER.indexOf(x) - ACC_ORDER.indexOf(y)) },
+  ]),
+)
+
+/** 몬스터 능력용 소품 시안 (아직 게임엔 안 씀 — "능력자" 표시용 후보) */
+const ACC_SAMPLES = {
+  acc_scarf: { name: '[시안] 목도리 — 얼리기', body: '#b3e5fc', acc: ['scarf'] },
+  acc_flower: { name: '[시안] 꽃 머리핀 — 완전 회복', body: '#c5e1a5', acc: ['flower'] },
+  acc_mushroom: { name: '[시안] 버섯 모자 — 전체 회복', body: '#ffe0b2', acc: ['mushroom'] },
+  acc_wings: { name: '[시안] 날개 — 질주', body: '#fff176', acc: ['wings'] },
+  acc_spring: { name: '[시안] 스프링 — 순간이동', body: '#9ccc65', acc: ['spring'] },
+  acc_halo: { name: '[시안] 천사 고리 — 무적', body: '#e1bee7', acc: ['halo'] },
+  acc_fan: { name: '[시안] 부채 — 날려 보내기', body: '#81d4fa', acc: ['fan'] },
+  acc_brush: { name: '[시안] 먹물 붓 — 약화', body: '#9e9e9e', acc: ['brush'] },
+  acc_shell: { name: '[시안] 소라 껍데기 — 단단해지기', body: '#ffccbc', acc: ['shell'] },
+  acc_helmet: { name: '[시안] 투구', body: '#90a4ae', acc: ['helmet'] },
+  acc_ribbon: { name: '[시안] 리본', body: '#f8bbd0', acc: ['ribbon'] },
+  acc_mask: { name: '[시안] 복면', body: '#ba68c8', acc: ['mask'] },
+  acc_glasses: { name: '[시안] 안경', body: '#fff59d', acc: ['glasses'] },
+}
+
+/** 별칭 (지금은 없음) */
+export const ALIASES = {}
 
 /** 모든 개체 목록 */
 export function entities() {
@@ -310,14 +461,13 @@ export function entities() {
   for (const [id, a] of Object.entries(ANIMALS)) {
     list.push({ id, name: a.name, kind: 'unit', motions: UNIT_MOTIONS, draw: (p) => animal(a, p) })
   }
-  for (const [id, m] of Object.entries(MONSTERS)) {
-    const motions = monsterMotions(m.walk)
+  for (const [id, m] of [...Object.entries(MONSTERS), ...Object.entries(ACC_SAMPLES)]) {
     list.push({
       id,
       name: m.name,
       kind: 'monster',
-      motions,
-      draw: (p) => posed(p, m.draw(p, m)) + (p.fx ?? ''),
+      motions: monsterMotions((i) => ({ phase: i })),
+      draw: (p) => posed(p, dressedSlime(p, m)) + (p.fx ?? ''),
     })
   }
   return list

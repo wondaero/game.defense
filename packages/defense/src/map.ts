@@ -3,7 +3,8 @@
  * 몬스터 위치 = 길 위에서 간 거리(정수). 칸은 배치 자리와 사거리 계산에만 쓴다.
  *
  * 거리 단위: 칸 하나 = CELL. i번째 길 칸의 범위는 [i*CELL, (i+1)*CELL), 중심은 i*CELL + CELL/2.
- * 거리 0 = 판 가장자리(입구), 거리 path.length*CELL = 출구 가장자리.
+ * 거리 0 = 판 가장자리(입구). **출구(E) 칸 가운데에 닿으면 끝** (거리 path.length*CELL − CELL/2) →
+ * 몬스터는 E 칸에서 사라진다. E 가 어느 쪽을 보든 판 밖이나 옆 칸으로 걸어 나가지 않음 (2026-11-27).
  */
 export const CELL = 1000
 
@@ -29,7 +30,7 @@ export interface GameMap {
   tiles: Tile[][] // [y][x]
   /** 입구 → 출구 순서의 길 칸 */
   path: Cell[]
-  /** 길 전체 길이 (거리 단위) */
+  /** 길 전체 길이 (거리 단위) = 입구 가장자리 ~ 출구 칸 가운데. 여기 닿으면 몬스터가 사라짐 */
   length: number
   /** 꺾이는 곳 수 (참고용) */
   turns: number
@@ -82,7 +83,7 @@ export function parseMap(def: MapDef): GameMap {
     const c = path[i + 1]!
     if (b.x - a.x !== c.x - b.x || b.y - a.y !== c.y - b.y) turns++
   }
-  return { id: def.id, name: def.name, width, height, tiles, path, length: path.length * CELL, turns }
+  return { id: def.id, name: def.name, width, height, tiles, path, length: path.length * CELL - CELL / 2, turns }
 }
 
 /** 첫 칸에서 들어오는 방향 / 마지막 칸에서 나가는 방향 = 판 밖으로 이어지는 쪽 */

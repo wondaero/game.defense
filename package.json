@@ -12,10 +12,14 @@
     "test": "vitest run",
     "typecheck": "tsc -p packages/defense && tsc -p apps/web",
     "sprites": "node scripts/sprites/build.mjs",
-    "calibrate": "vite-node scripts/calibrate.ts"
+    "calibrate": "vite-node scripts/calibrate.ts",
+    "maps": "node scripts/import-maps.mjs",
+    "check-maps": "vite-node scripts/check-maps.ts",
+    "rank-maps": "vite-node scripts/rank-maps.ts"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
+    "fflate": "^0.8.3",
     "typescript": "^5.9.3",
     "vitest": "^2.1.8"
   }

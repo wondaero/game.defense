@@ -210,7 +210,7 @@
       }
     },
     "mon_normal": {
-      "name": "보통 (슬라임)",
+      "name": "보통",
       "kind": "monster",
       "cols": 6,
       "rows": 4,
@@ -241,8 +241,8 @@
         }
       }
     },
-    "mon_fast": {
-      "name": "날쌘돌이 (벌)",
+    "mon_hp": {
+      "name": "튼튼이 (체력)",
       "kind": "monster",
       "cols": 6,
       "rows": 4,
@@ -273,8 +273,264 @@
         }
       }
     },
-    "mon_tank": {
-      "name": "단단이 (바위)",
+    "mon_armor": {
+      "name": "단단이 (방어)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_agi": {
+      "name": "날렵이 (민첩)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_spd": {
+      "name": "날쌘돌이 (속도)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_hp_armor": {
+      "name": "철벽이 (체력·방어)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_hp_agi": {
+      "name": "끈질이 (체력·민첩)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_hp_spd": {
+      "name": "돌진이 (체력·속도)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_armor_agi": {
+      "name": "방패꾼 (방어·민첩)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_armor_spd": {
+      "name": "기사 (방어·속도)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_agi_spd": {
+      "name": "바람이 (민첩·속도)",
       "kind": "monster",
       "cols": 6,
       "rows": 4,
@@ -306,7 +562,423 @@
       }
     },
     "mon_boss": {
-      "name": "우두머리 (뿔 괴물)",
+      "name": "우두머리 (왕관 + 망토)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "acc_scarf": {
+      "name": "[시안] 목도리 — 얼리기",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "acc_flower": {
+      "name": "[시안] 꽃 머리핀 — 완전 회복",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "acc_mushroom": {
+      "name": "[시안] 버섯 모자 — 전체 회복",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "acc_wings": {
+      "name": "[시안] 날개 — 질주",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "acc_spring": {
+      "name": "[시안] 스프링 — 순간이동",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "acc_halo": {
+      "name": "[시안] 천사 고리 — 무적",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "acc_fan": {
+      "name": "[시안] 부채 — 날려 보내기",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "acc_brush": {
+      "name": "[시안] 먹물 붓 — 약화",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "acc_shell": {
+      "name": "[시안] 소라 껍데기 — 단단해지기",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "acc_helmet": {
+      "name": "[시안] 투구",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "acc_ribbon": {
+      "name": "[시안] 리본",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "acc_mask": {
+      "name": "[시안] 복면",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "acc_glasses": {
+      "name": "[시안] 안경",
       "kind": "monster",
       "cols": 6,
       "rows": 4,

@@ -15,6 +15,8 @@ interface EntityInfo {
   cols: number
   rows: number
   motions: Record<string, MotionInfo>
+  /** 별칭이면 실제 그림 파일 이름 */
+  file?: string
 }
 interface Meta {
   frameSize: number
@@ -40,7 +42,8 @@ export function loadSprites(): Promise<void> {
               resolve()
             }
             img.onerror = () => resolve()
-            img.src = `sprites/${id}.png`
+            // 별칭(mon_normal 등)은 실제 그림 파일 이름(file)을 씀
+            img.src = `sprites/${m.entities[id]!.file ?? id}.png`
           }),
       ),
     )

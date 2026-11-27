@@ -5,7 +5,7 @@ import { drawSprite, loadSprites, motionDuration } from './sprites.ts'
  * 성능 시험: 몬스터 N마리 + 캐릭 N명이 각자 다른 모션으로 움직일 때 초당 프레임 수.
  * 몬스터는 타원 길을 돌며 가끔 맞음·스턴·죽음(→ 다시 나옴), 캐릭은 대기·공격·얼음을 오감.
  */
-const MON_TYPES = ['normal', 'fast', 'tank', 'boss']
+const MON_TYPES = ['normal', 'hp', 'armor', 'agi', 'spd', 'hp_armor', 'hp_agi', 'hp_spd', 'armor_agi', 'armor_spd', 'agi_spd', 'boss']
 const UNIT_IDS = ['img1', 'img2', 'img3', 'img4', 'img5', 'img6', 'img7', 'img8']
 const W = 960
 const H = 620
@@ -46,7 +46,7 @@ export function Bench({ onBack }: { onBack: () => void }) {
     canvas.style.width = `${W}px`
     const t0 = performance.now()
     const mons: BMon[] = Array.from({ length: count }, (_, i) => ({
-      type: MON_TYPES[i % 4 === 3 && i % 12 !== 11 ? 0 : i % 4]!,
+      type: MON_TYPES[i % MON_TYPES.length]!,
       pos: Math.random(),
       speed: rnd(0.02, 0.06),
       lane: rnd(-1, 1),
@@ -111,7 +111,7 @@ export function Bench({ onBack }: { onBack: () => void }) {
           const x = W / 2 + Math.cos(a) * (420 + m.lane * 14)
           const y = H / 2 + Math.sin(a) * (250 + m.lane * 14)
           const flip = -Math.sin(a) < 0
-          const size = m.type === 'boss' ? 62 : m.type === 'tank' ? 52 : m.type === 'fast' ? 40 : 46
+          const size = m.type === 'boss' ? 62 : m.type.startsWith('hp') ? 52 : m.type.includes('spd') ? 40 : 46
           drawSprite(ctx, `mon_${m.type}`, m.motion, m.motion === 'walk' ? now - m.since + m.pos * 9999 : now - m.since, x, y + size * 0.42, size, flip)
         }
 

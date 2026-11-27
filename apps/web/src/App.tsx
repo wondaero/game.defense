@@ -28,6 +28,7 @@ import {
 import { CELL_PX, draw, monsterScreenPos, newAnimState, PAD, type Fx } from './draw.ts'
 import { loadSprites, motionDuration } from './sprites.ts'
 import { Bench } from './Bench.tsx'
+import { StageMap } from './StageMap.tsx'
 import { abilityText, imageOf } from './format.ts'
 
 const MAPS = MAP_DEFS.map(parseMap)
@@ -195,6 +196,10 @@ export function App() {
         if (p) fxRef.current.push({ kind: 'skill', born: now, life: 500, to: p, color: '#ffeb3b' })
         continue
       }
+      if (ev.type === 'poison') {
+        fxRef.current.push({ kind: 'text', born: now, life: 600, to: monsterScreenPos(map, ev.dist, ev.monsterId), text: `${ev.amount}`, color: '#ce93d8' })
+        continue
+      }
       if (ev.type === 'thorn') {
         fxRef.current.push({ kind: 'text', born: now, life: 600, to: monsterScreenPos(map, ev.dist, ev.monsterId), text: `${ev.amount}`, color: '#ef9a9a' })
         continue
@@ -268,7 +273,9 @@ export function App() {
   }
 
   const startStage = () => {
-    simRef.current = createWave(cfg, map, stage, roster, placements, cfg.startLives)
+    // 판마다 새 씨앗 → 다시 해도 장애물 자리·명중·특수능력 발동이 달라짐
+    const playSeed = crypto.getRandomValues(new Uint32Array(1))[0]! || 1
+    simRef.current = createWave(cfg, map, stage, roster, placements, cfg.startLives, playSeed)
     animRef.current = newAnimState()
     accRef.current = 0
     fxRef.current = []
@@ -345,19 +352,7 @@ export function App() {
         </header>
         <section>
           <h3>탄 고르기</h3>
-          <div className="stage-grid">
-            {Array.from({ length: LAST_NORMAL_STAGE }, (_, i) => i + 1).map((n) => (
-              <button
-                key={n}
-                className={`stage ${n <= save.best ? 'cleared' : ''} ${n % 10 === 0 ? 'boss' : ''}`}
-                disabled={n > maxOpen}
-                onClick={() => openStage(n)}
-                title={n % 10 === 0 ? '우두머리 탄' : undefined}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
+          <StageMap count={LAST_NORMAL_STAGE} best={save.best} maxOpen={maxOpen} onOpen={openStage} />
           <div className="row" style={{ marginTop: 10 }}>
             <button className="primary inline" disabled={save.best < LAST_NORMAL_STAGE && !save.unlockAll} onClick={() => openStage(infinite)}>
               ♾ 무한 ({infinite}탄)

@@ -1,8 +1,7 @@
 import {
   ABILITY_COOLDOWN_MS,
   levelBonus,
-  OBSTACLE_DAMAGE_BP,
-  OBSTACLE_SLOW_BP,
+  SPLASH_RADIUS,
   STUN_IMMUNE_MS,
   TEAM_LEVEL_MS,
   type Ability,
@@ -12,7 +11,7 @@ import {
 } from './abilities.ts'
 import { applyBp, ATTACK_WINDOW_MS, BP, MAX_ATTACK_SPEED, msToTicks, type DefenseConfig } from './config.ts'
 import { CELL, inRange, pathIndexAt, type Cell, type GameMap } from './map.ts'
-import { Rng } from './rng.ts'
+import { Rng, seedFromString } from './rng.ts'
 import type { UnitInstance } from './roster.ts'
 import {
   BLINK_CELLS,
@@ -56,6 +55,8 @@ export interface Monster {
   hasteUntil: number
   /** 무적: 이 틱까지 피해·스턴·출발지로 보내기 안 통함 */
   invincibleUntil: number
+  /** 맹독: 1초마다 받는 피해 (0 = 안 걸림). 몬스터당 한 번, 죽을 때까지 */
+  poisonDmg: number
   /** 능력별 다음 발동 가능 틱 (쿨타임) */
   abilityReadyAt: Partial<Record<MonsterAbilityKind, number>>
   /** 능력별 쓴 횟수 (마리당 횟수 제한) */
@@ -85,8 +86,8 @@ export interface Obstacle {
   /** 길 칸 번호 (map.path 인덱스) */
   index: number
   kind: ObstacleKind
-  /** 가시: 1초마다 피해 */
-  damage: number
+  /** 가시: 1초마다 밟은 몬스터 최대 체력의 % / 늪: 속도 감소 % (basis point) */
+  amountBp: number
   ownerId: string
 }
 
@@ -95,6 +96,7 @@ export type SimEvent =
   | { type: 'miss'; unitId: string; monsterId: number; dist: number }
   | { type: 'proc'; unitId: string; kind: AbilityKind; monsterId: number; dist: number }
   | { type: 'thorn'; monsterId: number; dist: number; amount: number }
+  | { type: 'poison'; monsterId: number; dist: number; amount: number }
   | { type: 'kill'; monsterId: number; monsterType: MonsterId; dist: number }
   | { type: 'leak'; monsterId: number; lives: number }
   /** 무적이라 피해가 안 들어감 */
@@ -107,6 +109,8 @@ export interface WaveSim {
   map: GameMap
   stage: StageDef
   rng: Rng
+  /** 이 판의 씨앗 (0 = 탄 번호만) */
+  playSeed: number
   tick: number
   spawns: { tick: number; type: MonsterId }[]
   spawnIdx: number
@@ -150,6 +154,11 @@ export function createWave(
   roster: readonly UnitInstance[],
   placements: Placements,
   lives: number,
+  /**
+   * 판 씨앗: 판(도전)마다 새로 정함 → 같은 탄을 다시 해도 명중·특수능력 발동·장애물 자리가 달라짐 (2026-11-27).
+   * 0 = 탄 번호만 씀 (체력 보정·테스트용 고정). 서버 검증 땐 이 값도 같이 받아 다시 돌림.
+   */
+  playSeed = 0,
 ): WaveSim {
   if (map.id !== stage.mapId) throw new Error(`이 탄의 맵은 ${stage.mapId}`)
   const err = validatePlacements(cfg, map, roster, placements)
@@ -170,7 +179,8 @@ export function createWave(
     cfg,
     map,
     stage,
-    rng: new Rng({ s: stage.seed }),
+    rng: new Rng({ s: playSeed ? seedFromString(`${stage.seed}:${playSeed >>> 0}`) : stage.seed }),
+    playSeed: playSeed >>> 0,
     tick: 0,
     spawns,
     spawnIdx: 0,
@@ -274,7 +284,8 @@ function monsterReact(sim: WaveSim, u: SimUnit, m: Monster) {
         break
       case 'blink': {
         // 출구 바로 앞 칸 가운데까지만 (순간이동으로 바로 목숨이 깎이지 않게)
-        const to = Math.min(m.dist + BLINK_CELLS * CELL, map.length - CELL / 2)
+        // 출구 바로 앞 칸 가운데까지만 (출구 칸 가운데 = 사라지는 곳)
+        const to = Math.min(m.dist + BLINK_CELLS * CELL, map.length - CELL)
         if (to <= m.dist) fired = false
         else m.dist = m.prevDist = to
         break
@@ -347,11 +358,11 @@ function applyUnitAbility(sim: WaveSim, u: SimUnit, target: Monster, proc: Abili
       }
       break
     case 'splash': {
-      // 맞힌 자리(대상 칸) 중심 3×3의 다른 몬스터 (명중 판정 없음)
+      // 맞힌 자리(대상 칸) 중심 5×5의 다른 몬스터 (명중 판정 없음)
       const tc = cellOfMonster(sim, target)
       for (const m of sim.monsters) {
         if (m === target || m.hp <= 0 || m.spec.immunities.includes('splash')) continue
-        if (inRange(tc, cellOfMonster(sim, m), 1, 'square')) damage(sim, u, m, atk, false, true)
+        if (inRange(tc, cellOfMonster(sim, m), SPLASH_RADIUS, 'square')) damage(sim, u, m, atk, false, true)
       }
       break
     }
@@ -365,7 +376,7 @@ function applyUnitAbility(sim: WaveSim, u: SimUnit, target: Monster, proc: Abili
       const free = map.path.map((_, i) => i).filter((i) => !sim.obstacles.some((o) => o.index === i))
       if (free.length) {
         const index = free[sim.rng.int(free.length)]!
-        sim.obstacles.push({ index, kind: proc.obstacle, damage: Math.max(1, applyBp(u.inst.atk, OBSTACLE_DAMAGE_BP)), ownerId: u.inst.id })
+        sim.obstacles.push({ index, kind: proc.obstacle, amountBp: proc.amountBp, ownerId: u.inst.id })
       }
       u.obstacleUsed = true
       break
@@ -376,6 +387,10 @@ function applyUnitAbility(sim: WaveSim, u: SimUnit, target: Monster, proc: Abili
         if (m === target || m.hp <= 0 || m.spec.immunities.includes('allAttack')) continue
         damage(sim, u, m, atk, false, true)
       }
+      break
+    case 'poison':
+      // 빗나가도 걸림 (다른 특수능력과 같음). 이미 걸렸으면 그대로 (중첩 없음)
+      if (!blocked('poison') && target.poisonDmg === 0 && target.hp > 0) target.poisonDmg = Math.max(1, applyBp(atk, proc.pctBp))
       break
     case 'teamLevel':
       sim.levelBuffs.push({ stat: proc.stat, level: proc.level, until: sim.tick + msToTicks(cfg, TEAM_LEVEL_MS) })
@@ -416,6 +431,7 @@ export function stepWave(sim: WaveSim) {
       armorUpUntil: 0,
       hasteUntil: 0,
       invincibleUntil: 0,
+      poisonDmg: 0,
       abilityReadyAt: {},
       abilityUsed: {},
     })
@@ -426,7 +442,7 @@ export function stepWave(sim: WaveSim) {
     m.prevDist = m.dist
     if (sim.tick < m.stunnedUntil) continue
     const o = obstacleAt(m)
-    const slow = o?.kind === 'slow' ? OBSTACLE_SLOW_BP : 0
+    const slow = o?.kind === 'slow' ? o.amountBp : 0
     const speed = sim.tick < m.hasteUntil ? m.speed * 2 : m.speed
     m.dist += Math.max(1, speed - applyBp(speed, slow))
     if (m.dist >= map.length) {
@@ -438,13 +454,20 @@ export function stepWave(sim: WaveSim) {
   }
   sim.monsters = sim.monsters.filter((m) => m.dist < map.length)
 
-  // 가시 장애물: 1초마다
+  // 1초마다: 가시 장애물(밟고 있으면 최대 체력의 %) · 맹독 (둘 다 방어 무시, 무적이면 안 들어감)
   if (sim.tick % cfg.tickRate === 0) {
     for (const m of sim.monsters) {
+      if (isInvincible(sim, m)) continue
       const o = obstacleAt(m)
-      if (o?.kind !== 'damage' || isInvincible(sim, m)) continue
-      m.hp -= o.damage
-      sim.events.push({ type: 'thorn', monsterId: m.id, dist: m.dist, amount: o.damage })
+      if (o?.kind === 'damage') {
+        const dmg = Math.max(1, applyBp(m.maxHp, o.amountBp))
+        m.hp -= dmg
+        sim.events.push({ type: 'thorn', monsterId: m.id, dist: m.dist, amount: dmg })
+      }
+      if (m.poisonDmg > 0) {
+        m.hp -= m.poisonDmg
+        sim.events.push({ type: 'poison', monsterId: m.id, dist: m.dist, amount: m.poisonDmg })
+      }
     }
   }
 

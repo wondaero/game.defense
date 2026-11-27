@@ -11,7 +11,7 @@ import { Resvg } from '@resvg/resvg-js'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { entities, SIZE } from './art.mjs'
+import { ALIASES, entities, SIZE } from './art.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = join(root, 'apps', 'web', 'public', 'sprites')
@@ -45,6 +45,8 @@ for (const e of entities()) {
   console.log(`${e.id}: ${cols}×${rows} → ${png.length} bytes`)
 }
 
+// 별칭: 게임의 몬스터 종류(mon_normal 등) → 실제 그림 파일
+for (const [alias, target] of Object.entries(ALIASES)) meta.entities[alias] = { ...meta.entities[target], file: target }
 writeFileSync(join(outDir, 'sprites.json'), JSON.stringify(meta, null, 2))
 writeFileSync(
   join(outDir, 'preview.html'),
