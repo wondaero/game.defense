@@ -14,9 +14,7 @@ import {
   REFERENCE_MAX_STAGE,
   referenceSummary,
   stageHpBp,
-  rollRoster,
-  START_TICKETS,
-  type Tickets,
+  type Account,
   statScore,
   stageDef,
   stageSummary,
@@ -37,6 +35,8 @@ import { StageMap } from './StageMap.tsx'
 import { unitLook } from './format.ts'
 import { RosterTools, UnitRow, viewRoster, type RosterView } from './UnitList.tsx'
 import { Barracks } from './Barracks.tsx'
+import type { GameApi } from './api/api.ts'
+import { createLocalApi } from './api/localApi.ts'
 
 const MAPS = MAP_DEFS.map(parseMap)
 const mapById = (id: string) => MAPS.find((m) => m.id === id)!
@@ -44,41 +44,24 @@ const mapById = (id: string) => MAPS.find((m) => m.id === id)!
 /** 화면: 탄 고르기 → 탄 준비(출연 몬스터 보고 배치) → 진행 → 결과 */
 type Screen = 'select' | 'prepare' | 'play' | 'result' | 'bench'
 
-/** 브라우저에 저장하는 것 (시험판) */
+/**
+ * 브라우저에 저장하는 화면 설정 (2026-11-27).
+ * 캐릭·권·최고 기록·별은 "계정"이라 여기 말고 api(지금은 localApi, 나중엔 서버)가 가짐
+ */
 interface Save {
-  best: number
   rosterSeed: string
   placementsByMap: Record<string, Placements>
   unlockAll: boolean
-  /** 탄별 가장 좋은 별 (1~3) */
-  stars: Record<number, number>
-  /** 막사 캐릭 (2026-11-27: 씨앗으로 매번 만들지 않고 실제로 저장 — 뽑기·변경·합성으로 바뀜) */
-  units: UnitInstance[]
-  /** 다음 캐릭 번호 (u1, u2, …) */
-  nextUnitId: number
-  /** 가진 권 */
-  tickets: Tickets
 }
 const SAVE_KEY = 'defense.save.v1'
 function loadSave(): Save {
-  const empty = { best: 0, rosterSeed: '시험판-1', placementsByMap: {}, unlockAll: false, stars: {}, tickets: { ...START_TICKETS } }
-  let s: Partial<Save> = {}
+  const empty: Save = { rosterSeed: '시험판-1', placementsByMap: {}, unlockAll: false }
   try {
     const raw = localStorage.getItem(SAVE_KEY)
-    if (raw) s = JSON.parse(raw) as Partial<Save>
+    return raw ? { ...empty, ...(JSON.parse(raw) as Partial<Save>) } : empty
   } catch {
-    s = {}
+    return empty
   }
-  const merged = { ...empty, ...s }
-  // 예전 저장(캐릭을 씨앗으로 만들던 때)은 같은 씨앗으로 한 번 만들어 저장 → 원래 캐릭 그대로
-  const units = s.units ?? freshBarracks(DEFAULT_CONFIG, merged.rosterSeed).units
-  return { ...merged, units, nextUnitId: s.nextUnitId ?? units.length + 1, tickets: { ...START_TICKETS, ...s.tickets } }
-}
-
-/** 시험판 막사: 씨앗으로 rosterSize 명을 뽑아 둠 */
-function freshBarracks(cfg: DefenseConfig, rosterSeed: string) {
-  const units = rollRoster(cfg, createRngState(rosterSeed)).units
-  return { rosterSeed, units, nextUnitId: units.length + 1 }
 }
 
 /** 몬스터 능력 효과 색 */
@@ -107,6 +90,19 @@ export function App() {
   const [tab, setTab] = useState<Tab>('stages')
   const [shopTab, setShopTab] = useState<'shop' | 'trade'>('shop')
   const [save, setSave] = useState<Save>(loadSave)
+  // 계정 창구: 지금은 브라우저 안(localApi), 서버를 붙이면 serverApi 로 바꿈 (화면 코드는 그대로)
+  const cfgRef = useRef(cfg)
+  cfgRef.current = cfg
+  const unlockRef = useRef(save.unlockAll)
+  unlockRef.current = save.unlockAll
+  const api = useMemo<GameApi>(() => createLocalApi(() => cfgRef.current, () => unlockRef.current), [])
+  const [account, setAccount] = useState<Account | null>(null)
+  useEffect(() => {
+    void api.loadAccount().then(setAccount)
+  }, [api])
+  const best = account?.best ?? 0
+  // 탄 시작 때 받은 판 번호(runId)와 그때의 배치 → 끝나면 이걸로 판정 요청
+  const runRef = useRef<{ runId: string; stageNo: number; placements: Placements } | null>(null)
   const [screen, setScreen] = useState<Screen>('select')
   const [stageNo, setStageNo] = useState(1)
   const [result, setResult] = useState<{ cleared: boolean; text: string; stars: number } | null>(null)
@@ -128,7 +124,7 @@ export function App() {
 
   const stage = useMemo(() => stageDef(stageNo), [stageNo])
   const map = mapById(stage.mapId)
-  const roster = save.units
+  const roster = useMemo(() => account?.units ?? [], [account])
   // 저장된 배치 중 지금 보관함·설정에 맞는 것만
   const placements = useMemo(() => {
     const p: Placements = {}
@@ -310,14 +306,25 @@ export function App() {
 
   function finishStage(sim: WaveSim) {
     if (live.current.screen !== 'play') return
-    const n = live.current.stageNo
-    const cleared = sim.lives > 0
-    const text = (sim.bossLeaked ? '왕이 통과했어요 (왕은 꼭 잡아야 해요) · ' : '') + `${sim.killed}마리 처치 · ${sim.leaked}마리 통과 · ${(sim.tick / live.current.cfg.tickRate).toFixed(0)}초`
-    const stars = starsFor(cleared, sim.leaked)
-    if (cleared) setSave((s) => ({ ...s, best: Math.max(s.best, n), stars: { ...s.stars, [n]: Math.max(s.stars?.[n] ?? 0, stars) } }))
-    setResult({ cleared, text, stars })
     live.current.screen = 'result'
-    setScreen('result')
+    const run = runRef.current
+    runRef.current = null
+    const show = (r: { cleared: boolean; stars: number; killed: number; leaked: number; ticks: number; bossLeaked: boolean }, note = '') => {
+      const text = (r.bossLeaked ? '왕이 통과했어요 (왕은 꼭 잡아야 해요) · ' : '') + `${r.killed}마리 처치 · ${r.leaked}마리 통과 · ${(r.ticks / live.current.cfg.tickRate).toFixed(0)}초` + note
+      setResult({ cleared: r.cleared, text, stars: r.stars })
+      setScreen('result')
+    }
+    const mine = { cleared: sim.lives > 0, stars: starsFor(sim.lives > 0, sim.leaked), killed: sim.killed, leaked: sim.leaked, ticks: sim.tick, bossLeaked: sim.bossLeaked }
+    if (!run) return show(mine)
+    api
+      .finishStage(run)
+      .then(({ account, result }) => {
+        setAccount(account)
+        // 판정은 다시 돌린 결과를 믿음 (화면 결과와 다르면 알림 — 엔진 결정성이 깨졌다는 뜻)
+        if (result.cleared !== mine.cleared || result.stars !== mine.stars) console.warn('화면 결과와 판정이 다름', mine, result)
+        show(result)
+      })
+      .catch((e: unknown) => show(mine, ` · ⚠ 기록 안 됨: ${e instanceof Error ? e.message : String(e)}`))
   }
 
   /**
@@ -370,10 +377,11 @@ export function App() {
     setScreen('prepare')
   }
 
-  const startStage = () => {
-    // 판마다 새 씨앗 → 다시 해도 장애물 자리·명중·특수능력 발동이 달라짐
-    const playSeed = crypto.getRandomValues(new Uint32Array(1))[0]! || 1
-    simRef.current = createWave(cfg, map, stage, roster, placements, cfg.startLives, playSeed)
+  const startStage = async () => {
+    // 판마다 새 씨앗 (api 가 정함 — 서버라면 서버가 정해서 조작 불가) → 다시 해도 장애물 자리·명중·특수능력 발동이 달라짐
+    const { runId, seed } = await api.startStage(stageNo)
+    runRef.current = { runId, stageNo, placements: { ...placements } }
+    simRef.current = createWave(cfg, map, stage, roster, placements, cfg.startLives, seed)
     animRef.current = newAnimState()
     accRef.current = 0
     fxRef.current = []
@@ -433,29 +441,29 @@ export function App() {
   }
 
   const sim = simRef.current
-  const maxOpen = save.unlockAll ? Infinity : save.best + 1
+  const maxOpen = save.unlockAll ? Infinity : best + 1
 
   if (screen === 'bench') return <Bench onBack={goSelect} />
 
   // ── 첫 화면: 아래 고정 메뉴로 막사 · 스테이지 · 상점 (2026-11-27) ──
   if (screen === 'select') {
-    const infinite = Math.max(LAST_NORMAL_STAGE + 1, save.best + 1)
+    const infinite = Math.max(LAST_NORMAL_STAGE + 1, best + 1)
     const shown = viewRoster(cfg, roster, view)
     return (
       <div className="app with-tabbar">
         <header>
           <h1>{TAB_TITLES[tab]}</h1>
           <div className="stats">
-            <span>🏆 최고 기록 {save.best}탄</span>
+            <span>🏆 최고 기록 {best}탄</span>
           </div>
         </header>
 
         {tab === 'stages' && (
           <>
             <section>
-              <StageMap count={LAST_NORMAL_STAGE} best={save.best} stars={save.stars ?? {}} maxOpen={maxOpen} onOpen={openStage} />
+              <StageMap count={LAST_NORMAL_STAGE} best={best} stars={account?.stars ?? {}} maxOpen={maxOpen} onOpen={openStage} />
               <div className="row" style={{ marginTop: 10 }}>
-                <button className="primary inline" disabled={save.best < LAST_NORMAL_STAGE && !save.unlockAll} onClick={() => openStage(infinite)}>
+                <button className="primary inline" disabled={best < LAST_NORMAL_STAGE && !save.unlockAll} onClick={() => openStage(infinite)}>
                   ♾ 무한 ({infinite}탄)
                 </button>
                 <span className="dim">100탄을 깨면 열림. 그 뒤로 끝없이 어려워짐</span>
@@ -466,7 +474,7 @@ export function App() {
                 <label className="dim">
                   <input type="checkbox" checked={save.unlockAll} onChange={(e) => setSave({ ...save, unlockAll: e.target.checked })} /> 시험용: 모든 탄 열기
                 </label>
-                <button onClick={() => confirm('최고 기록을 0으로 되돌릴까요?') && setSave({ ...save, best: 0 })}>기록 지우기</button>
+                <button onClick={() => confirm('최고 기록을 0으로 되돌릴까요?') && void api.dev?.setBest(0).then(setAccount)}>기록 지우기</button>
                 <button
                   onClick={() => {
                     enterSubScreen()
@@ -486,25 +494,28 @@ export function App() {
           </>
         )}
 
-        {tab === 'barracks' && (
+        {tab === 'barracks' && account && (
           <Barracks
             cfg={cfg}
-            data={{ units: roster, tickets: save.tickets, nextUnitId: save.nextUnitId }}
-            onChange={(next, removed) =>
-              setSave((s) => ({
-                ...s,
-                units: next.units,
-                tickets: next.tickets,
-                nextUnitId: next.nextUnitId,
-                // 합성으로 없어진 캐릭은 모든 맵 배치에서 뺌
-                placementsByMap: removed?.length
-                  ? Object.fromEntries(Object.entries(s.placementsByMap).map(([m, p]) => [m, Object.fromEntries(Object.entries(p).filter(([id]) => !removed.includes(id)))]))
-                  : s.placementsByMap,
-              }))
-            }
+            account={account}
+            api={api}
+            onAccount={(next, removed) => {
+              setAccount(next)
+              // 합성으로 없어진 캐릭은 모든 맵 배치에서 뺌 (배치는 화면 설정)
+              if (removed?.length)
+                setSave((s) => ({
+                  ...s,
+                  placementsByMap: Object.fromEntries(Object.entries(s.placementsByMap).map(([m, p]) => [m, Object.fromEntries(Object.entries(p).filter(([id]) => !removed.includes(id)))])),
+                }))
+            }}
             view={view}
             onView={setView}
-            onReroll={() => setSave((s) => ({ ...s, ...freshBarracks(cfg, `시험판-${Math.floor(Math.random() * 1e6)}`), placementsByMap: {} }))}
+            onReroll={() =>
+              void api.dev?.resetBarracks(`시험판-${Math.floor(Math.random() * 1e6)}`).then((a) => {
+                setAccount(a)
+                setSave((s) => ({ ...s, placementsByMap: {} }))
+              })
+            }
           />
         )}
 
@@ -571,7 +582,7 @@ export function App() {
               ⏱ {(sim.tick / cfg.tickRate).toFixed(1)}초 · 남은 몬스터 {sim.spawns.length - sim.spawnIdx + sim.monsters.length}
             </span>
           )}
-          <span>🏆 {save.best}탄</span>
+          <span>🏆 {best}탄</span>
         </div>
       </header>
 

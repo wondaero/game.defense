@@ -1,38 +1,28 @@
 import { useState, type ReactNode } from 'react'
 import {
-  barracksFull,
-  createRngState,
-  drawUnit,
   MERGE_COUNTS,
   MERGE_TABLE,
-  mergeReward,
-  rerollAbility,
-  rerollStats,
-  Rng,
   STAT_KEY_NAMES,
   STAT_KEYS,
   STAT_TICKET_KEEP,
   statTier,
   TICKET_NAMES,
+  type Account,
+  type BarracksAction,
+  type BarracksOutcome,
   type DefenseConfig,
+  type StatGrade,
   type StatKey,
   type TicketKind,
-  type Tickets,
   type UnitInstance,
 } from '@def/defense'
 import { RosterTools, UnitRow, viewRoster, type RosterView } from './UnitList.tsx'
+import type { GameApi } from './api/api.ts'
 
 /**
  * 막사 (2026-11-27): 캐릭 목록 + 캐릭 뽑기 · 능력치 변경 · 특수능력 변경 · 합성.
- * 시험판은 브라우저에 저장 (나중엔 서버가 같은 규칙으로 굴림 — 엔진 barracks.ts)
+ * 화면은 계정을 직접 고치지 않고 api.barracks(요청)만 보냄 → 검사·난수·저장은 api 쪽(지금 localApi, 나중에 서버)
  */
-export interface BarracksData {
-  units: UnitInstance[]
-  tickets: Tickets
-  nextUnitId: number
-}
-
-type StatGrade = 'statNormal' | 'statHigh' | 'statTop'
 type Mode = null | { kind: 'stat'; grade: StatGrade } | { kind: 'ability' } | { kind: 'merge'; ids: string[] }
 type Popup =
   | null
@@ -47,32 +37,42 @@ const STAT_GRADES: StatGrade[] = ['statNormal', 'statHigh', 'statTop']
 const GRADE_SHORT: Record<StatGrade, string> = { statNormal: '보통', statHigh: '상급', statTop: '최상급' }
 const TICKET_ICON: Record<TicketKind, string> = { draw: '🎟️', statNormal: '🔄', statHigh: '🔄', statTop: '🔄', ability: '✨' }
 
-/** 화면용 난수: 누를 때마다 새 씨앗 (엔진 안이 아니라서 Math.random 사용 가능). 나중엔 서버가 굴림 */
-const freshRng = () => new Rng(createRngState(`${Date.now()}-${Math.random()}`))
-
 export function Barracks(props: {
   cfg: DefenseConfig
-  data: BarracksData
+  account: Account
+  api: GameApi
   /** removedIds = 합성으로 없어진 캐릭 (배치에서도 빼야 함) */
-  onChange: (next: BarracksData, removedIds?: string[]) => void
+  onAccount: (next: Account, removedIds?: string[]) => void
   view: RosterView
   onView: (v: RosterView) => void
   onReroll: () => void
 }) {
-  const { cfg, data } = props
-  const { units, tickets } = data
+  const { cfg, account } = props
+  const { units, tickets } = account
   const [mode, setMode] = useState<Mode>(null)
   const [popup, setPopup] = useState<Popup>(null)
+  const [busy, setBusy] = useState(false)
   const shown = viewRoster(cfg, units, props.view)
-  const replaceUnit = (u: UnitInstance, used: TicketKind) =>
-    props.onChange({ ...data, units: units.map((x) => (x.id === u.id ? u : x)), tickets: { ...tickets, [used]: tickets[used] - 1 } })
 
-  const draw = () => {
-    if (tickets.draw < 1) return alert('뽑기권이 없어요')
-    if (barracksFull(cfg, units)) return alert(`막사가 꽉 찼어요 (${cfg.rosterSize}명). 합성으로 자리를 비워 주세요`)
-    const unit = drawUnit(cfg, freshRng(), `u${data.nextUnitId}`)
-    props.onChange({ units: [...units, unit], tickets: { ...tickets, draw: tickets.draw - 1 }, nextUnitId: data.nextUnitId + 1 })
-    setPopup({ kind: 'drawn', unit })
+  /** 요청 보내기 → 새 계정 받기. 안 되면 이유를 알림 */
+  const send = async (action: BarracksAction): Promise<BarracksOutcome | null> => {
+    if (busy) return null
+    setBusy(true)
+    try {
+      const { account: next, outcome } = await props.api.barracks(action)
+      props.onAccount(next, action.type === 'merge' ? action.unitIds : undefined)
+      return outcome
+    } catch (e) {
+      alert(e instanceof Error ? e.message : String(e))
+      return null
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const draw = async () => {
+    const o = await send({ type: 'draw' })
+    if (o?.type === 'drawn') setPopup({ kind: 'drawn', unit: o.unit })
   }
 
   const onUnitClick = (u: UnitInstance) => {
@@ -90,24 +90,22 @@ export function Barracks(props: {
     }
   }
 
-  const doStat = (grade: StatGrade, unit: UnitInstance, keep: StatKey[]) => {
-    const after = rerollStats(cfg, freshRng(), unit, keep)
-    replaceUnit(after, grade)
-    const gained = !unit.ability && after.ability
-    setPopup({ kind: 'changed', title: `${TICKET_NAMES[grade]} 사용`, before: unit, after, note: gained ? '✨ 특수능력이 생겼어요! (5% 행운)' : undefined })
+  const doStat = async (grade: StatGrade, unit: UnitInstance, keep: StatKey[]) => {
+    const o = await send({ type: 'rerollStats', unitId: unit.id, grade, keep })
+    if (o?.type === 'changed') setPopup({ kind: 'changed', title: `${TICKET_NAMES[grade]} 사용`, before: o.before, after: o.after, note: o.gainedAbility ? '✨ 특수능력이 생겼어요! (5% 행운)' : undefined })
+    else setPopup(null)
   }
-  const doAbility = (unit: UnitInstance) => {
-    const after = rerollAbility(freshRng(), unit)
-    if (!after) return
-    replaceUnit(after, 'ability')
-    setPopup({ kind: 'changed', title: '특수능력 변경권 사용', before: unit, after })
+  const doAbility = async (unit: UnitInstance) => {
+    const o = await send({ type: 'rerollAbility', unitId: unit.id })
+    if (o?.type === 'changed') setPopup({ kind: 'changed', title: '특수능력 변경권 사용', before: o.before, after: o.after })
+    else setPopup(null)
   }
-  const doMerge = (ids: string[]) => {
-    const reward = mergeReward(freshRng(), ids.length)
-    if (!reward) return
-    props.onChange({ ...data, units: units.filter((u) => !ids.includes(u.id)), tickets: { ...tickets, [reward]: tickets[reward] + 1 } }, ids)
-    setMode(null)
-    setPopup({ kind: 'merged', count: ids.length, reward })
+  const doMerge = async (ids: string[]) => {
+    const o = await send({ type: 'merge', unitIds: ids })
+    if (o?.type === 'merged') {
+      setMode(null)
+      setPopup({ kind: 'merged', count: o.count, reward: o.reward })
+    } else setPopup(null)
   }
 
   const mergeIds = mode?.kind === 'merge' ? mode.ids : []
@@ -125,7 +123,7 @@ export function Barracks(props: {
       </div>
 
       <div className="barracks-actions">
-        <button onClick={draw} disabled={!!mode}>
+        <button onClick={() => void draw()} disabled={!!mode || busy}>
           <span className="big">🎟️</span>캐릭 뽑기<small>뽑기권 {tickets.draw}</small>
         </button>
         <button className={mode?.kind === 'stat' ? 'on' : ''} onClick={() => setMode(mode?.kind === 'stat' ? null : { kind: 'stat', grade: 'statNormal' })}>
@@ -190,7 +188,7 @@ export function Barracks(props: {
         ))}
       </ul>
       <div className="row" style={{ marginTop: 8 }}>
-        <button onClick={() => props.onChange({ ...data, tickets: { draw: tickets.draw + 5, statNormal: tickets.statNormal + 5, statHigh: tickets.statHigh + 5, statTop: tickets.statTop + 5, ability: tickets.ability + 5 } })}>
+        <button onClick={() => void props.api.dev?.grantTickets(5).then((a) => props.onAccount(a))}>
           🧪 시험용: 권 모두 +5
         </button>
         <button onClick={() => confirm('막사 캐릭을 모두 새로 뽑을까요? (배치도 지워짐)') && props.onReroll()}>🎲 시험용: 막사 전체 다시 뽑기</button>
@@ -217,9 +215,9 @@ function BarracksPopup(props: {
   cfg: DefenseConfig
   units: UnitInstance[]
   onClose: () => void
-  onStat: (g: StatGrade, u: UnitInstance, keep: StatKey[]) => void
-  onAbility: (u: UnitInstance) => void
-  onMerge: (ids: string[]) => void
+  onStat: (g: StatGrade, u: UnitInstance, keep: StatKey[]) => Promise<void>
+  onAbility: (u: UnitInstance) => Promise<void>
+  onMerge: (ids: string[]) => Promise<void>
   setPopup: (p: Popup) => void
 }) {
   const { popup: pp, cfg, onClose } = props
@@ -263,7 +261,7 @@ function BarracksPopup(props: {
           )}
           <div className="row end">
             <button onClick={onClose}>취소</button>
-            <button className="primary inline" disabled={pp.keep.length !== need} onClick={() => props.onStat(pp.grade, pp.unit, pp.keep)}>
+            <button className="primary inline" disabled={pp.keep.length !== need} onClick={() => void props.onStat(pp.grade, pp.unit, pp.keep)}>
               바꾸기
             </button>
           </div>
@@ -277,7 +275,7 @@ function BarracksPopup(props: {
           <p className="dim">특수능력만 다시 뽑아요 (종류·수치 모두 새로, 없어지지 않음)</p>
           <div className="row end">
             <button onClick={onClose}>취소</button>
-            <button className="primary inline" onClick={() => props.onAbility(pp.unit)}>
+            <button className="primary inline" onClick={() => void props.onAbility(pp.unit)}>
               바꾸기
             </button>
           </div>
@@ -316,7 +314,7 @@ function BarracksPopup(props: {
           </ul>
           <div className="row end">
             <button onClick={onClose}>취소</button>
-            <button className="primary inline" onClick={() => props.onMerge(pp.ids)}>
+            <button className="primary inline" onClick={() => void props.onMerge(pp.ids)}>
               합성하기
             </button>
           </div>
