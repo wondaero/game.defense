@@ -451,7 +451,7 @@ export function App() {
           </div>
         </section>
         <section>
-          <h3>내 캐릭 ({roster.length} / {cfg.rosterSize}명)</h3>
+          <h3>막사 ({roster.length} / {cfg.rosterSize}명)</h3>
           <RosterTools view={view} onChange={setView} shown={viewRoster(cfg, roster, view).length} total={roster.length} />
           <ul className="roster">
             {viewRoster(cfg, roster, view).map((u) => (
@@ -586,7 +586,7 @@ export function App() {
 
           <section>
             <h3>
-              덱 ({placedCount} / {cfg.maxDeploy} 출전)
+              막사 ({roster.length}명) · 출전 {placedCount} / {cfg.maxDeploy}
             </h3>
             <RosterTools view={view} onChange={setView} shown={viewRoster(cfg, roster, view).length} total={roster.length} />
             <ul className="roster">
