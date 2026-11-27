@@ -109,3 +109,5 @@ button.link.back { font-size: 20px; }
 /* 캐릭 얼굴: 스프라이트 첫 프레임 (시트 6×3, 프레임 하나 = 얼굴 칸) */
 .face.sprite { background-color: #3d5a40; background-size: 600% 300%; background-position: 0 0; background-repeat: no-repeat; width: 40px; height: 40px; border-radius: 10px; }
 .tier { text-shadow: 0 1px 0 rgba(0,0,0,0.6); }
+/* 탄 준비·진행 화면: 판은 위에 고정, 아래(옆) 목록만 스크롤 (2026-11-27) */
+.board { position: sticky; top: 0; z-index: 5; background: #1b1f24; padding-bottom: 6px; align-self: flex-start; }
