@@ -220,3 +220,10 @@ button.link.back { font-size: 20px; }
 .modal .warn { color: #ffab91; }
 .modal .lucky { color: #fdd835; font-weight: bold; }
 .modal .big-reward { font-size: 20px; font-weight: bold; text-align: center; margin: 12px 0; }
+
+/* 탄 보상 (2026-11-27) */
+.result-reward { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 8px 0 2px; font-weight: bold; }
+.result-reward span { padding: 4px 10px; border-radius: 14px; background: rgba(255, 213, 79, .15); color: #ffe082; }
+.result-reward .reward-ticket { background: rgba(124, 77, 255, .25); color: #e1bee7; animation: reward-pop .5s 1.2s both; }
+@keyframes reward-pop { from { transform: scale(.3); opacity: 0; } 70% { transform: scale(1.15); } to { transform: scale(1); opacity: 1; } }
+.ticket.gold b { color: #ffd54f; }

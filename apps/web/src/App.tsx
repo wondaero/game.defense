@@ -15,6 +15,8 @@ import {
   referenceSummary,
   stageHpBp,
   type Account,
+  type StageReward,
+  TICKET_NAMES,
   statScore,
   stageDef,
   stageSummary,
@@ -105,7 +107,7 @@ export function App() {
   const runRef = useRef<{ runId: string; stageNo: number; placements: Placements } | null>(null)
   const [screen, setScreen] = useState<Screen>('select')
   const [stageNo, setStageNo] = useState(1)
-  const [result, setResult] = useState<{ cleared: boolean; text: string; stars: number } | null>(null)
+  const [result, setResult] = useState<{ cleared: boolean; text: string; stars: number; reward?: StageReward } | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [hover, setHover] = useState<Cell | null>(null)
   const [speed, setSpeed] = useState(1)
@@ -309,9 +311,9 @@ export function App() {
     live.current.screen = 'result'
     const run = runRef.current
     runRef.current = null
-    const show = (r: { cleared: boolean; stars: number; killed: number; leaked: number; ticks: number; bossLeaked: boolean }, note = '') => {
+    const show = (r: { cleared: boolean; stars: number; killed: number; leaked: number; ticks: number; bossLeaked: boolean; reward?: StageReward }, note = '') => {
       const text = (r.bossLeaked ? '왕이 통과했어요 (왕은 꼭 잡아야 해요) · ' : '') + `${r.killed}마리 처치 · ${r.leaked}마리 통과 · ${(r.ticks / live.current.cfg.tickRate).toFixed(0)}초` + note
-      setResult({ cleared: r.cleared, text, stars: r.stars })
+      setResult({ cleared: r.cleared, text, stars: r.stars, reward: r.reward })
       setScreen('result')
     }
     const mine = { cleared: sim.lives > 0, stars: starsFor(sim.lives > 0, sim.leaked), killed: sim.killed, leaked: sim.leaked, ticks: sim.tick, bossLeaked: sim.bossLeaked }
@@ -455,6 +457,7 @@ export function App() {
           <h1>{TAB_TITLES[tab]}</h1>
           <div className="stats">
             <span>🏆 최고 기록 {best}탄</span>
+            <span>💰 {account?.gold ?? 0} 골드</span>
           </div>
         </header>
 
@@ -621,6 +624,7 @@ export function App() {
               stars={result.stars}
               stage={stageNo}
               detail={result.text}
+              reward={result.reward ? { ...result.reward, ticket: result.reward.ticket ? TICKET_NAMES[result.reward.ticket] : null } : null}
               onNext={() => openStage(stageNo + 1)}
               onRetry={() => openStage(stageNo)}
               onSelect={goSelect}

@@ -29,7 +29,8 @@ export function createLocalApi(getCfg: () => DefenseConfig, getUnlockAll: () => 
   const read = (): Account => {
     try {
       const raw = localStorage.getItem(ACCOUNT_KEY)
-      if (raw) return JSON.parse(raw) as Account
+      // 예전 저장엔 없던 칸은 기본값으로
+      if (raw) return { ...newAccount(), ...(JSON.parse(raw) as Partial<Account>) }
     } catch {
       /* 깨진 저장은 새로 */
     }
@@ -72,7 +73,7 @@ export function createLocalApi(getCfg: () => DefenseConfig, getUnlockAll: () => 
       const run = runs.get(runId)
       if (!run || run.stageNo !== stageNo) throw new ApiError('시작하지 않은 탄이에요')
       runs.delete(runId)
-      const { account, value } = take(judgeStage(getCfg(), read(), { stageNo, placements, seed: run.seed }, getUnlockAll()))
+      const { account, value } = take(judgeStage(getCfg(), read(), { stageNo, placements, seed: run.seed }, freshRng(), getUnlockAll()))
       return { account, result: value }
     },
     dev: {

@@ -34,10 +34,12 @@ export interface Account {
   best: number
   /** 탄별 가장 좋은 별 1~3 */
   stars: Record<number, number>
+  /** 화폐 (이름 *임시* 골드) — 탄을 깨면 얻음, 상점에서 씀 */
+  gold: number
 }
 
 export function newAccount(units: UnitInstance[] = []): Account {
-  return { units, tickets: { ...START_TICKETS }, nextUnitId: units.length + 1, best: 0, stars: {} }
+  return { units, tickets: { ...START_TICKETS }, nextUnitId: units.length + 1, best: 0, stars: {}, gold: 0 }
 }
 
 export type StatGrade = 'statNormal' | 'statHigh' | 'statTop'
@@ -123,13 +125,56 @@ export interface StageReport {
   seed: number
 }
 
-export type StageJudgement = WaveResult & { bossLeaked: boolean; newBest: boolean }
+/**
+ * 탄 보상 (2026-11-27, 수치 *임시*):
+ * - 깨면 화폐. 처음 깬 탄은 화폐 2배 + 낮은 확률로 권 1장 (어느 탄이든 같은 확률)
+ * - 이미 깼던 탄을 또 깨면 화폐만. 실패하면 없음
+ */
+export const CURRENCY_NAME = '골드'
+/** 다시 깰 때 화폐 */
+export const stageGold = (n: number) => 10 + n
+export const FIRST_CLEAR_GOLD_MUL = 2
+/** 처음 깬 탄에서 권이 나올 확률 (10%) */
+export const FIRST_CLEAR_TICKET_BP = 1000
+/** 권이 나오면 어떤 권인지 (합 10000) */
+export const FIRST_CLEAR_TICKET_TABLE: readonly (readonly [TicketKind, number])[] = [
+  ['draw', 5000],
+  ['statNormal', 3500],
+  ['ability', 1000],
+  ['statHigh', 400],
+  ['statTop', 100],
+]
+export interface StageReward {
+  gold: number
+  ticket: TicketKind | null
+  firstClear: boolean
+}
+
+function rollStageReward(acc: Account, n: number, cleared: boolean, rng: Rng): StageReward {
+  if (!cleared) return { gold: 0, ticket: null, firstClear: false }
+  const firstClear = !(acc.stars[n]! > 0)
+  if (!firstClear) return { gold: stageGold(n), ticket: null, firstClear }
+  let ticket: TicketKind | null = null
+  if (rng.int(10_000) < FIRST_CLEAR_TICKET_BP) {
+    let r = rng.int(10_000)
+    for (const [k, w] of FIRST_CLEAR_TICKET_TABLE) {
+      if (r < w) {
+        ticket = k
+        break
+      }
+      r -= w
+    }
+  }
+  return { gold: stageGold(n) * FIRST_CLEAR_GOLD_MUL, ticket, firstClear }
+}
+
+export type StageJudgement = WaveResult & { bossLeaked: boolean; newBest: boolean; reward: StageReward }
 
 /**
  * 탄 결과 판정: 화면이 보낸 건 탄 번호 + 배치 + 씨앗뿐. 같은 엔진으로 처음부터 다시 돌려 결과를 정함.
- * skipOpenCheck = 시험판 "모든 탄 열기" 용 (서버엔 없음)
+ * rng = 보상 난수 (서버가 굴림). skipOpenCheck = 시험판 "모든 탄 열기" 용 (서버엔 없음)
  */
-export function judgeStage(cfg: DefenseConfig, acc: Account, rep: StageReport, skipOpenCheck = false): Answer<StageJudgement> {
+export function judgeStage(cfg: DefenseConfig, acc: Account, rep: StageReport, rng: Rng, skipOpenCheck = false): Answer<StageJudgement> {
   if (!skipOpenCheck && !stageOpen(acc, rep.stageNo)) return fail('아직 열리지 않은 탄이에요')
   const ids = Object.keys(rep.placements)
   if (ids.length === 0) return fail('캐릭을 한 명 이상 배치해 주세요')
@@ -143,6 +188,15 @@ export function judgeStage(cfg: DefenseConfig, acc: Account, rep: StageReport, s
   const sim = createWave(cfg, map, stage, acc.units, rep.placements, cfg.startLives, rep.seed)
   const r = runWave(sim)
   const n = rep.stageNo
-  const next: Account = r.cleared ? { ...acc, best: Math.max(acc.best, n), stars: { ...acc.stars, [n]: Math.max(acc.stars[n] ?? 0, r.stars) } } : acc
-  return { ok: true, account: next, value: { ...r, bossLeaked: sim.bossLeaked, newBest: r.cleared && n > acc.best } }
+  const reward = rollStageReward(acc, n, r.cleared, rng)
+  const next: Account = r.cleared
+    ? {
+        ...acc,
+        best: Math.max(acc.best, n),
+        stars: { ...acc.stars, [n]: Math.max(acc.stars[n] ?? 0, r.stars) },
+        gold: (acc.gold ?? 0) + reward.gold,
+        tickets: reward.ticket ? { ...acc.tickets, [reward.ticket]: acc.tickets[reward.ticket] + 1 } : acc.tickets,
+      }
+    : acc
+  return { ok: true, account: next, value: { ...r, bossLeaked: sim.bossLeaked, newBest: r.cleared && n > acc.best, reward } }
 }

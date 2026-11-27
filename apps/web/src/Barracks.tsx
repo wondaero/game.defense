@@ -115,6 +115,9 @@ export function Barracks(props: {
     <section>
       {/* 가진 권 */}
       <div className="tickets">
+        <span className="ticket gold" title="화폐 (탄을 깨면 얻음)">
+          💰 골드 <b>{account.gold ?? 0}</b>
+        </span>
         {(Object.keys(TICKET_NAMES) as TicketKind[]).map((k) => (
           <span key={k} className={`ticket ${tickets[k] ? '' : 'none'}`} title={TICKET_NAMES[k]}>
             {TICKET_ICON[k]} {TICKET_NAMES[k].replace('능력치 변경권', '능력치')} <b>{tickets[k]}</b>

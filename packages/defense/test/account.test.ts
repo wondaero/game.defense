@@ -12,6 +12,7 @@ import {
   Rng,
   rollRoster,
   stageDef,
+  stageGold,
   stageOpen,
   stepWave,
 } from '../src/index.ts'
@@ -43,6 +44,30 @@ describe('계정 (서버가 돌릴 규칙)', () => {
     expect(applyBarracks(cfg, full, { type: 'draw' }, rng()).ok).toBe(false)
   })
 
+  it('탄 보상: 처음 깨면 화폐 2배 + 가끔 권, 다시 깨면 화폐만, 실패면 없음', () => {
+    const st = stageDef(1)
+    const map = parseMap(MAP_DEFS.find((m) => m.id === st.mapId)!)
+    const placements = autoPlace(cfg, map, units.slice(0, cfg.maxDeploy))
+    const acc = newAccount(units)
+    let tickets = 0
+    let firstGold = 0
+    for (let i = 0; i < 300; i++) {
+      const j = judgeStage(cfg, acc, { stageNo: 1, placements, seed: 7 }, new Rng(createRngState(i)))
+      if (!j.ok || !j.value.cleared) throw new Error('1탄은 깨야 함')
+      expect(j.value.reward.firstClear).toBe(true)
+      firstGold = j.value.reward.gold
+      if (j.value.reward.ticket) tickets++
+    }
+    expect(firstGold).toBe(stageGold(1) * 2)
+    expect(tickets).toBeGreaterThan(10) // 약 10%
+    expect(tickets).toBeLessThan(60)
+    const again = { ...acc, best: 1, stars: { 1: 3 } }
+    for (let i = 0; i < 50; i++) {
+      const j = judgeStage(cfg, again, { stageNo: 1, placements, seed: 7 }, new Rng(createRngState(i)))
+      expect(j.ok && [j.value.reward.gold, j.value.reward.ticket, j.account.gold]).toEqual([stageGold(1), null, stageGold(1)])
+    }
+  })
+
   it('탄 판정: 화면에서 한 칸씩 돌린 결과와 다시 돌린 결과가 같음, 열리지 않은 탄은 거절', () => {
     const acc = newAccount(units)
     const st = stageDef(1)
@@ -53,13 +78,13 @@ describe('계정 (서버가 돌릴 규칙)', () => {
     // 화면처럼 한 틱씩
     const sim = createWave(cfg, map, st, units, placements, cfg.startLives, seed)
     while (!sim.done) stepWave(sim)
-    const j = judgeStage(cfg, acc, { stageNo: 1, placements, seed })
+    const j = judgeStage(cfg, acc, { stageNo: 1, placements, seed }, rng())
     expect(j.ok).toBe(true)
     if (!j.ok) return
     expect([j.value.cleared, j.value.killed, j.value.leaked, j.value.ticks]).toEqual([sim.lives > 0, sim.killed, sim.leaked, sim.tick])
     if (j.value.cleared) expect(j.account.best).toBe(1)
     expect(stageOpen(acc, 2)).toBe(false)
-    expect(judgeStage(cfg, acc, { stageNo: 5, placements, seed }).ok).toBe(false)
-    expect(judgeStage(cfg, acc, { stageNo: 1, placements: { nope: { x: 0, y: 0 } }, seed }).ok).toBe(false)
+    expect(judgeStage(cfg, acc, { stageNo: 5, placements, seed }, rng()).ok).toBe(false)
+    expect(judgeStage(cfg, acc, { stageNo: 1, placements: { nope: { x: 0, y: 0 } }, seed }, rng()).ok).toBe(false)
   })
 })
