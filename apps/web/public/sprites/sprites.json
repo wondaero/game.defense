@@ -367,6 +367,32 @@
         }
       }
     },
+    "tool_hypnosis": {
+      "name": "최면 추 — 최면",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
     "tool_frenzy": {
       "name": "불꽃 — 광폭화",
       "kind": "unit",
@@ -959,6 +985,198 @@
     },
     "mon_boss_hp_armor_agi_spd": {
       "name": "우두머리 (체력·방어·민첩·속도)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_boss_m": {
+      "name": "우두머리 (왕 모자 + 망토) (왼쪽용)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_boss_hp_armor_agi_m": {
+      "name": "우두머리 (체력·방어·민첩) (왼쪽용)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_boss_hp_armor_spd_m": {
+      "name": "우두머리 (체력·방어·속도) (왼쪽용)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_boss_hp_agi_spd_m": {
+      "name": "우두머리 (체력·민첩·속도) (왼쪽용)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_boss_armor_agi_spd_m": {
+      "name": "우두머리 (방어·민첩·속도) (왼쪽용)",
+      "kind": "monster",
+      "cols": 6,
+      "rows": 4,
+      "motions": {
+        "walk": {
+          "row": 0,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        "hit": {
+          "row": 1,
+          "frames": 2,
+          "fps": 12,
+          "loop": false
+        },
+        "stun": {
+          "row": 2,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        "die": {
+          "row": 3,
+          "frames": 5,
+          "fps": 12,
+          "loop": false
+        }
+      }
+    },
+    "mon_boss_hp_armor_agi_spd_m": {
+      "name": "우두머리 (체력·방어·민첩·속도) (왼쪽용)",
       "kind": "monster",
       "cols": 6,
       "rows": 4,

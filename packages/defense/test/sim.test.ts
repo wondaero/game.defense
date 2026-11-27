@@ -194,8 +194,39 @@ describe('진행', () => {
       for (const e of sim.events) if (e.type === 'poison') ticks.push(e.amount)
     }
     expect(m.poisonDmg).toBe(6) // 공격력 20 × 30%
-    expect(ticks.length).toBeGreaterThanOrEqual(4) // 5초 동안 1초마다
+    expect(ticks.length).toBeGreaterThanOrEqual(3) // 5초 동안 1초마다 (민첩으로 버티면 조금 늦게 걸림)
     expect(new Set(ticks)).toEqual(new Set([6])) // 여러 번 맞아도 중첩 없음
+  })
+
+  it('저항: 발동해도 20 / (20 + 몬스터 민첩) 확률로만 걸림', () => {
+    const st0 = stageDef(12)
+    const map = maps[st0.mapId]!
+    const cfg1 = makeConfig({ maxDeploy: 1 })
+    const ros = [{ ...unit(0, 1, 16, 5, 10), ability: { kind: 'stun', chanceBp: 10000, durationMs: 500 } as Ability }]
+    const spot = map.tiles.flat().indexOf('slot')
+    const mon = st0.groups[0]!.monster
+    const sim = createWave(cfg1, map, { ...st0, groups: [{ monster: mon, count: 1, delayMs: 0, intervalMs: 0 }] }, ros, { t0: { x: spot % map.width, y: Math.floor(spot / map.width) } }, 20)
+    let procs = 0
+    let resists = 0
+    for (let t = 0; t < 4000; t++) {
+      stepWave(sim)
+      const m = sim.monsters[0]
+      if (m) {
+        m.hp = m.maxHp = 1e9
+        m.speed = 0
+        m.stunImmuneUntil = 0
+        m.stunnedUntil = 0
+        if (sim.units[0]) sim.units[0].abilityReadyAt = 0
+      }
+      for (const e of sim.events) {
+        if (e.type === 'proc') procs++
+        if (e.type === 'resist') resists++
+      }
+    }
+    const agi = st0.monsters[mon]!.agility
+    const expected = 20 / (20 + agi)
+    expect(procs).toBeGreaterThan(300)
+    expect(Math.abs(1 - resists / procs - expected)).toBeLessThan(0.07)
   })
 
   it('판 씨앗: 다시 하면 장애물 자리가 달라지고, 같은 씨앗이면 같음', () => {
@@ -353,6 +384,35 @@ describe('진행', () => {
     expect(baseStats(cfg, h(3), true).range).toBe(2)
   })
 
+  it('최면: 맞은 몬스터가 5칸 뒤로 갔다가 다시 옴, 몬스터당 한 번', () => {
+    const st0 = stageDef(1)
+    const map = maps[st0.mapId]!
+    const st = { ...st0, groups: [{ monster: st0.groups[0]!.monster, count: 1, delayMs: 0, intervalMs: 0 }] }
+    const cfg1 = makeConfig({ maxDeploy: 1 })
+    // 길 9칸째 옆 배치 칸에 확률 100% 최면 캐릭
+    const pc = map.path[9]!
+    const spot = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: pc.x + dx!, y: pc.y + dy! })).find((c) => map.tiles[c.y]?.[c.x] === 'slot')!
+    const ros = [{ ...unit(0, 1, 1, 2, 10), ability: { kind: 'hypnosis', chanceBp: 10000 } as Ability }]
+    const sim = createWave(cfg1, map, st, ros, { t0: spot }, 20)
+    let maxDist = 0
+    let backAt = -1
+    let minAfter = Infinity
+    for (let k = 0; k < 5000 && !sim.done; k++) {
+      stepWave(sim)
+      const m = sim.monsters[0]
+      if (!m) continue
+      m.hp = m.maxHp = 1e9
+      if (m.hypnotized && backAt < 0) backAt = m.dist
+      if (backAt >= 0) minAfter = Math.min(minAfter, m.dist)
+      maxDist = Math.max(maxDist, m.dist)
+    }
+    expect(backAt).toBeGreaterThan(0)
+    // 뒤로 간 거리 = 5칸 (출발지보다 뒤로는 안 감)
+    expect(backAt - minAfter).toBe(Math.min(5 * 1000, backAt))
+    // 다시 앞으로 와서 결국 출구까지 (한 번만 걸려서 또 안 돌아감)
+    expect(sim.leaked).toBe(1)
+  })
+
   it('광폭화: 발동하면 2초 동안 공속 2배 (확률 5/10% · 쿨 5/8초 따로 뽑음)', () => {
     const st0 = stageDef(1)
     const map = maps[st0.mapId]!
@@ -389,6 +449,13 @@ describe('진행', () => {
     const r = runWave(createWave(cfg, maps[st.mapId]!, st, roster, {}, cfg.startLives))
     expect(cfg.startLives).toBe(3)
     expect([r.cleared, r.leaked, r.stars]).toEqual([false, 3, 0]) // 아무도 안 세우면 3마리째에 끝
+  })
+
+  it('왕(우두머리)이 통과하면 목숨이 남아도 바로 실패', () => {
+    const st0 = stageDef(10)
+    const st = { ...st0, groups: st0.groups.filter((g) => g.monster === 'boss').map((g) => ({ ...g, count: 1, delayMs: 0 })) }
+    const r = runWave(createWave(cfg, maps[st.mapId]!, st, roster, {}, 100))
+    expect([r.leaked, r.cleared, r.stars]).toEqual([1, false, 0])
   })
 
   it('아무도 없으면 전부 출구로', () => {

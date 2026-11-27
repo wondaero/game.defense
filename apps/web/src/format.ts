@@ -28,7 +28,10 @@ export function unitLook(cfg: DefenseConfig, u: UnitInstance) {
     body: `unit_t${t.tier}`,
     tool: u.ability ? `tool_${u.ability.kind}` : null,
     color: t.color,
+    tier: t.tier,
     tierName: t.name,
     score: t.score,
+    /** 캐릭 이름 = 색 + 점수 + "호" (예: 노랑 42호, 2026-11-27). 단 하나뿐인 100점(무지개 100호)은 "총사령관" */
+    title: t.score >= 100 ? '총사령관' : `${t.name} ${t.score}호`,
   }
 }

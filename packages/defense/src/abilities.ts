@@ -10,7 +10,7 @@
  */
 import { Rng } from './rng.ts'
 
-export type AbilityKind = 'stun' | 'splash' | 'crit' | 'obstacle' | 'recall' | 'teamLevel' | 'allAttack' | 'poison' | 'boostAll' | 'frenzy' | 'hawkeye'
+export type AbilityKind = 'stun' | 'splash' | 'crit' | 'obstacle' | 'recall' | 'teamLevel' | 'allAttack' | 'poison' | 'boostAll' | 'frenzy' | 'hawkeye' | 'hypnosis'
 export type BuffStat = 'atk' | 'range' | 'speed' | 'agility' | 'all'
 export type ObstacleKind = 'damage' | 'slow'
 
@@ -31,8 +31,10 @@ export type Ability =
   | { kind: 'frenzy'; chanceBp: number; cooldownMs: number }
   /** 호크아이: 원래 사거리 + plus (1/2/3), 항상. 발동 없음 (chanceBp 0) */
   | { kind: 'hawkeye'; chanceBp: 0; plus: number }
+  /** 최면: 때린 몬스터가 HYPNOSIS_CELLS 칸 뒤로 걸어갔다가 다시 옴. 몬스터당 한 번 (2026-11-27 spec 12) */
+  | { kind: 'hypnosis'; chanceBp: number }
 
-export const ABILITY_KINDS: readonly AbilityKind[] = ['stun', 'splash', 'crit', 'obstacle', 'recall', 'teamLevel', 'allAttack', 'poison', 'boostAll', 'frenzy', 'hawkeye']
+export const ABILITY_KINDS: readonly AbilityKind[] = ['stun', 'splash', 'crit', 'obstacle', 'recall', 'teamLevel', 'allAttack', 'poison', 'boostAll', 'frenzy', 'hawkeye', 'hypnosis']
 
 export const ABILITY_NAMES: Readonly<Record<AbilityKind, string>> = {
   stun: '스턴',
@@ -46,6 +48,7 @@ export const ABILITY_NAMES: Readonly<Record<AbilityKind, string>> = {
   boostAll: '전체 강화',
   frenzy: '광폭화',
   hawkeye: '호크아이',
+  hypnosis: '최면',
 }
 
 /** 쿨타임 (0 = 없음). 장애물은 판당 1회라 따로 */
@@ -61,6 +64,7 @@ export const ABILITY_COOLDOWN_MS: Readonly<Record<AbilityKind, number>> = {
   boostAll: 0,
   frenzy: 0, // 개체마다 다름 (Ability.cooldownMs)
   hawkeye: 0,
+  hypnosis: 0,
 }
 
 /** 뽑기 표 (docs/spec 그대로) */
@@ -77,6 +81,7 @@ export const ROLL_TABLE = {
   /** 확률·쿨타임 따로 뽑음 (spec: 5/10% · 쿨 5/8초) */
   frenzy: { chanceBp: [500, 1000], cooldownMs: [5000, 8000] },
   hawkeye: { plus: [1, 2, 3] },
+  hypnosis: { chanceBp: [500, 1000] },
 } as const
 
 /** 광역공격 범위: 맞힌 자리 중심 (2 × 반경 + 1) 칸 정사각형 = 5×5 */
@@ -87,6 +92,16 @@ export const SPLASH_RADIUS = 2
 export const STUN_IMMUNE_MS = 1000
 /** 광폭화 지속 시간 */
 export const FRENZY_MS = 2000
+/** 최면: 뒤로 가는 칸 수 */
+export const HYPNOSIS_CELLS = 5
+/**
+ * 특수능력 저항 (2026-11-27): 몬스터에게 거는 능력(스턴·출발지로 보내기·최면·맹독)은 발동한 뒤
+ * 한 번 더 굴림 — 걸릴 확률 = RESIST_POWER / (RESIST_POWER + 몬스터 민첩). 예) 민첩 10 → 20/30 = 2/3.
+ * 왕(우두머리)도 똑같이 걸릴 수 있음 (민첩이 높아 덜 걸림). *임시* 20 (사용자: 30 도 괜찮음)
+ */
+export const RESIST_POWER = 20
+/** 저항 판정을 하는 능력 */
+export const RESISTABLE: readonly AbilityKind[] = ['stun', 'recall', 'hypnosis', 'poison']
 /** 아군 전체 레벨업 지속 시간 */
 export const TEAM_LEVEL_MS = 5000
 
@@ -135,6 +150,8 @@ export function rollAbility(rng: Rng): Ability {
       return { kind, chanceBp: pick(rng, t.frenzy.chanceBp), cooldownMs: pick(rng, t.frenzy.cooldownMs) }
     case 'hawkeye':
       return { kind, chanceBp: 0, plus: pick(rng, t.hawkeye.plus) }
+    case 'hypnosis':
+      return { kind, chanceBp: pick(rng, t.hypnosis.chanceBp) }
   }
 }
 
@@ -178,5 +195,7 @@ export function abilityDesc(a: Ability): string {
       return `${pct(a.chanceBp)} 확률로 ${sec(FRENZY_MS)} 동안 공속 2배 · 민첩 2배 (쿨타임 ${sec(a.cooldownMs)})`
     case 'hawkeye':
       return `사거리 +${a.plus} (항상, 봉인되면 원래 사거리)`
+    case 'hypnosis':
+      return `${pct(a.chanceBp)} 확률로 최면: 때린 몬스터가 ${HYPNOSIS_CELLS}칸 뒤로 갔다가 다시 옴 (몬스터당 한 번)`
   }
 }

@@ -1,7 +1,7 @@
 import { baseStats, inRange, MONSTER_ABILITIES, positionAt, type Cell, type DefenseConfig, type GameMap, type Placements, type UnitInstance, type WaveSim } from '@def/defense'
 import { unitLook } from './format.ts'
 import { drawSprite, motionDuration, spritesReady } from './sprites.ts'
-import { drawFinishFlag, groundImage, type GroundMode } from './ground.ts'
+import { drawBlackHole, drawFinishFlag, groundImage, type GroundMode } from './ground.ts'
 
 export const CELL_PX = 60
 /** 판 둘레 여백 (가장자리 몬스터·입구 밖 몬스터가 잘리지 않게) */
@@ -57,6 +57,8 @@ export const newAnimState = (): AnimState => ({ clock: 0, unitAttackAt: new Map(
 /** 몬스터 그림 크기 (px) */
 /** 몬스터 그림 이름. 우두머리는 섞인 특성 조합마다 그림이 다름 (mon_boss_hp_armor_agi 등) */
 export const monsterSprite = (spec: { id: string; traits: readonly string[] }) => (spec.id === 'boss' && spec.traits.length >= 3 ? `mon_boss_${spec.traits.join('_')}` : `mon_${spec.id}`)
+/** 좌우 뒤집어 그릴 때: 왕 모자 글자가 거꾸로 안 보이게 글자만 미리 뒤집어 둔 그림(_m)을 씀 */
+const facing = (id: string, flip: boolean) => (flip && id.startsWith('mon_boss') ? `${id}_m` : id)
 
 export const monsterSize = (specSize: number) => CELL_PX * (specSize * 2 + 0.4)
 
@@ -72,10 +74,16 @@ export function monsterFacesLeft(map: GameMap, dist: number, id: number, memo: M
 /** 몬스터마다 길 옆으로 살짝 흩어 그리기 (화면용, 계산엔 영향 없음) */
 const jitter = (id: number) => ({ x: (((id * 37) % 9) - 4) * 0.035, y: (((id * 53) % 9) - 4) * 0.035 })
 
+/**
+ * 블랙홀에서 나오는 모습 (2026-11-27, 그림만 — 판정은 그대로): 첫 칸에선 블랙홀 가운데(반 칸)에서 시작해 반 속도로 나옴.
+ * 좌우 흔들림(jitter)도 블랙홀에선 0 → 한 칸 지나면 원래대로
+ */
+const emergeT = (dist: number) => Math.min(1, Math.max(0, dist / 1000))
 export function monsterScreenPos(map: GameMap, dist: number, id: number) {
-  const p = positionAt(map, dist)
+  const p = positionAt(map, dist < 1000 ? 500 + dist / 2 : dist)
   const j = jitter(id)
-  return { x: (p.x + j.x) * CELL_PX, y: (p.y + j.y) * CELL_PX }
+  const e = emergeT(dist)
+  return { x: (p.x + j.x * e) * CELL_PX, y: (p.y + j.y * e) * CELL_PX }
 }
 
 export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
@@ -105,6 +113,7 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
   const mode: GroundMode = d.sim ? 'play' : 'prepare'
   ctx.drawImage(groundImage(map, mode, CELL_PX, Math.max(1, ctx.getTransform().a)), 0, 0, map.width * CELL_PX, map.height * CELL_PX)
   drawFinishFlag(ctx, map, CELL_PX, d.now)
+  drawBlackHole(ctx, map, CELL_PX, d.now)
 
   // 사거리 미리 보기: 닿는 칸을 노랗게 (길 칸은 진하게)
   if (rangeOrigin && selected) {
@@ -242,7 +251,7 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
   // 죽는 몬스터 (die 모션 한 번)
   for (const c of d.anim.corpses) {
     const size = monsterSize(c.size)
-    drawSprite(ctx, c.sprite, 'die', d.anim.clock - c.at, c.x, c.y + size * 0.42, size, c.flip)
+    drawSprite(ctx, facing(c.sprite, c.flip), 'die', d.anim.clock - c.at, c.x, c.y + size * 0.42, size, c.flip)
   }
 
   // 몬스터 (직전 틱 ~ 현재 틱 사이를 보간). 뒤에 있는 것부터
@@ -252,8 +261,10 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
       const dist = m.prevDist + (m.dist - m.prevDist) * d.alpha
       const p = monsterScreenPos(map, dist, m.id)
       const t = m.spec
-      const size = monsterSize(t.size)
-      const flip = monsterFacesLeft(map, dist, m.id, d.anim.monsterFlip)
+      // 블랙홀에서 나오며 작게 → 원래 크기
+      const size = monsterSize(t.size) * (0.25 + 0.75 * emergeT(dist))
+      // 최면 중엔 뒤로 걸으니 반대쪽을 봄
+      const flip = monsterFacesLeft(map, dist, m.id, d.anim.monsterFlip) !== m.hypnoLeft > 0
       const stunned = d.sim.tick < m.stunnedUntil
       const hitAt = d.anim.monsterHitAt.get(m.id)
       const hitT = hitAt === undefined ? Infinity : d.anim.clock - hitAt
@@ -291,7 +302,26 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
         ctx.stroke()
         ctx.lineWidth = 1
       }
-      const drawn = sprites && drawSprite(ctx, monsterSprite(m.spec), motion, mt, p.x, foot, size, flip)
+      const drawn = sprites && drawSprite(ctx, facing(monsterSprite(m.spec), flip), motion, mt, p.x, foot, size, flip)
+      if (m.hypnoLeft > 0) {
+        // 최면: 머리 위에 물음표가 계속 퐁퐁 (세 개가 번갈아 올라가며 흐려짐)
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        for (let k = 0; k < 3; k++) {
+          const t = ((d.now / 900 + k / 3 + m.id * 0.17) % 1)
+          ctx.globalAlpha = 1 - t
+          ctx.font = `bold ${Math.round(size * (0.32 + 0.1 * (1 - t)))}px sans-serif`
+          const qx = p.x + (k - 1) * size * 0.28 + Math.sin(d.now / 200 + k) * 2
+          const qy = foot - size * (0.95 + t * 0.45)
+          ctx.lineWidth = 3
+          ctx.strokeStyle = 'rgba(0,0,0,0.55)'
+          ctx.strokeText('?', qx, qy)
+          ctx.fillStyle = '#e1bee7'
+          ctx.fillText('?', qx, qy)
+        }
+        ctx.globalAlpha = 1
+        ctx.lineWidth = 1
+      }
       if (m.poisonDmg > 0) {
         // 맹독: 발밑 보라 고리 + 위로 올라가는 보라 방울
         ctx.strokeStyle = 'rgba(142,36,170,0.9)'

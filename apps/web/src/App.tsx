@@ -258,6 +258,8 @@ export function App() {
       } else if (ev.type === 'leak') {
         const e = map.path.at(-1)!
         fxRef.current.push({ kind: 'leak', born: now, life: 500, to: { x: (e.x + 0.5) * CELL_PX, y: (e.y + 0.5) * CELL_PX } })
+      } else if (ev.type === 'resist') {
+        fxRef.current.push({ kind: 'text', born: now, life: 700, to: { ...monsterScreenPos(map, ev.dist, ev.monsterId), y: monsterScreenPos(map, ev.dist, ev.monsterId).y - 14 }, text: '버팀!', color: '#b0bec5' })
       } else if (ev.type === 'block') {
         anim.unitAttackAt.set(ev.unitId, at)
         fxRef.current.push({ kind: 'text', born: now, life: 600, to: monsterScreenPos(map, ev.dist, ev.monsterId), text: '무적', color: '#ffd54f' })
@@ -283,7 +285,7 @@ export function App() {
     if (live.current.screen !== 'play') return
     const n = live.current.stageNo
     const cleared = sim.lives > 0
-    const text = `${sim.killed}마리 처치 · ${sim.leaked}마리 통과 · ${(sim.tick / live.current.cfg.tickRate).toFixed(0)}초`
+    const text = (sim.bossLeaked ? '왕이 통과했어요 (왕은 꼭 잡아야 해요) · ' : '') + `${sim.killed}마리 처치 · ${sim.leaked}마리 통과 · ${(sim.tick / live.current.cfg.tickRate).toFixed(0)}초`
     const stars = starsFor(cleared, sim.leaked)
     if (cleared) setSave((s) => ({ ...s, best: Math.max(s.best, n), stars: { ...s.stars, [n]: Math.max(s.stars?.[n] ?? 0, stars) } }))
     setResult({ cleared, text, stars })
@@ -663,11 +665,11 @@ function UnitRow(props: {
   const look = unitLook(props.cfg, u)
   const ab = abilityText(u)
   return (
-    <li className={`${props.selected ? 'sel' : ''} ${props.placed ? 'placed' : ''}`} onClick={props.onClick}>
+    <li className={`${props.selected ? 'sel' : ''} ${props.placed ? 'placed' : ''} ${look.tier === 6 ? 'rainbow-row' : ''}`} onClick={props.onClick}>
       <UnitFace body={look.body} tool={look.tool} />
       <div className="info">
         <div>
-          <b className={`tier ${look.tierName === '무지개' ? 'rainbow' : ''}`} style={{ color: look.color }}>{look.tierName} {look.score}</b> {statText(props.cfg, u)}
+          <b className={`tier ${look.tierName === '무지개' ? 'rainbow' : ''}`} style={{ color: look.color }}>{look.title}</b> {statText(props.cfg, u)}
           {props.placed && <span className="tag">출전</span>}
         </div>
         {ab && (

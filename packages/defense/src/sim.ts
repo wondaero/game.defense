@@ -1,6 +1,8 @@
 import {
   ABILITY_COOLDOWN_MS,
   FRENZY_MS,
+  HYPNOSIS_CELLS,
+  RESIST_POWER,
   levelBonus,
   SPLASH_RADIUS,
   STUN_IMMUNE_MS,
@@ -60,6 +62,10 @@ export interface Monster {
   poisonDmg: number
   /** 이미 밟은 가시 장애물 (길 칸 번호) — 가시는 몬스터마다 한 번만 */
   thornHit: number[]
+  /** 최면: 아직 뒤로 가야 할 거리 (0 = 앞으로 감) */
+  hypnoLeft: number
+  /** 최면에 걸린 적 있음 (몬스터당 한 번) */
+  hypnotized: boolean
   /** 능력별 다음 발동 가능 틱 (쿨타임) */
   abilityReadyAt: Partial<Record<MonsterAbilityKind, number>>
   /** 능력별 쓴 횟수 (마리당 횟수 제한) */
@@ -108,6 +114,8 @@ export type SimEvent =
   | { type: 'leak'; monsterId: number; lives: number }
   /** 무적이라 피해가 안 들어감 */
   | { type: 'block'; unitId: string; monsterId: number; dist: number }
+  /** 특수능력이 발동했지만 몬스터가 민첩으로 버팀 */
+  | { type: 'resist'; unitId: string; monsterId: number; dist: number; kind: AbilityKind }
   /** 몬스터 능력 발동. unitIds = 걸린 캐릭, dodgedIds = 민첩으로 피한 캐릭 */
   | { type: 'mskill'; kind: MonsterAbilityKind; monsterId: number; dist: number; unitIds: string[]; dodgedIds: string[] }
 
@@ -129,6 +137,8 @@ export interface WaveSim {
   lives: number
   killed: number
   leaked: number
+  /** 왕(우두머리)이 통과함 → 바로 실패 (2026-11-27) */
+  bossLeaked: boolean
   nextMonsterId: number
   /** 1초(ATTACK_WINDOW_MS)의 틱 수 */
   windowTicks: number
@@ -198,6 +208,7 @@ export function createWave(
     lives,
     killed: 0,
     leaked: 0,
+    bossLeaked: false,
     nextMonsterId: 1,
     windowTicks,
     events: [],
@@ -373,9 +384,15 @@ const cellOfMonster = (sim: WaveSim, m: Monster) => sim.map.path[pathIndexAt(sim
 function applyUnitAbility(sim: WaveSim, u: SimUnit, target: Monster, proc: Ability, atk: number) {
   const { cfg, map } = sim
   const blocked = (k: AbilityKind) => target.spec.immunities.includes(k) || isInvincible(sim, target)
+  // 저항: 걸릴 수 있는 상태일 때만 굴림 (마지막에 호출). 걸릴 확률 = 20 / (20 + 몬스터 민첩)
+  const lands = () => {
+    if (sim.rng.int(BP) < agilityChanceBp(RESIST_POWER, target.spec.agility)) return true
+    sim.events.push({ type: 'resist', unitId: u.inst.id, monsterId: target.id, dist: target.dist, kind: proc.kind })
+    return false
+  }
   switch (proc.kind) {
     case 'stun':
-      if (!blocked('stun') && sim.tick >= target.stunImmuneUntil && sim.tick >= target.stunnedUntil) {
+      if (!blocked('stun') && sim.tick >= target.stunImmuneUntil && sim.tick >= target.stunnedUntil && lands()) {
         target.stunnedUntil = sim.tick + msToTicks(cfg, proc.durationMs)
         target.stunImmuneUntil = target.stunnedUntil + msToTicks(cfg, STUN_IMMUNE_MS)
       }
@@ -390,7 +407,7 @@ function applyUnitAbility(sim: WaveSim, u: SimUnit, target: Monster, proc: Abili
       break
     }
     case 'recall':
-      if (!blocked('recall') && target.hp > 0) {
+      if (!blocked('recall') && target.hp > 0 && lands()) {
         target.dist = 0
         target.prevDist = 0
       }
@@ -411,12 +428,19 @@ function applyUnitAbility(sim: WaveSim, u: SimUnit, target: Monster, proc: Abili
         damage(sim, u, m, atk, false, true)
       }
       break
+    case 'hypnosis':
+      // 몬스터당 한 번. 출발지보다 뒤로는 안 감
+      if (!blocked('hypnosis') && !target.hypnotized && target.hp > 0 && lands()) {
+        target.hypnotized = true
+        target.hypnoLeft = Math.min(HYPNOSIS_CELLS * CELL, target.dist)
+      }
+      break
     case 'frenzy':
       u.frenzyUntil = sim.tick + msToTicks(cfg, FRENZY_MS)
       break
     case 'poison':
       // 빗나가도 걸림 (다른 특수능력과 같음). 이미 걸렸으면 그대로 (중첩 없음)
-      if (!blocked('poison') && target.poisonDmg === 0 && target.hp > 0) target.poisonDmg = Math.max(1, applyBp(atk, proc.pctBp))
+      if (!blocked('poison') && target.poisonDmg === 0 && target.hp > 0 && lands()) target.poisonDmg = Math.max(1, applyBp(atk, proc.pctBp))
       break
     case 'teamLevel':
       sim.levelBuffs.push({ stat: proc.stat, level: proc.level, until: sim.tick + msToTicks(cfg, TEAM_LEVEL_MS) })
@@ -459,6 +483,8 @@ export function stepWave(sim: WaveSim) {
       invincibleUntil: 0,
       poisonDmg: 0,
       thornHit: [],
+      hypnoLeft: 0,
+      hypnotized: false,
       abilityReadyAt: {},
       abilityUsed: {},
     })
@@ -471,11 +497,23 @@ export function stepWave(sim: WaveSim) {
     const o = obstacleAt(m)
     const slow = o?.kind === 'slow' ? o.amountBp : 0
     const speed = sim.tick < m.hasteUntil ? m.speed * 2 : m.speed
-    m.dist += Math.max(1, speed - applyBp(speed, slow))
+    const step = Math.max(1, speed - applyBp(speed, slow))
+    if (m.hypnoLeft > 0) {
+      // 최면: 뒤로 걸어감 → 다 가면 다시 앞으로
+      const back = Math.min(step, m.hypnoLeft, m.dist)
+      m.dist -= back
+      m.hypnoLeft = m.dist > 0 ? m.hypnoLeft - back : 0
+      continue
+    }
+    m.dist += step
     if (m.dist >= map.length) {
       m.hp = 0
-      // 몬스터 한 마리 = 1 (종류·우두머리 상관없이, 2026-11-27)
+      // 몬스터 한 마리 = 1. 단 왕(우두머리)은 통과하면 바로 실패 (2026-11-27)
       sim.lives -= 1
+      if (m.spec.id === 'boss') {
+        sim.lives = 0
+        sim.bossLeaked = true
+      }
       sim.leaked++
       sim.events.push({ type: 'leak', monsterId: m.id, lives: sim.lives })
     }

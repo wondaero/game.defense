@@ -151,6 +151,7 @@ const TOOLS = {
   teamLevel: { name: '깃발 — 아군 전체 레벨업', draw: (T) => path('M0,4 L6,-32', 'none', { stroke: T('#6d4c41'), 'stroke-width': 3 }) + path('M6,-32 L26,-26 L4,-19 Z', T('#e53935')) },
   allAttack: { name: '수정구 지팡이 — 전체 공격', draw: (T) => path('M0,6 L7,-24', 'none', { stroke: T('#5d4037'), 'stroke-width': 3.5 }) + path('M3,-22 L11,-22', 'none', { stroke: T('#ffc107'), 'stroke-width': 3 }) + circ(8, -30, 7, T('#4fc3f7')) + circ(6, -32, 2.2, '#ffffff', { 'stroke-width': 0, opacity: 0.8 }) }, // 2026-11-27 마법봉과 헷갈리지 않게
   hawkeye: { name: '활 — 호크아이', draw: (T) => path('M-2,4 Q16,-14 -2,-34', 'none', { stroke: T('#8d6e63'), 'stroke-width': 3.5 }) + path('M-2,4 L-2,-34', 'none', { stroke: T('#eceff1'), 'stroke-width': 1.2 }) + path('M-6,-15 L20,-15 M16,-19 L21,-15 L16,-11', 'none', { stroke: T('#455a64'), 'stroke-width': 2 }) },
+  hypnosis: { name: '최면 추 — 최면', draw: (T) => path('M2,4 L2,-30', 'none', { stroke: T('#8d6e63'), 'stroke-width': 2.5 }) + path('M2,-30 L14,-8', 'none', { stroke: T('#eceff1'), 'stroke-width': 1.5 }) + circ(15, -6, 6.5, T('#ab47bc')) + path('M15,-6 m-3.5,0 a3.5,3.5 0 1,1 3.5,3.5 a2,2 0 1,1 -2,-2', 'none', { stroke: T('#f3e5f5'), 'stroke-width': 1.5 }) },
   frenzy: { name: '불꽃 — 광폭화', draw: (T) => path('M5,2 Q-6,-8 0,-20 Q2,-12 6,-14 Q4,-26 12,-34 Q12,-22 18,-16 Q22,-6 13,2 Z', T('#ff5722')) + path('M7,0 Q1,-6 5,-13 Q7,-8 10,-10 Q12,-4 9,0 Z', T('#ffeb3b'), { 'stroke-width': 1.5 }) },
   boostAll: { name: '황금 방패 — 전체 강화', draw: (T) => path('M-4,-30 L16,-30 Q17,-14 6,-4 Q-5,-14 -4,-30 Z', T('#ffc107')) + path('M6,-27 L6,-8 M-1,-21 L13,-21', 'none', { stroke: T('#fff8e1'), 'stroke-width': 2.5 }) },
   poison: { name: '독 병 — 맹독', draw: (T) => `<rect x="1" y="-20" width="6" height="7" rx="1.5" fill="${T('#d7ccc8')}" stroke="${OUT}" stroke-width="2"/>` + circ(4, -6, 8, T('#ab47bc')) + circ(1, -8, 1.8, '#ffffff', { 'stroke-width': 0, opacity: 0.7 }) + circ(7, -4, 1.3, '#f3e5f5', { 'stroke-width': 0 }) },
@@ -355,7 +356,8 @@ const ACCESSORIES = {
         ell(48, 41 - up, 25, 5.5, T('#1a237e')) +
         `<rect x="30" y="${6 - up}" width="36" height="35" rx="5" fill="${T('#283593')}" stroke="${OUT}" stroke-width="${SW}"/>` +
         `<rect x="30" y="${31 - up}" width="36" height="6" fill="${T('#ffc107')}" stroke="${OUT}" stroke-width="1.5"/>` +
-        wang,
+        // 게임이 좌우로 뒤집어 그릴 때 쓰는 그림(_m)은 글자만 미리 뒤집어 둠 → 화면에선 늘 바른 "왕"
+        (ctx?.mirrorText ? `<g transform="matrix(-1 0 0 1 96 0)">${wang}</g>` : wang),
     }
   },
   plume: (p, T, ctx) => {
@@ -378,7 +380,7 @@ const ACCESSORIES = {
 /** 소품을 입은 슬라임 한 장 */
 function dressedSlime(p, m) {
   const T = tinter(p)
-  const ctx = { acc: m.acc }
+  const ctx = { acc: m.acc, mirrorText: m.mirrorText }
   const parts = m.acc.map((a) => ACCESSORIES[a](p, T, ctx))
   const layer = (k) => parts.map((x) => x[k] ?? '').join('')
   return layer('back') + slimeBody(p, T(m.body)) + layer('face') + slimeFace(p) + layer('front')
@@ -494,6 +496,8 @@ const MONSTERS = Object.fromEntries([
   ]),
 ])
 void TRAIT_ORDER
+// 왕 모자를 쓴 그림은 "글자만 뒤집은" 짝(_m)도 만듦 (왼쪽으로 갈 때 사용)
+for (const [id, m] of Object.entries(MONSTERS)) if (m.acc.includes('kingHat')) MONSTERS[`${id}_m`] = { ...m, name: `${m.name} (왼쪽용)`, mirrorText: true }
 
 /** 몬스터 능력용 소품 시안 (아직 게임엔 안 씀 — "능력자" 표시용 후보) */
 const ACC_SAMPLES = {

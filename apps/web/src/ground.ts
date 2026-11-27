@@ -134,18 +134,10 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
   }
   ctx.restore()
 
-  // 입구(파란 굴) · 출구(빨간 구멍)
-  const portal = (c: { x: number; y: number }, outer: string, inner: string, text: string) => {
+  // 입구 = 블랙홀 (2026-11-27). 소용돌이는 움직여야 해서 draw.ts 에서(drawBlackHole), 여기선 "입구" 글자만
+  const portal = (c: { x: number; y: number }, text: string) => {
     const px = (c.x + 0.5) * cell
     const py = (c.y + 0.5) * cell
-    ctx.fillStyle = outer
-    ctx.beginPath()
-    ctx.ellipse(px, py, cell * 0.36, cell * 0.3, 0, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.fillStyle = inner
-    ctx.beginPath()
-    ctx.ellipse(px, py + 2, cell * 0.25, cell * 0.19, 0, 0, Math.PI * 2)
-    ctx.fill()
     ctx.font = `bold ${Math.round(cell * 0.2)}px sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -157,7 +149,7 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
     ctx.fillStyle = '#fff'
     ctx.fillText(text, px, ty)
   }
-  portal(map.path[0]!, '#1e88e5', '#0d2b4f', '입구')
+  portal(map.path[0]!, '입구')
   // 출구 = 레이스 결승선 (2026-11-27): 칸에 검정·흰색 체크무늬 + 체크 깃발
   {
     const e = map.path.at(-1)!
@@ -199,7 +191,56 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
   return cv
 }
 
-/** 출구 체크 깃발 (판 밖 여백까지 그려지게 판 그림과 따로) */
+/** 입구 블랙홀: 보라 소용돌이가 빙글빙글 돌고 가운데는 깜깜. 몬스터가 여기서 커지며 나옴 (draw.ts) */
+export function drawBlackHole(ctx: CanvasRenderingContext2D, map: GameMap, cell: number, now: number) {
+  const c = map.path[0]!
+  const x = (c.x + 0.5) * cell
+  const y = (c.y + 0.5) * cell
+  const R = cell * 0.4
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.scale(1, 0.78)
+  // 바깥 빛무리
+  const glow = ctx.createRadialGradient(0, 0, R * 0.3, 0, 0, R * 1.15)
+  glow.addColorStop(0, 'rgba(124,77,255,0.9)')
+  glow.addColorStop(0.6, 'rgba(74,20,140,0.55)')
+  glow.addColorStop(1, 'rgba(74,20,140,0)')
+  ctx.fillStyle = glow
+  ctx.beginPath()
+  ctx.arc(0, 0, R * 1.15, 0, Math.PI * 2)
+  ctx.fill()
+  // 소용돌이 팔 4개 (빨려 들어가는 방향으로 회전)
+  ctx.rotate(-now / 700)
+  ctx.lineCap = 'round'
+  for (let k = 0; k < 4; k++) {
+    ctx.rotate(Math.PI / 2)
+    ctx.strokeStyle = k % 2 ? 'rgba(179,136,255,0.95)' : 'rgba(234,128,252,0.85)'
+    ctx.lineWidth = cell * 0.05
+    ctx.beginPath()
+    for (let i = 0; i <= 16; i++) {
+      const t = i / 16
+      const r = R * (0.95 - t * 0.7)
+      const a = t * 2.4
+      const px = Math.cos(a) * r
+      const py = Math.sin(a) * r
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)
+    }
+    ctx.stroke()
+  }
+  // 가운데 깜깜한 구멍
+  const core = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.42)
+  core.addColorStop(0, '#000')
+  core.addColorStop(0.75, '#0b0420')
+  core.addColorStop(1, 'rgba(11,4,32,0)')
+  ctx.fillStyle = core
+  ctx.beginPath()
+  ctx.arc(0, 0, R * 0.42, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+  ctx.lineWidth = 1
+}
+
+/** 출구 깃발 (판 밖 여백까지 그려지게 판 그림과 따로) */
 export function drawFinishFlag(ctx: CanvasRenderingContext2D, map: GameMap, cell: number, now: number) {
   const e = map.path.at(-1)!
   const x0 = e.x * cell + 4
@@ -213,15 +254,19 @@ export function drawFinishFlag(ctx: CanvasRenderingContext2D, map: GameMap, cell
   ctx.moveTo(px, y0 + w * 0.4)
   ctx.lineTo(px, top)
   ctx.stroke()
-  // 바람에 살짝 펄럭임
+  // 빨간 삼각 깃발 하나 (2026-11-27 체크 깃발 대신, 단출하게). 끝이 바람에 살짝 흔들림
   const fw = cell * 0.36
-  const fh = cell * 0.24
-  for (let i = 0; i < 4; i++) {
-    const wave = Math.sin(now / 180 + i * 0.9) * 1.6
-    for (let j = 0; j < 3; j++) {
-      ctx.fillStyle = (i + j) % 2 ? '#212121' : '#fafafa'
-      ctx.fillRect(px - fw + (i * fw) / 4, top + (j * fh) / 3 + wave * (i / 3), fw / 4 + 0.5, fh / 3 + 0.5)
-    }
-  }
+  const fh = cell * 0.26
+  const wave = Math.sin(now / 200) * 1.8
+  ctx.fillStyle = '#e53935'
+  ctx.strokeStyle = '#7f1d1d'
+  ctx.lineWidth = 1.5
+  ctx.beginPath()
+  ctx.moveTo(px, top)
+  ctx.lineTo(px - fw, top + fh / 2 + wave)
+  ctx.lineTo(px, top + fh)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
   ctx.lineWidth = 1
 }
