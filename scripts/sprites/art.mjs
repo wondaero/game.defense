@@ -42,6 +42,10 @@ const star = (cx, cy, r, fill) => {
   return `<polygon points="${pts.join(' ')}" fill="${fill}" stroke="${OUT}" stroke-width="1.5" stroke-linejoin="round"/>`
 }
 
+/** 네 갈래 반짝이 (✦ 모양) */
+const twinkle = (cx, cy, r) =>
+  `<path d="M${cx},${cy - r} Q${cx},${cy} ${cx + r},${cy} Q${cx},${cy} ${cx},${cy + r} Q${cx},${cy} ${cx - r},${cy} Q${cx},${cy} ${cx},${cy - r} Z" fill="#fffde7" stroke="#fbc02d" stroke-width="0.8"/>`
+
 /** 포즈 공통: 발밑 기준으로 들썩·찌그러짐·기울임 */
 const posed = (p, inner) =>
   g(`translate(48 ${88 + (p.dy ?? 0)}) rotate(${p.lean ?? 0}) scale(${p.sx ?? 1} ${p.sy ?? 1}) translate(-48 -88)`, inner, { opacity: p.opacity })
@@ -114,8 +118,10 @@ function human(h, p) {
   } else s += path('M25,41 Q24,14 48,13 Q72,14 71,41 Z', helmet)
   s += `<rect x="22" y="37" width="52" height="7" rx="3.5" fill="${dark}" stroke="${OUT}" stroke-width="${SW}"/>`
   s += path('M32,27 Q36,19 45,17', 'none', { stroke: '#ffffff', 'stroke-width': 3, opacity: 0.6 })
-  s += star(48, 26, 5, light)
-  if (h.sparkle) s += star(70, 14, 4, '#fffde7') + star(24, 20, 3, '#fffde7')
+  // 헬멧 장식: 이마의 동그란 링 ○ (2026-11-27 별 → 줄 → 링, 사용자 선택). 잘 보이게 검은 테두리 위에 밝은 굵은 링
+  s += circ(48, 27, 6.5, 'none', { 'stroke-width': 6 }) + circ(48, 27, 6.5, 'none', { stroke: light, 'stroke-width': 3.5 })
+  // 무지개 헬멧 반짝임: 네 갈래 반짝이 (별 대신)
+  if (h.sparkle) s += twinkle(70, 14, 5) + twinkle(24, 20, 3.5)
   // 얼굴
   s += eyes(p, 41, 52, 50, 0.9)
   s += ell(35, 56, 3.5, 2.2, T('#f48fb1'), { 'stroke-width': 0, opacity: 0.55 }) + ell(61, 56, 3.5, 2.2, T('#f48fb1'), { 'stroke-width': 0, opacity: 0.55 })
@@ -141,17 +147,19 @@ const TOOLS = {
   splash: { name: '폭탄 — 광역공격', draw: (T) => circ(4, -7, 8, T('#37474f')) + path('M8,-14 Q10,-20 15,-21', 'none', { stroke: T('#8d6e63'), 'stroke-width': 2 }) + star(16, -23, 4, T('#ffeb3b')) + circ(1, -10, 2, '#ffffff', { 'stroke-width': 0, opacity: 0.6 }) },
   crit: { name: '칼 — 2배 데미지', draw: (T) => path('M1,-5 L9,-33 L12,-31 L5,-4 Z', T('#eceff1')) + path('M-4,-6 L9,-2', 'none', { stroke: T('#ffb300'), 'stroke-width': 4 }) + circ(0, 2, 2.5, T('#ffb300')) },
   obstacle: { name: '삽 — 장애물 추가', draw: (T) => path('M0,3 L7,-20', 'none', { stroke: T('#8d6e63'), 'stroke-width': 3.5 }) + path('M3,-20 L13,-17 L11,-29 Q8,-34 4,-30 Z', T('#90a4ae')) },
-  recall: { name: '부메랑 — 출발지로 보내기', draw: (T) => path('M-2,-2 Q2,-18 -4,-30 M-2,-2 Q14,-6 22,-16', 'none', { stroke: OUT, 'stroke-width': 7 }) + path('M-2,-2 Q2,-18 -4,-30 M-2,-2 Q14,-6 22,-16', 'none', { stroke: T('#ff8f00'), 'stroke-width': 4 }) },
-  teamLevel: { name: '깃발 — 아군 전체 레벨업', draw: (T) => path('M0,4 L6,-32', 'none', { stroke: T('#6d4c41'), 'stroke-width': 3 }) + path('M6,-32 L26,-26 L4,-19 Z', T('#e53935')) + star(12, -25, 3, T('#ffeb3b')) },
-  allAttack: { name: '마법 지팡이 — 전체 공격', draw: (T) => path('M0,3 L7,-22', 'none', { stroke: T('#5e35b1'), 'stroke-width': 3.5 }) + star(8, -27, 8, T('#ffeb3b')) },
-  boostAll: { name: '황금 방패 — 전체 강화', draw: (T) => path('M-4,-30 L16,-30 Q17,-14 6,-4 Q-5,-14 -4,-30 Z', T('#ffc107')) + path('M6,-27 L6,-8 M-1,-21 L13,-21', 'none', { stroke: T('#fff8e1'), 'stroke-width': 2.5 }) + star(6, -20, 3.5, T('#ff7043')) },
+  recall: { name: '마법봉 — 출발지로 보내기', draw: (T) => path('M0,4 L6,-18', 'none', { stroke: T('#f8bbd0'), 'stroke-width': 3.5 }) + star(7, -23, 7.5, T('#ff80ab')) + star(15, -31, 2.5, T('#fff59d')) + star(-1, -30, 2, T('#fff59d')) }, // 2026-11-27 부메랑 대신
+  teamLevel: { name: '깃발 — 아군 전체 레벨업', draw: (T) => path('M0,4 L6,-32', 'none', { stroke: T('#6d4c41'), 'stroke-width': 3 }) + path('M6,-32 L26,-26 L4,-19 Z', T('#e53935')) },
+  allAttack: { name: '수정구 지팡이 — 전체 공격', draw: (T) => path('M0,6 L7,-24', 'none', { stroke: T('#5d4037'), 'stroke-width': 3.5 }) + path('M3,-22 L11,-22', 'none', { stroke: T('#ffc107'), 'stroke-width': 3 }) + circ(8, -30, 7, T('#4fc3f7')) + circ(6, -32, 2.2, '#ffffff', { 'stroke-width': 0, opacity: 0.8 }) }, // 2026-11-27 마법봉과 헷갈리지 않게
+  hawkeye: { name: '활 — 호크아이', draw: (T) => path('M-2,4 Q16,-14 -2,-34', 'none', { stroke: T('#8d6e63'), 'stroke-width': 3.5 }) + path('M-2,4 L-2,-34', 'none', { stroke: T('#eceff1'), 'stroke-width': 1.2 }) + path('M-6,-15 L20,-15 M16,-19 L21,-15 L16,-11', 'none', { stroke: T('#455a64'), 'stroke-width': 2 }) },
+  frenzy: { name: '불꽃 — 광폭화', draw: (T) => path('M5,2 Q-6,-8 0,-20 Q2,-12 6,-14 Q4,-26 12,-34 Q12,-22 18,-16 Q22,-6 13,2 Z', T('#ff5722')) + path('M7,0 Q1,-6 5,-13 Q7,-8 10,-10 Q12,-4 9,0 Z', T('#ffeb3b'), { 'stroke-width': 1.5 }) },
+  boostAll: { name: '황금 방패 — 전체 강화', draw: (T) => path('M-4,-30 L16,-30 Q17,-14 6,-4 Q-5,-14 -4,-30 Z', T('#ffc107')) + path('M6,-27 L6,-8 M-1,-21 L13,-21', 'none', { stroke: T('#fff8e1'), 'stroke-width': 2.5 }) },
   poison: { name: '독 병 — 맹독', draw: (T) => `<rect x="1" y="-20" width="6" height="7" rx="1.5" fill="${T('#d7ccc8')}" stroke="${OUT}" stroke-width="2"/>` + circ(4, -6, 8, T('#ab47bc')) + circ(1, -8, 1.8, '#ffffff', { 'stroke-width': 0, opacity: 0.7 }) + circ(7, -4, 1.3, '#f3e5f5', { 'stroke-width': 0 }) },
 }
 
 /** 도구 한 장 (몸과 같은 포즈 → 같은 자리에 겹치면 손에 붙음) */
 const toolLayer = (kind, p) => posed(p, g(armRot(p), g('translate(67 77) scale(1.45)', TOOLS[kind].draw(tinter(p)))))
 
-const burst = (x, y, s = 1) => star(x, y, 9 * s, '#fff59d') + star(x, y, 4.5 * s, '#ffffff')
+const burst = (x, y, s = 1) => twinkle(x, y, 11 * s) + twinkle(x + 9 * s, y - 8 * s, 4 * s) // 2026-11-27 별 대신 반짝이
 const iceBlock = `<rect x="12" y="6" width="72" height="84" rx="12" fill="#b3e5fc" fill-opacity="0.5" stroke="#e1f5fe" stroke-width="3"/><path d="M22,20 L34,12 M24,32 L40,18 M70,70 L78,62" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>`
 
 const UNIT_MOTIONS = {
@@ -186,7 +194,8 @@ const slimeFace = (p) => eyes(p, 54, 70, 60) + mouth(p, 63, 70, 4)
 /** 소품 그리기. T = 물들이기(맞음·얼음) */
 const ACCESSORIES = {
   plain: () => ({}),
-  cape: (p, T, c = '#7b1fa2') => {
+  cape: (p, T) => {
+    const c = '#7b1fa2'
     // 몸 왼쪽(등)을 덮고 펄럭이는 망토. 프레임 밖(x<4)으로 안 나가게
     const f = [0, 1, 2, 1, 0, -1][p.phase ?? 0]
     return {
@@ -330,9 +339,11 @@ const ACCESSORIES = {
     }
   },
   // 우두머리 모자: 높은 모자 앞에 "왕" (글꼴 없이 선으로 그림 — 다른 컴퓨터에서도 같게)
-  kingHat: (p, T) => {
+  kingHat: (p, T, ctx) => {
+    // 투구 위에 쓰면 12 만큼 위로
+    const up = ctx?.acc.includes('helmet') ? 12 : 0
     const x = 48
-    const y = 23
+    const y = 23 - up
     const ink = { stroke: T('#ffe082'), 'stroke-width': 2, fill: 'none' }
     const wang =
       circ(x - 4.5, y - 7, 2.6, 'none', ink) +
@@ -341,11 +352,19 @@ const ACCESSORIES = {
       circ(x - 1, y + 5.5, 3.2, 'none', ink)
     return {
       front:
-        ell(48, 41, 25, 5.5, T('#1a237e')) +
-        `<rect x="30" y="6" width="36" height="35" rx="5" fill="${T('#283593')}" stroke="${OUT}" stroke-width="${SW}"/>` +
-        `<rect x="30" y="31" width="36" height="6" fill="${T('#ffc107')}" stroke="${OUT}" stroke-width="1.5"/>` +
+        ell(48, 41 - up, 25, 5.5, T('#1a237e')) +
+        `<rect x="30" y="${6 - up}" width="36" height="35" rx="5" fill="${T('#283593')}" stroke="${OUT}" stroke-width="${SW}"/>` +
+        `<rect x="30" y="${31 - up}" width="36" height="6" fill="${T('#ffc107')}" stroke="${OUT}" stroke-width="1.5"/>` +
         wang,
     }
+  },
+  plume: (p, T, ctx) => {
+    const wave = ((p.phase ?? 0) % 2) * 2
+    const king = ctx?.acc.includes('kingHat')
+    const up = king && ctx?.acc.includes('helmet') ? 12 : 0
+    // 왕 모자면 모자 옆 띠에, 투구면 투구 꼭대기 옆에 꽂음
+    const [bx, by] = king ? [64, 30 - up] : [58, 26]
+    return { front: path(`M${bx},${by} Q${bx + 8},${by - 16 + wave} ${bx + 24},${by - 22} Q${bx + 16},${by - 8} ${bx + 4},${by + 3} Z`, T('#e53935')) }
   },
   crown: (p, T) => ({
     front:
@@ -359,7 +378,8 @@ const ACCESSORIES = {
 /** 소품을 입은 슬라임 한 장 */
 function dressedSlime(p, m) {
   const T = tinter(p)
-  const parts = m.acc.map((a) => ACCESSORIES[a](p, T))
+  const ctx = { acc: m.acc }
+  const parts = m.acc.map((a) => ACCESSORIES[a](p, T, ctx))
   const layer = (k) => parts.map((x) => x[k] ?? '').join('')
   return layer('back') + slimeBody(p, T(m.body)) + layer('face') + slimeFace(p) + layer('front')
 }
@@ -431,8 +451,8 @@ function monsterMotions(extraWalk) {
  * 몸 색은 packages/defense/src/stages.ts 의 MONSTER_BASES 와 같게
  */
 /** 소품 겹치는 순서 (뒤 → 앞) */
-const ACC_ORDER = ['cape', 'backpack', 'armor', 'sneakers', 'skateboard', 'hat', 'crown', 'kingHat']
-const TRAIT_ACC = { hp: 'backpack', armor: 'armor', agi: 'hat', spd: 'skateboard' }
+const ACC_ORDER = ['cape', 'backpack', 'armor', 'sneakers', 'skateboard', 'hat', 'helmet', 'crown', 'kingHat', 'plume']
+const TRAIT_ACC = { hp: 'backpack', armor: 'helmet', agi: 'hat', spd: 'skateboard' }
 const GAME_MONSTERS = {
   normal: { name: '보통', body: '#7cb342', traits: [] },
   hp: { name: '튼튼이 (체력)', body: '#a1887f', traits: ['hp'] },
@@ -447,12 +467,33 @@ const GAME_MONSTERS = {
   agi_spd: { name: '바람이 (민첩·속도)', body: '#f06292', traits: ['agi', 'spd'] },
   boss: { name: '우두머리 (왕 모자 + 망토)', body: '#e53935', traits: [], extra: ['cape', 'kingHat'] },
 }
-const MONSTERS = Object.fromEntries(
-  Object.entries(GAME_MONSTERS).map(([id, m]) => [
-    `mon_${id}`,
-    { name: m.name, body: m.body, acc: [...m.traits.map((t) => TRAIT_ACC[t]), ...(m.extra ?? [])].sort((x, y) => ACC_ORDER.indexOf(x) - ACC_ORDER.indexOf(y)) },
+/** 특성 → 입을 소품. 머리(투구·왕 모자)를 쓰면 민첩은 깃털 모자 대신 깃털 장식 */
+function accFor(traits, extra = []) {
+  const acc = [...traits.map((t) => TRAIT_ACC[t]), ...extra]
+  const headTaken = acc.includes('helmet') || acc.includes('kingHat')
+  const out = acc.map((a) => (a === 'hat' && headTaken ? 'plume' : a))
+  return [...new Set(out)].sort((x, y) => ACC_ORDER.indexOf(x) - ACC_ORDER.indexOf(y))
+}
+
+/** 우두머리: 탄마다 섞는 특성(3개 이상)에 따라 그림이 다름 → 조합마다 한 장 (mon_boss_hp_armor_agi 등) */
+const TRAIT_ORDER = ['hp', 'armor', 'agi', 'spd']
+const BOSS_COMBOS = [
+  ['hp', 'armor', 'agi'],
+  ['hp', 'armor', 'spd'],
+  ['hp', 'agi', 'spd'],
+  ['armor', 'agi', 'spd'],
+  ['hp', 'armor', 'agi', 'spd'],
+]
+const TRAIT_KO = { hp: '체력', armor: '방어', agi: '민첩', spd: '속도' }
+
+const MONSTERS = Object.fromEntries([
+  ...Object.entries(GAME_MONSTERS).map(([id, m]) => [`mon_${id}`, { name: m.name, body: m.body, acc: accFor(m.traits, m.extra) }]),
+  ...BOSS_COMBOS.map((c) => [
+    `mon_boss_${c.join('_')}`,
+    { name: `우두머리 (${c.map((t) => TRAIT_KO[t]).join('·')})`, body: '#e53935', acc: accFor(c, ['cape', 'kingHat']) },
   ]),
-)
+])
+void TRAIT_ORDER
 
 /** 몬스터 능력용 소품 시안 (아직 게임엔 안 씀 — "능력자" 표시용 후보) */
 const ACC_SAMPLES = {

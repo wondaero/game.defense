@@ -1,5 +1,6 @@
 import {
   ABILITY_COOLDOWN_MS,
+  FRENZY_MS,
   levelBonus,
   SPLASH_RADIUS,
   STUN_IMMUNE_MS,
@@ -57,6 +58,8 @@ export interface Monster {
   invincibleUntil: number
   /** 맹독: 1초마다 받는 피해 (0 = 안 걸림). 몬스터당 한 번, 죽을 때까지 */
   poisonDmg: number
+  /** 이미 밟은 가시 장애물 (길 칸 번호) — 가시는 몬스터마다 한 번만 */
+  thornHit: number[]
   /** 능력별 다음 발동 가능 틱 (쿨타임) */
   abilityReadyAt: Partial<Record<MonsterAbilityKind, number>>
   /** 능력별 쓴 횟수 (마리당 횟수 제한) */
@@ -82,6 +85,8 @@ export interface SimUnit {
   frozenUntil: number
   /** 이 틱까지 봉인 — 특수능력 발동 안 됨, 강화 효과 꺼짐 (몬스터 "봉인") */
   sealedUntil: number
+  /** 이 틱까지 광폭화 (공속 2배 · 명중률 2배) */
+  frenzyUntil: number
 }
 
 export interface Obstacle {
@@ -175,7 +180,7 @@ export function createWave(
   const units: SimUnit[] = roster
     .filter((u) => placements[u.id])
     // 게이지가 찬 채로 시작 → 첫 몬스터가 들어오면 바로 공격
-    .map((inst) => ({ inst, cell: { ...placements[inst.id]! }, atkGauge: windowTicks * 2, weakenedUntil: 0, abilityReadyAt: 0, obstacleUsed: false, frozenUntil: -1_000_000, sealedUntil: 0 }))
+    .map((inst) => ({ inst, cell: { ...placements[inst.id]! }, atkGauge: windowTicks * 2, weakenedUntil: 0, abilityReadyAt: 0, obstacleUsed: false, frozenUntil: -1_000_000, sealedUntil: 0, frenzyUntil: 0 }))
     .sort((a, b) => a.cell.y - b.cell.y || a.cell.x - b.cell.x)
   return {
     cfg,
@@ -242,7 +247,18 @@ function damage(sim: WaveSim, u: SimUnit, m: Monster, atk: number, crit: boolean
 }
 
 /** 캐릭이 몬스터 기술을 민첩으로 피하나 */
-const dodges = (sim: WaveSim, u: SimUnit, m: Monster) => sim.rng.int(BP) < agilityChanceBp(unitStats(sim, u.inst).agility, m.spec.agility)
+/** 판 위 캐릭의 지금 능력치: 봉인(강화 꺼짐) · 광폭화(공속·민첩 2배) 반영 */
+export function unitStatsNow(sim: WaveSim, u: SimUnit) {
+  const st = unitStats(sim, u.inst, sim.tick < u.sealedUntil)
+  if (sim.tick < u.frenzyUntil) {
+    // 광폭화 (2026-11-27): 공속 2배(한 틱 두 번은 안 치게 windowTicks 까지) · 민첩 2배
+    st.attackSpeed = Math.min(sim.windowTicks, st.attackSpeed * 2)
+    st.agility = st.agility * 2
+  }
+  return st
+}
+
+const dodges = (sim: WaveSim, u: SimUnit, m: Monster) => sim.rng.int(BP) < agilityChanceBp(unitStatsNow(sim, u).agility, m.spec.agility)
 
 /** 비어 있는 배치 칸 */
 function freeSlots(sim: WaveSim): Cell[] {
@@ -346,7 +362,7 @@ function rollProc(sim: WaveSim, u: SimUnit): boolean {
   if (!a || sim.tick < u.abilityReadyAt || sim.tick < u.sealedUntil || a.chanceBp <= 0) return false
   if (a.kind === 'obstacle' && u.obstacleUsed) return false
   if (sim.rng.int(BP) >= a.chanceBp) return false
-  const cd = ABILITY_COOLDOWN_MS[a.kind]
+  const cd = a.kind === 'frenzy' ? a.cooldownMs : ABILITY_COOLDOWN_MS[a.kind]
   if (cd) u.abilityReadyAt = sim.tick + msToTicks(sim.cfg, cd)
   return true
 }
@@ -395,6 +411,9 @@ function applyUnitAbility(sim: WaveSim, u: SimUnit, target: Monster, proc: Abili
         damage(sim, u, m, atk, false, true)
       }
       break
+    case 'frenzy':
+      u.frenzyUntil = sim.tick + msToTicks(cfg, FRENZY_MS)
+      break
     case 'poison':
       // 빗나가도 걸림 (다른 특수능력과 같음). 이미 걸렸으면 그대로 (중첩 없음)
       if (!blocked('poison') && target.poisonDmg === 0 && target.hp > 0) target.poisonDmg = Math.max(1, applyBp(atk, proc.pctBp))
@@ -439,6 +458,7 @@ export function stepWave(sim: WaveSim) {
       hasteUntil: 0,
       invincibleUntil: 0,
       poisonDmg: 0,
+      thornHit: [],
       abilityReadyAt: {},
       abilityUsed: {},
     })
@@ -462,16 +482,21 @@ export function stepWave(sim: WaveSim) {
   }
   sim.monsters = sim.monsters.filter((m) => m.dist < map.length)
 
-  // 1초마다: 가시 장애물(밟고 있으면 최대 체력의 %) · 맹독 (둘 다 방어 무시, 무적이면 안 들어감)
+  // 가시 장애물: 처음 밟는 순간 한 번만 최대 체력의 % (방어 무시). 그 몬스터는 다시 밟아도 안 깎임 (2026-11-27)
+  for (const m of sim.monsters) {
+    const o = obstacleAt(m)
+    if (o?.kind !== 'damage' || m.thornHit.includes(o.index)) continue
+    m.thornHit.push(o.index)
+    if (isInvincible(sim, m)) continue
+    const dmg = Math.max(1, applyBp(m.maxHp, o.amountBp))
+    m.hp -= dmg
+    sim.events.push({ type: 'thorn', monsterId: m.id, dist: m.dist, amount: dmg })
+  }
+
+  // 1초마다: 맹독 (방어 무시, 무적이면 안 들어감)
   if (sim.tick % cfg.tickRate === 0) {
     for (const m of sim.monsters) {
       if (isInvincible(sim, m)) continue
-      const o = obstacleAt(m)
-      if (o?.kind === 'damage') {
-        const dmg = Math.max(1, applyBp(m.maxHp, o.amountBp))
-        m.hp -= dmg
-        sim.events.push({ type: 'thorn', monsterId: m.id, dist: m.dist, amount: dmg })
-      }
       if (m.poisonDmg > 0) {
         m.hp -= m.poisonDmg
         sim.events.push({ type: 'poison', monsterId: m.id, dist: m.dist, amount: m.poisonDmg })
@@ -482,10 +507,11 @@ export function stepWave(sim: WaveSim) {
   // 공격: 사거리 안에서 가장 앞선(출구에 가까운) 몬스터
   //   게이지는 매 틱 공속만큼 참 (얼어 있어도 참, 약화 중엔 절반). 칠 대상이 없으면 한 대 분량에서 멈춤
   for (const u of sim.units) {
-    const st = unitStats(sim, u.inst, sim.tick < u.sealedUntil)
+    const st = unitStatsNow(sim, u)
     const weak = sim.tick < u.weakenedUntil
+    const speed = st.attackSpeed
     const full = sim.windowTicks * 2
-    u.atkGauge += weak ? st.attackSpeed : st.attackSpeed * 2
+    u.atkGauge += weak ? speed : speed * 2
     const ready = u.atkGauge >= full && sim.tick >= u.frozenUntil
     let target: Monster | null = null
     if (ready) {

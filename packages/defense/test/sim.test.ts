@@ -347,6 +347,41 @@ describe('진행', () => {
     expect(procsWhileSealed).toBe(0)
   })
 
+  it('호크아이: 원래 사거리 + 1/2/3 (봉인 중엔 원래 사거리)', () => {
+    const h = (plus: number) => ({ ...unit(0, 20, 2, 3, 7), ability: { kind: 'hawkeye', chanceBp: 0, plus } as Ability })
+    expect([1, 2, 3].map((k) => baseStats(cfg, h(k)).range)).toEqual([3, 4, 5])
+    expect(baseStats(cfg, h(3), true).range).toBe(2)
+  })
+
+  it('광폭화: 발동하면 2초 동안 공속 2배 (확률 5/10% · 쿨 5/8초 따로 뽑음)', () => {
+    const st0 = stageDef(1)
+    const map = maps[st0.mapId]!
+    const st = { ...st0, groups: [{ monster: st0.groups[0]!.monster, count: 1, delayMs: 0, intervalMs: 0 }] }
+    const cfg1 = makeConfig({ maxDeploy: 1 })
+    const spot = map.tiles.flat().indexOf('slot')
+    const count = (ability: Ability | null) => {
+      const ros = [{ ...unit(0, 1, 16, 2, 10), ability }]
+      const sim = createWave(cfg1, map, st, ros, { t0: { x: spot % map.width, y: Math.floor(spot / map.width) } }, 20)
+      let n = 0
+      for (let k = 0; k < 200; k++) {
+        stepWave(sim)
+        const m = sim.monsters[0]
+        if (m) {
+          m.hp = m.maxHp = 1e9
+          m.speed = 0
+        }
+        n += sim.events.filter((e) => e.type === 'hit' || e.type === 'miss').length
+      }
+      return n
+    }
+    const plain = count(null)
+    // 확률 100%·쿨 2초면 늘 광폭화 → 10초에 공속 2 의 2배 근처
+    const always = count({ kind: 'frenzy', chanceBp: 10000, cooldownMs: 2000 })
+    expect(plain).toBeGreaterThanOrEqual(20) // 공속 2 × 10초 (+ 처음 바로 한 대)
+    expect(plain).toBeLessThanOrEqual(21)
+    expect(always).toBeGreaterThan(plain * 1.7)
+  })
+
   it('통과 규칙: 3마리째 통과하면 실패, 별 = 통과 0 → 3개 · 1 → 2개 · 2 → 1개', () => {
     expect([0, 1, 2].map((k) => starsFor(true, k))).toEqual([3, 2, 1])
     expect(starsFor(false, 3)).toBe(0)

@@ -158,8 +158,70 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
     ctx.fillText(text, px, ty)
   }
   portal(map.path[0]!, '#1e88e5', '#0d2b4f', '입구')
-  portal(map.path.at(-1)!, '#e53935', '#3b0d0d', '출구')
+  // 출구 = 레이스 결승선 (2026-11-27): 칸에 검정·흰색 체크무늬 + 체크 깃발
+  {
+    const e = map.path.at(-1)!
+    const x0 = e.x * cell + 4
+    const y0 = e.y * cell + 4
+    const w = cell - 8
+    const n = 5
+    ctx.save()
+    ctx.beginPath()
+    ctx.roundRect(x0, y0, w, w, 6)
+    ctx.clip()
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      ctx.fillStyle = (i + j) % 2 ? '#212121' : '#fafafa'
+      ctx.fillRect(x0 + (i * w) / n, y0 + (j * w) / n, w / n + 0.5, w / n + 0.5)
+    }
+    ctx.restore()
+    ctx.strokeStyle = '#424242'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.roundRect(x0, y0, w, w, 6)
+    ctx.stroke()
+    // 깃발은 판 밖으로 나갈 수 있어 draw.ts 에서 그림 (drawFinishFlag)
+    // "출구" 글자
+    ctx.font = `bold ${Math.round(cell * 0.2)}px sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    // 체크무늬 가운데 어두운 띠 위에 (깃발과 안 겹치게)
+    const cxm = x0 + w / 2
+    const cym = y0 + w * 0.62
+    ctx.fillStyle = 'rgba(0,0,0,0.72)'
+    ctx.beginPath()
+    ctx.roundRect(cxm - cell * 0.27, cym - cell * 0.13, cell * 0.54, cell * 0.26, 5)
+    ctx.fill()
+    ctx.fillStyle = '#fff'
+    ctx.fillText('출구', cxm, cym + 1)
+  }
 
   cache.set(key, cv)
   return cv
+}
+
+/** 출구 체크 깃발 (판 밖 여백까지 그려지게 판 그림과 따로) */
+export function drawFinishFlag(ctx: CanvasRenderingContext2D, map: GameMap, cell: number, now: number) {
+  const e = map.path.at(-1)!
+  const x0 = e.x * cell + 4
+  const y0 = e.y * cell + 4
+  const w = cell - 8
+  const px = x0 + w - 8
+  const top = y0 - cell * 0.28
+  ctx.strokeStyle = '#5d4037'
+  ctx.lineWidth = 3
+  ctx.beginPath()
+  ctx.moveTo(px, y0 + w * 0.4)
+  ctx.lineTo(px, top)
+  ctx.stroke()
+  // 바람에 살짝 펄럭임
+  const fw = cell * 0.36
+  const fh = cell * 0.24
+  for (let i = 0; i < 4; i++) {
+    const wave = Math.sin(now / 180 + i * 0.9) * 1.6
+    for (let j = 0; j < 3; j++) {
+      ctx.fillStyle = (i + j) % 2 ? '#212121' : '#fafafa'
+      ctx.fillRect(px - fw + (i * fw) / 4, top + (j * fh) / 3 + wave * (i / 3), fw / 4 + 0.5, fh / 3 + 0.5)
+    }
+  }
+  ctx.lineWidth = 1
 }

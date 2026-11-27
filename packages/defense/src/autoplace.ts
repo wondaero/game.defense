@@ -1,6 +1,6 @@
 import type { DefenseConfig } from './config.ts'
 import { inRange, type Cell, type GameMap } from './map.ts'
-import type { UnitInstance } from './roster.ts'
+import { baseStats, type UnitInstance } from './roster.ts'
 import type { Placements } from './sim.ts'
 
 /**
@@ -22,7 +22,7 @@ export function autoPlace(cfg: DefenseConfig, map: GameMap, roster: readonly Uni
     let bestScore = -1
     for (const s of slots) {
       if (used.has(`${s.x},${s.y}`)) continue
-      const v = score(s, u.range)
+      const v = score(s, baseStats(cfg, u).range)
       if (v > bestScore) {
         best = s
         bestScore = v
@@ -31,7 +31,7 @@ export function autoPlace(cfg: DefenseConfig, map: GameMap, roster: readonly Uni
     if (!best) break
     used.add(`${best.x},${best.y}`)
     p[u.id] = best
-    map.path.forEach((c, i) => inRange(best, c, u.range, cfg.rangeShape) && cover[i]!++)
+    map.path.forEach((c, i) => inRange(best, c, baseStats(cfg, u).range, cfg.rangeShape) && cover[i]!++)
   }
   return p
 }

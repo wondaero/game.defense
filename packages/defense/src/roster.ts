@@ -59,6 +59,8 @@ export function baseStats(cfg: DefenseConfig, u: Pick<UnitInstance, 'atk' | 'ran
     attackSpeed = tenth(attackSpeed)
     agility = tenth(agility)
   }
+  // 호크아이: 원래 사거리 + 1/2/3 (2026-11-27)
+  if (a && a.kind === 'hawkeye') range += a.plus
   void cfg
   return { atk, range, attackSpeed, agility }
 }

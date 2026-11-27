@@ -1,6 +1,6 @@
 /**
  * 캐릭 특수능력 (사용자 작성 docs/spec, 2026-11-26).
- * - 캐릭당 0~1개. 붙을 확률은 설정 abilityChanceBp, 붙으면 9종 균등 (2026-11-27 맹독·전체 강화 추가, 수치 강화)
+ * - 캐릭당 0~1개. 붙을 확률은 설정 abilityChanceBp, 붙으면 11종 균등 (2026-11-27 맹독·전체 강화·광폭화·호크아이 추가, 수치 강화)
  * - 전체 강화는 발동하는 능력이 아니라 자기 공격력·공속·민첩을 한꺼번에 × 1.1/1.2/1.3 (최대를 넘을 수 있음, roster.ts baseStats)
  * - 모두 **공격할 때 발동, 빗나가도 발동**
  * - 능력마다 뽑는 수치는 최대 2개 (확률 + 시간 / 확률만 / 능력치 종류 + 레벨 등)
@@ -10,7 +10,7 @@
  */
 import { Rng } from './rng.ts'
 
-export type AbilityKind = 'stun' | 'splash' | 'crit' | 'obstacle' | 'recall' | 'teamLevel' | 'allAttack' | 'poison' | 'boostAll'
+export type AbilityKind = 'stun' | 'splash' | 'crit' | 'obstacle' | 'recall' | 'teamLevel' | 'allAttack' | 'poison' | 'boostAll' | 'frenzy' | 'hawkeye'
 export type BuffStat = 'atk' | 'range' | 'speed' | 'agility' | 'all'
 export type ObstacleKind = 'damage' | 'slow'
 
@@ -27,8 +27,12 @@ export type Ability =
   | { kind: 'poison'; chanceBp: number; pctBp: number }
   /** 전체 강화: 자기 공격력·공속·민첩을 모두 × mulBp (11000 = 1.1배). 발동 없음 (chanceBp 0) — 2026-11-27 닌자·장군 대신 */
   | { kind: 'boostAll'; chanceBp: 0; mulBp: number }
+  /** 광폭화: 발동하면 FRENZY_MS 동안 공속 2배 · 민첩 2배. 확률(5/10%)과 쿨타임(5/8초)을 따로 뽑음 */
+  | { kind: 'frenzy'; chanceBp: number; cooldownMs: number }
+  /** 호크아이: 원래 사거리 + plus (1/2/3), 항상. 발동 없음 (chanceBp 0) */
+  | { kind: 'hawkeye'; chanceBp: 0; plus: number }
 
-export const ABILITY_KINDS: readonly AbilityKind[] = ['stun', 'splash', 'crit', 'obstacle', 'recall', 'teamLevel', 'allAttack', 'poison', 'boostAll']
+export const ABILITY_KINDS: readonly AbilityKind[] = ['stun', 'splash', 'crit', 'obstacle', 'recall', 'teamLevel', 'allAttack', 'poison', 'boostAll', 'frenzy', 'hawkeye']
 
 export const ABILITY_NAMES: Readonly<Record<AbilityKind, string>> = {
   stun: '스턴',
@@ -40,6 +44,8 @@ export const ABILITY_NAMES: Readonly<Record<AbilityKind, string>> = {
   allAttack: '전체 공격',
   poison: '맹독',
   boostAll: '전체 강화',
+  frenzy: '광폭화',
+  hawkeye: '호크아이',
 }
 
 /** 쿨타임 (0 = 없음). 장애물은 판당 1회라 따로 */
@@ -53,6 +59,8 @@ export const ABILITY_COOLDOWN_MS: Readonly<Record<AbilityKind, number>> = {
   allAttack: 1000,
   poison: 0,
   boostAll: 0,
+  frenzy: 0, // 개체마다 다름 (Ability.cooldownMs)
+  hawkeye: 0,
 }
 
 /** 뽑기 표 (docs/spec 그대로) */
@@ -66,6 +74,9 @@ export const ROLL_TABLE = {
   allAttack: { chanceBp: [200, 300, 400, 500] },
   poison: { chanceBp: [500, 1000], pctBp: [2000, 3000, 4000] },
   boost: { mulBp: [11_000, 12_000, 13_000] },
+  /** 확률·쿨타임 따로 뽑음 (spec: 5/10% · 쿨 5/8초) */
+  frenzy: { chanceBp: [500, 1000], cooldownMs: [5000, 8000] },
+  hawkeye: { plus: [1, 2, 3] },
 } as const
 
 /** 광역공격 범위: 맞힌 자리 중심 (2 × 반경 + 1) 칸 정사각형 = 5×5 */
@@ -74,6 +85,8 @@ export const SPLASH_RADIUS = 2
 // ── 추천값으로 임시 적용 (사용자 확인 전) ──
 /** 스턴이 풀린 몬스터는 이 시간 동안 다시 안 걸림 (스턴 캐릭이 모여도 계속 멈추지 않게) */
 export const STUN_IMMUNE_MS = 1000
+/** 광폭화 지속 시간 */
+export const FRENZY_MS = 2000
 /** 아군 전체 레벨업 지속 시간 */
 export const TEAM_LEVEL_MS = 5000
 
@@ -118,6 +131,10 @@ export function rollAbility(rng: Rng): Ability {
       return { kind, chanceBp: pick(rng, t.poison.chanceBp), pctBp: pick(rng, t.poison.pctBp) }
     case 'boostAll':
       return { kind, chanceBp: 0, mulBp: pick(rng, t.boost.mulBp) }
+    case 'frenzy':
+      return { kind, chanceBp: pick(rng, t.frenzy.chanceBp), cooldownMs: pick(rng, t.frenzy.cooldownMs) }
+    case 'hawkeye':
+      return { kind, chanceBp: 0, plus: pick(rng, t.hawkeye.plus) }
   }
 }
 
@@ -145,7 +162,7 @@ export function abilityDesc(a: Ability): string {
       return `${pct(a.chanceBp)} 확률로 2배 데미지 (공격력×2 − 방어력)`
     case 'obstacle':
       return `${pct(a.chanceBp)} 확률로 길 무작위 칸에 ${
-        a.obstacle === 'damage' ? `가시 장애물 (밟으면 1초마다 몬스터 최대 체력의 ${pct(a.amountBp)})` : `늪 장애물 (밟으면 속도 −${pct(a.amountBp)})`
+        a.obstacle === 'damage' ? `가시 장애물 (몬스터가 처음 밟을 때 최대 체력의 ${pct(a.amountBp)}, 마리마다 한 번)` : `늪 장애물 (밟으면 속도 −${pct(a.amountBp)})`
       } · 판당 1회`
     case 'recall':
       return `${pct(a.chanceBp)} 확률로 때린 몬스터를 출발지로${tail}`
@@ -157,5 +174,9 @@ export function abilityDesc(a: Ability): string {
       return `${pct(a.chanceBp)} 확률로 맹독: 죽을 때까지 1초마다 공격력의 ${pct(a.pctBp)} (방어 무시, 몬스터당 한 번)`
     case 'boostAll':
       return `공격력·공속·민첩 모두 × ${a.mulBp / 10000} (최대를 넘을 수 있음, 사거리 제외, 봉인되면 원래 값)`
+    case 'frenzy':
+      return `${pct(a.chanceBp)} 확률로 ${sec(FRENZY_MS)} 동안 공속 2배 · 민첩 2배 (쿨타임 ${sec(a.cooldownMs)})`
+    case 'hawkeye':
+      return `사거리 +${a.plus} (항상, 봉인되면 원래 사거리)`
   }
 }

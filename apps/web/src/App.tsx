@@ -26,7 +26,7 @@ import {
   type UnitInstance,
   type WaveSim,
 } from '@def/defense'
-import { CELL_PX, draw, monsterScreenPos, newAnimState, PAD, type Fx } from './draw.ts'
+import { CELL_PX, draw, monsterScreenPos, monsterSprite, newAnimState, PAD, type Fx } from './draw.ts'
 import { loadSprites, motionDuration } from './sprites.ts'
 import { Bench } from './Bench.tsx'
 import { ResultOverlay } from './ResultOverlay.tsx'
@@ -169,7 +169,7 @@ export function App() {
       const anim = animRef.current
       // 애니메이션 시계: 진행 중엔 게임 시간(일시정지·배속 따라감), 준비 화면은 실제 시간
       anim.clock = s ? (s.tick - 1 + (s.done ? 1 : Math.min(1, accRef.current / tickMs))) * tickMs : now
-      anim.corpses = anim.corpses.filter((c) => anim.clock - c.at < motionDuration(`mon_${c.type}`, 'die') + 100)
+      anim.corpses = anim.corpses.filter((c) => anim.clock - c.at < motionDuration(c.sprite, 'die') + 100)
       draw(ctx, {
         anim,
         cfg: L.cfg,
@@ -216,7 +216,7 @@ export function App() {
       if (ev.type === 'kill') {
         const p = monsterScreenPos(map, ev.dist, ev.monsterId)
         const spec = sim.stage.monsters[ev.monsterType]
-        anim.corpses.push({ type: ev.monsterType, size: spec?.size ?? 0.22, x: p.x, y: p.y, flip: anim.monsterFlip.get(ev.monsterId) ?? false, at })
+        anim.corpses.push({ type: ev.monsterType, sprite: spec ? monsterSprite(spec) : `mon_${ev.monsterType}`, size: spec?.size ?? 0.22, x: p.x, y: p.y, flip: anim.monsterFlip.get(ev.monsterId) ?? false, at })
         anim.monsterHitAt.delete(ev.monsterId)
         anim.monsterFlip.delete(ev.monsterId)
         continue
