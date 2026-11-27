@@ -144,6 +144,7 @@ const TOOLS = {
   recall: { name: '부메랑 — 출발지로 보내기', draw: (T) => path('M-2,-2 Q2,-18 -4,-30 M-2,-2 Q14,-6 22,-16', 'none', { stroke: OUT, 'stroke-width': 7 }) + path('M-2,-2 Q2,-18 -4,-30 M-2,-2 Q14,-6 22,-16', 'none', { stroke: T('#ff8f00'), 'stroke-width': 4 }) },
   teamLevel: { name: '깃발 — 아군 전체 레벨업', draw: (T) => path('M0,4 L6,-32', 'none', { stroke: T('#6d4c41'), 'stroke-width': 3 }) + path('M6,-32 L26,-26 L4,-19 Z', T('#e53935')) + star(12, -25, 3, T('#ffeb3b')) },
   allAttack: { name: '마법 지팡이 — 전체 공격', draw: (T) => path('M0,3 L7,-22', 'none', { stroke: T('#5e35b1'), 'stroke-width': 3.5 }) + star(8, -27, 8, T('#ffeb3b')) },
+  boostAll: { name: '황금 방패 — 전체 강화', draw: (T) => path('M-4,-30 L16,-30 Q17,-14 6,-4 Q-5,-14 -4,-30 Z', T('#ffc107')) + path('M6,-27 L6,-8 M-1,-21 L13,-21', 'none', { stroke: T('#fff8e1'), 'stroke-width': 2.5 }) + star(6, -20, 3.5, T('#ff7043')) },
   poison: { name: '독 병 — 맹독', draw: (T) => `<rect x="1" y="-20" width="6" height="7" rx="1.5" fill="${T('#d7ccc8')}" stroke="${OUT}" stroke-width="2"/>` + circ(4, -6, 8, T('#ab47bc')) + circ(1, -8, 1.8, '#ffffff', { 'stroke-width': 0, opacity: 0.7 }) + circ(7, -4, 1.3, '#f3e5f5', { 'stroke-width': 0 }) },
 }
 
@@ -314,6 +315,38 @@ const ACCESSORIES = {
       circ(70, 60, 7.5, 'none', { 'stroke-width': 2.5 }) +
       path('M61.5,60 L62.5,60 M46.5,59 L38,56', 'none', { 'stroke-width': 2.5 }),
   }),
+  // 속도: 스케이트보드 (2026-11-27 운동화 대신). 걸을 때 보드가 살짝 기울고 뒤로 바람 줄
+  skateboard: (p, T) => {
+    const tilt = [0, -2, -3, -2, 0, 1][p.phase ?? 0]
+    return {
+      back: path('M14,56 L4,54 M14,64 L3,64 M16,72 L6,74', 'none', { stroke: T('#ffffff'), 'stroke-width': 2.5, opacity: 0.8 }),
+      front: g(
+        `rotate(${tilt} 48 90)`,
+        `<rect x="10" y="86" width="76" height="6" rx="3" fill="${T('#ef6c00')}" stroke="${OUT}" stroke-width="${SW}"/>` +
+          path('M20,89 L76,89', 'none', { stroke: T('#ffcc80'), 'stroke-width': 1.5 }) +
+          circ(24, 96, 3.8, T('#455a64')) +
+          circ(72, 96, 3.8, T('#455a64')),
+      ),
+    }
+  },
+  // 우두머리 모자: 높은 모자 앞에 "왕" (글꼴 없이 선으로 그림 — 다른 컴퓨터에서도 같게)
+  kingHat: (p, T) => {
+    const x = 48
+    const y = 23
+    const ink = { stroke: T('#ffe082'), 'stroke-width': 2, fill: 'none' }
+    const wang =
+      circ(x - 4.5, y - 7, 2.6, 'none', ink) +
+      path(`M${x - 4.5},${y - 4.4} L${x - 4.5},${y - 2} M${x - 9},${y - 2} L${x},${y - 2}`, 'none', ink) +
+      path(`M${x + 4},${y - 10} L${x + 4},${y + 0.5} M${x + 4},${y - 5} L${x + 7.5},${y - 5}`, 'none', ink) +
+      circ(x - 1, y + 5.5, 3.2, 'none', ink)
+    return {
+      front:
+        ell(48, 41, 25, 5.5, T('#1a237e')) +
+        `<rect x="30" y="6" width="36" height="35" rx="5" fill="${T('#283593')}" stroke="${OUT}" stroke-width="${SW}"/>` +
+        `<rect x="30" y="31" width="36" height="6" fill="${T('#ffc107')}" stroke="${OUT}" stroke-width="1.5"/>` +
+        wang,
+    }
+  },
   crown: (p, T) => ({
     front:
       path('M30,42 L31,20 L40,31 L48,15 L56,31 L65,20 L66,42 Z', T('#ffc107')) +
@@ -398,8 +431,8 @@ function monsterMotions(extraWalk) {
  * 몸 색은 packages/defense/src/stages.ts 의 MONSTER_BASES 와 같게
  */
 /** 소품 겹치는 순서 (뒤 → 앞) */
-const ACC_ORDER = ['cape', 'backpack', 'armor', 'sneakers', 'hat', 'crown']
-const TRAIT_ACC = { hp: 'backpack', armor: 'armor', agi: 'hat', spd: 'sneakers' }
+const ACC_ORDER = ['cape', 'backpack', 'armor', 'sneakers', 'skateboard', 'hat', 'crown', 'kingHat']
+const TRAIT_ACC = { hp: 'backpack', armor: 'armor', agi: 'hat', spd: 'skateboard' }
 const GAME_MONSTERS = {
   normal: { name: '보통', body: '#7cb342', traits: [] },
   hp: { name: '튼튼이 (체력)', body: '#a1887f', traits: ['hp'] },
@@ -412,7 +445,7 @@ const GAME_MONSTERS = {
   armor_agi: { name: '방패꾼 (방어·민첩)', body: '#9575cd', traits: ['armor', 'agi'] },
   armor_spd: { name: '기사 (방어·속도)', body: '#64b5f6', traits: ['armor', 'spd'] },
   agi_spd: { name: '바람이 (민첩·속도)', body: '#f06292', traits: ['agi', 'spd'] },
-  boss: { name: '우두머리 (왕관 + 망토)', body: '#e53935', traits: [], extra: ['cape', 'crown'] },
+  boss: { name: '우두머리 (왕 모자 + 망토)', body: '#e53935', traits: [], extra: ['cape', 'kingHat'] },
 }
 const MONSTERS = Object.fromEntries(
   Object.entries(GAME_MONSTERS).map(([id, m]) => [

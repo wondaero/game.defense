@@ -20,8 +20,8 @@ const rand = (k: number) => {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296
 }
 
-export function StageMap(props: { count: number; best: number; maxOpen: number; onOpen: (n: number) => void }) {
-  const { count, best, maxOpen, onOpen } = props
+export function StageMap(props: { count: number; best: number; stars: Record<number, number>; maxOpen: number; onOpen: (n: number) => void }) {
+  const { count, best, stars, maxOpen, onOpen } = props
   const boxRef = useRef<HTMLDivElement>(null)
   const current = Math.min(best + 1, count)
   const height = nodeY(count - 1) + TOP
@@ -105,7 +105,13 @@ export function StageMap(props: { count: number; best: number; maxOpen: number; 
             >
               {boss && <span className="crown">👑</span>}
               <span className="num">{n}</span>
-              {cleared && <span className="badge">✓</span>}
+              {cleared && (
+                <span className="node-stars">
+                  {[1, 2, 3].map((k) => (
+                    <i key={k} className={k <= (stars[n] ?? 1) ? 'on' : ''}>★</i>
+                  ))}
+                </span>
+              )}
               {locked && <span className="badge lock">🔒</span>}
             </button>
           )

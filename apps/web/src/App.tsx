@@ -9,6 +9,8 @@ import {
   MONSTER_ABILITIES,
   monsterAbilityDesc,
   parseMap,
+  baseStats,
+  starsFor,
   REFERENCE_MAX_STAGE,
   referenceSummary,
   stageHpBp,
@@ -27,6 +29,7 @@ import {
 import { CELL_PX, draw, monsterScreenPos, newAnimState, PAD, type Fx } from './draw.ts'
 import { loadSprites, motionDuration } from './sprites.ts'
 import { Bench } from './Bench.tsx'
+import { ResultOverlay } from './ResultOverlay.tsx'
 import { StageMap } from './StageMap.tsx'
 import { abilityText, unitLook } from './format.ts'
 
@@ -42,10 +45,12 @@ interface Save {
   rosterSeed: string
   placementsByMap: Record<string, Placements>
   unlockAll: boolean
+  /** 탄별 가장 좋은 별 (1~3) */
+  stars: Record<number, number>
 }
 const SAVE_KEY = 'defense.save.v1'
 function loadSave(): Save {
-  const empty: Save = { best: 0, rosterSeed: '시험판-1', placementsByMap: {}, unlockAll: false }
+  const empty: Save = { best: 0, rosterSeed: '시험판-1', placementsByMap: {}, unlockAll: false, stars: {} }
   try {
     const raw = localStorage.getItem(SAVE_KEY)
     return raw ? { ...empty, ...(JSON.parse(raw) as Partial<Save>) } : empty
@@ -65,6 +70,7 @@ const MSKILL_COLOR: Record<MonsterAbilityKind, string> = {
   scatter: '#ce93d8',
   weaken: '#b388ff',
   armorUp: '#cfd8dc',
+  seal: '#90a4ae',
 }
 
 const pct = (bp: number) => `${Math.round(bp / 100)}%`
@@ -76,7 +82,7 @@ export function App() {
   const [save, setSave] = useState<Save>(loadSave)
   const [screen, setScreen] = useState<Screen>('select')
   const [stageNo, setStageNo] = useState(1)
-  const [result, setResult] = useState<{ cleared: boolean; text: string } | null>(null)
+  const [result, setResult] = useState<{ cleared: boolean; text: string; stars: number } | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [hover, setHover] = useState<Cell | null>(null)
   const [speed, setSpeed] = useState(1)
@@ -222,13 +228,33 @@ export function App() {
         const u = sim.units.find((x) => x.inst.id === ev.unitId)
         if (!from || !u) continue
         const to = monsterScreenPos(map, ev.dist, ev.monsterId)
-        if (ev.type === 'miss') {
-          fxRef.current.push({ kind: 'shot', born: now, life: 150, from, to, color: 'rgba(255,255,255,0.35)' })
-          fxRef.current.push({ kind: 'text', born: now, life: 600, to, text: '빗나감', color: '#b0bec5' })
+        // 평타 효과 (2026-11-27): 사거리 2 = 빛 구슬이 날아감 · 사거리 1 = 몬스터 앞에서 베기. 맞으면 팡, 숫자는 도착할 때
+        if (ev.type === 'hit' && ev.splash) {
+          fxRef.current.push({ kind: 'burst', born: now + 120, life: 260, to, color: '#ffb74d', size: 0.8 })
+          fxRef.current.push({ kind: 'text', born: now + 120, life: 600, to, text: `${ev.amount}`, color: '#ffb74d' })
           continue
         }
-        if (!ev.splash) fxRef.current.push({ kind: 'shot', born: now, life: 150, from, to, color: unitLook(live.current.cfg, u.inst).color })
-        fxRef.current.push({ kind: 'text', born: now, life: ev.crit ? 900 : 600, to, text: ev.crit ? `${ev.amount}!!` : `${ev.amount}`, color: ev.crit ? '#ff5252' : ev.splash ? '#ffb74d' : '#fff' })
+        const crit = ev.type === 'hit' && ev.crit
+        const color = crit ? '#ff5252' : unitLook(live.current.cfg, u.inst).color
+        const size = crit ? 1.6 : 1
+        const hand = { x: from.x + CELL_PX * 0.12, y: from.y - CELL_PX * 0.05 }
+        const ranged = u.inst.range >= 2
+        const d = Math.hypot(to.x - hand.x, to.y - hand.y)
+        const travel = ranged ? Math.min(200, Math.max(80, d * 0.9)) : 0
+        if (ranged) {
+          // 빗나가면 몬스터를 지나쳐 날아감
+          const end = ev.type === 'miss' ? { x: to.x + ((to.x - hand.x) / d) * 26, y: to.y + ((to.y - hand.y) / d) * 26 } : to
+          fxRef.current.push({ kind: 'bolt', born: now, life: travel, from: hand, to: end, color, size })
+        } else {
+          fxRef.current.push({ kind: 'slash', born: now, life: 220, to, color, size, angle: Math.atan2(to.y - from.y, to.x - from.x) })
+        }
+        if (ev.type === 'miss') {
+          fxRef.current.push({ kind: 'text', born: now + travel, life: 600, to, text: '빗나감', color: '#b0bec5' })
+          continue
+        }
+        fxRef.current.push({ kind: 'burst', born: now + travel, life: crit ? 380 : 260, to, color, size })
+        fxRef.current.push({ kind: 'text', born: now + travel, life: crit ? 900 : 600, to, text: crit ? `${ev.amount}!!` : `${ev.amount}`, color: crit ? '#ff5252' : '#fff' })
+        if (crit) anim.shakeUntil = now + travel + 160
       } else if (ev.type === 'leak') {
         const e = map.path.at(-1)!
         fxRef.current.push({ kind: 'leak', born: now, life: 500, to: { x: (e.x + 0.5) * CELL_PX, y: (e.y + 0.5) * CELL_PX } })
@@ -257,11 +283,10 @@ export function App() {
     if (live.current.screen !== 'play') return
     const n = live.current.stageNo
     const cleared = sim.lives > 0
-    const text = cleared
-      ? `${n}탄 클리어! 남은 목숨 ${sim.lives} · ${sim.killed}마리 처치 · ${sim.leaked}마리 놓침 · ${(sim.tick / live.current.cfg.tickRate).toFixed(0)}초`
-      : `${n}탄 실패 · ${sim.killed}마리 처치 · ${sim.leaked}마리 놓침`
-    if (cleared) setSave((s) => ({ ...s, best: Math.max(s.best, n) }))
-    setResult({ cleared, text })
+    const text = `${sim.killed}마리 처치 · ${sim.leaked}마리 통과 · ${(sim.tick / live.current.cfg.tickRate).toFixed(0)}초`
+    const stars = starsFor(cleared, sim.leaked)
+    if (cleared) setSave((s) => ({ ...s, best: Math.max(s.best, n), stars: { ...s.stars, [n]: Math.max(s.stars?.[n] ?? 0, stars) } }))
+    setResult({ cleared, text, stars })
     live.current.screen = 'result'
     setScreen('result')
   }
@@ -396,7 +421,7 @@ export function App() {
         </header>
         <section>
           <h3>탄 고르기</h3>
-          <StageMap count={LAST_NORMAL_STAGE} best={save.best} maxOpen={maxOpen} onOpen={openStage} />
+          <StageMap count={LAST_NORMAL_STAGE} best={save.best} stars={save.stars ?? {}} maxOpen={maxOpen} onOpen={openStage} />
           <div className="row" style={{ marginTop: 10 }}>
             <button className="primary inline" disabled={save.best < LAST_NORMAL_STAGE && !save.unlockAll} onClick={() => openStage(infinite)}>
               ♾ 무한 ({infinite}탄)
@@ -455,7 +480,7 @@ export function App() {
           {stageNo > LAST_NORMAL_STAGE && <span className="inf-tag">무한</span>}
         </h1>
         <div className="stats">
-          <span>❤️ 목숨 {sim && screen !== 'prepare' ? Math.max(0, sim.lives) : cfg.startLives}</span>
+          <span>🚪 통과 {sim && screen !== 'prepare' ? sim.leaked : 0}/{cfg.startLives - 1}</span>
           {sim && screen !== 'prepare' && (
             <span>
               ⏱ {(sim.tick / cfg.tickRate).toFixed(1)}초 · 남은 몬스터 {sim.spawns.length - sim.spawnIdx + sim.monsters.length}
@@ -494,6 +519,17 @@ export function App() {
       )}
       <main>
         <div className="board">
+          {screen === 'result' && result && (
+            <ResultOverlay
+              cleared={result.cleared}
+              stars={result.stars}
+              stage={stageNo}
+              detail={result.text}
+              onNext={() => openStage(stageNo + 1)}
+              onRetry={() => openStage(stageNo)}
+              onSelect={goSelect}
+            />
+          )}
           <canvas
             ref={canvasRef}
             onClick={(e) => onCellClick(cellFromEvent(e))}
@@ -518,24 +554,13 @@ export function App() {
         </div>
 
         <aside>
-          {screen === 'result' && result && (
-            <div className={`result ${result.cleared ? 'win' : 'lose'}`}>
-              <div>{result.cleared ? '🎉 ' : '💀 '}{result.text}</div>
-              <div className="row">
-                {result.cleared && <button className="primary inline" onClick={() => openStage(stageNo + 1)}>다음 탄 ({stageNo + 1}) →</button>}
-                <button onClick={() => openStage(stageNo)}>{result.cleared ? '다시 하기' : '배치 바꿔서 다시'}</button>
-                <button onClick={goSelect}>탄 고르기</button>
-              </div>
-            </div>
-          )}
-
           <section>
             <h3>
               출연 몬스터 <span className="dim">· 맵 {map.name} · 길 {map.path.length}칸</span>
             </h3>
             <p className="dim" style={{ margin: '0 0 6px' }}>
               {stageNo <= REFERENCE_MAX_STAGE
-                ? `기준: 특수능력 없는 10명이 평균 ${referenceSummary(stageNo)} 이면 목숨 절반 남기고 겨우 깸`
+                ? `기준: 특수능력 없는 10명이 평균 ${referenceSummary(stageNo)} 이면 겨우 깸 (2마리까지 통과)`
                 : `기준 덱(능력치 최고 10명)으로는 못 깸 — 특수능력이 있어야 함 (70탄보다 체력 +${Math.round((stageHpBp(stageNo) / stageHpBp(REFERENCE_MAX_STAGE) - 1) * 100)}%)`}
             </p>
             <ul className="monsters">
@@ -601,7 +626,7 @@ function MonsterRow({ spec, count, cfg }: { spec: MonsterSpec; count: number; cf
         <b>{spec.name}</b> ×{count}
         <span className="dim">
           {' '}
-          체력 {hp} · 방어 {spec.armor} · 민첩 {spec.agility} · 속도 {speed.toFixed(1)}칸/초 · 놓치면 목숨 −{spec.leak}
+          체력 {hp} · 방어 {spec.armor} · 민첩 {spec.agility} · 속도 {speed.toFixed(1)}칸/초
         </span>
       </div>
       {spec.abilities.map((a) => (
@@ -617,6 +642,13 @@ function MonsterRow({ spec, count, cfg }: { spec: MonsterSpec; count: number; cf
 function UnitFace({ body, tool }: { body: string; tool: string | null }) {
   const bg = [tool, body].filter(Boolean).map((id) => `url(sprites/${id}.png)`).join(', ')
   return <span className="face sprite" style={{ backgroundImage: bg }} />
+}
+
+/** 능력치 한 줄. 닌자·장군이 올린 값은 ▲ 표시 */
+function statText(cfg: DefenseConfig, u: UnitInstance): string {
+  const b = baseStats(cfg, u)
+  const v = (now: number, orig: number) => (now !== orig ? `${now}▲` : `${now}`)
+  return `공격 ${v(b.atk, u.atk)} · 사거리 ${b.range} · 공속 ${v(b.attackSpeed, u.attackSpeed)} · 민첩 ${v(b.agility, u.agility)}`
 }
 
 function UnitRow(props: {
@@ -635,7 +667,7 @@ function UnitRow(props: {
       <UnitFace body={look.body} tool={look.tool} />
       <div className="info">
         <div>
-          <b className={`tier ${look.tierName === '무지개' ? 'rainbow' : ''}`} style={{ color: look.color }}>{look.tierName} {look.score}</b> 공격 {u.atk} · 사거리 {u.range} · 공속 {u.attackSpeed} · 민첩 {u.agility}
+          <b className={`tier ${look.tierName === '무지개' ? 'rainbow' : ''}`} style={{ color: look.color }}>{look.tierName} {look.score}</b> {statText(props.cfg, u)}
           {props.placed && <span className="tag">출전</span>}
         </div>
         {ab && (
@@ -680,7 +712,7 @@ function Settings({ cfg, onChange }: { cfg: DefenseConfig; onChange: (p: Partial
       {num('민첩 최대', cfg.agility.max, (v) => ({ agility: { min: Math.min(v, cfg.agility.min), max: v } }), 1, 1)}
       {num('몬스터 속도 (%)', cfg.monsterSpeedBp / 100, (v) => ({ monsterSpeedBp: Math.max(10, v) * 100 }), 10, 10)}
       {num('몬스터 체력 (%)', cfg.monsterHpBp / 100, (v) => ({ monsterHpBp: Math.max(10, v) * 100 }), 10, 10)}
-      {num('시작 목숨', cfg.startLives, (v) => ({ startLives: Math.max(1, v) }), 1, 1)}
+      {num('몇 마리 통과하면 실패', cfg.startLives, (v) => ({ startLives: Math.max(1, v) }), 1, 1)}
       {num('특수능력 확률 (%)', cfg.abilityChanceBp / 100, (v) => ({ abilityChanceBp: Math.min(100, v) * 100 }), 10)}
       <button onClick={() => onChange({ ...DEFAULT_CONFIG })}>기본값으로</button>
       <p className="dim" style={{ gridColumn: '1 / -1', margin: 0 }}>

@@ -12,7 +12,7 @@ import {
 import { applyBp, ATTACK_WINDOW_MS, BP, MAX_ATTACK_SPEED, msToTicks, type DefenseConfig } from './config.ts'
 import { CELL, inRange, pathIndexAt, type Cell, type GameMap } from './map.ts'
 import { Rng, seedFromString } from './rng.ts'
-import type { UnitInstance } from './roster.ts'
+import { baseStats, type UnitInstance } from './roster.ts'
 import {
   BLINK_CELLS,
   FREEZE_IMMUNE_MS,
@@ -80,6 +80,8 @@ export interface SimUnit {
   obstacleUsed: boolean
   /** 이 틱까지 얼어서 공격 못 함 */
   frozenUntil: number
+  /** 이 틱까지 봉인 — 특수능력 발동 안 됨, 강화 효과 꺼짐 (몬스터 "봉인") */
+  sealedUntil: number
 }
 
 export interface Obstacle {
@@ -173,7 +175,7 @@ export function createWave(
   const units: SimUnit[] = roster
     .filter((u) => placements[u.id])
     // 게이지가 찬 채로 시작 → 첫 몬스터가 들어오면 바로 공격
-    .map((inst) => ({ inst, cell: { ...placements[inst.id]! }, atkGauge: windowTicks * 2, weakenedUntil: 0, abilityReadyAt: 0, obstacleUsed: false, frozenUntil: -1_000_000 }))
+    .map((inst) => ({ inst, cell: { ...placements[inst.id]! }, atkGauge: windowTicks * 2, weakenedUntil: 0, abilityReadyAt: 0, obstacleUsed: false, frozenUntil: -1_000_000, sealedUntil: 0 }))
     .sort((a, b) => a.cell.y - b.cell.y || a.cell.x - b.cell.x)
   return {
     cfg,
@@ -199,11 +201,9 @@ export function createWave(
 }
 
 /** 레벨업 버프를 반영한 능력치 */
-export function unitStats(sim: WaveSim, inst: UnitInstance) {
-  let atk = inst.atk
-  let range = inst.range
-  let attackSpeed = inst.attackSpeed
-  let agility = inst.agility
+export function unitStats(sim: WaveSim, inst: UnitInstance, sealed = false) {
+  // 강화 특수능력이면 올라간 능력치에서 시작 (봉인 중엔 원래 값)
+  let { atk, range, attackSpeed, agility } = baseStats(sim.cfg, inst, sealed)
   for (const b of sim.levelBuffs) {
     if (sim.tick >= b.until) continue
     const has = (s: BuffStat) => b.stat === s || b.stat === 'all'
@@ -325,6 +325,13 @@ function monsterReact(sim: WaveSim, u: SimUnit, m: Monster) {
       case 'armorUp':
         m.armorUpUntil = sim.tick + msToTicks(cfg, d.durationMs)
         break
+      case 'seal':
+        if (dodges(sim, u, m)) dodgedIds.push(u.inst.id)
+        else {
+          u.sealedUntil = sim.tick + msToTicks(cfg, d.durationMs)
+          hitIds.push(u.inst.id)
+        }
+        break
     }
     if (!fired) continue
     if (d.cooldownMs) m.abilityReadyAt[kind] = sim.tick + msToTicks(cfg, d.cooldownMs)
@@ -336,7 +343,7 @@ function monsterReact(sim: WaveSim, u: SimUnit, m: Monster) {
 /** 특수능력 발동 판정 (공격할 때, 빗나가도). 쿨타임·판당 1회 반영 */
 function rollProc(sim: WaveSim, u: SimUnit): boolean {
   const a = u.inst.ability
-  if (!a || sim.tick < u.abilityReadyAt) return false
+  if (!a || sim.tick < u.abilityReadyAt || sim.tick < u.sealedUntil || a.chanceBp <= 0) return false
   if (a.kind === 'obstacle' && u.obstacleUsed) return false
   if (sim.rng.int(BP) >= a.chanceBp) return false
   const cd = ABILITY_COOLDOWN_MS[a.kind]
@@ -447,7 +454,8 @@ export function stepWave(sim: WaveSim) {
     m.dist += Math.max(1, speed - applyBp(speed, slow))
     if (m.dist >= map.length) {
       m.hp = 0
-      sim.lives -= m.spec.leak
+      // 몬스터 한 마리 = 1 (종류·우두머리 상관없이, 2026-11-27)
+      sim.lives -= 1
       sim.leaked++
       sim.events.push({ type: 'leak', monsterId: m.id, lives: sim.lives })
     }
@@ -474,7 +482,7 @@ export function stepWave(sim: WaveSim) {
   // 공격: 사거리 안에서 가장 앞선(출구에 가까운) 몬스터
   //   게이지는 매 틱 공속만큼 참 (얼어 있어도 참, 약화 중엔 절반). 칠 대상이 없으면 한 대 분량에서 멈춤
   for (const u of sim.units) {
-    const st = unitStats(sim, u.inst)
+    const st = unitStats(sim, u.inst, sim.tick < u.sealedUntil)
     const weak = sim.tick < u.weakenedUntil
     const full = sim.windowTicks * 2
     u.atkGauge += weak ? st.attackSpeed : st.attackSpeed * 2
@@ -528,10 +536,17 @@ export interface WaveResult {
   killed: number
   leaked: number
   cleared: boolean
+  /** 별 0~3 */
+  stars: number
 }
 
 /** 화면 없이 끝까지 (테스트·나중에 서버 검증용) */
 export function runWave(sim: WaveSim, maxTicks = 200_000): WaveResult {
   while (!sim.done && sim.tick < maxTicks) stepWave(sim)
-  return { ticks: sim.tick, lives: sim.lives, killed: sim.killed, leaked: sim.leaked, cleared: sim.lives > 0 }
+  return { ticks: sim.tick, lives: sim.lives, killed: sim.killed, leaked: sim.leaked, cleared: sim.lives > 0, stars: starsFor(sim.lives > 0, sim.leaked) }
+}
+
+/** 별 (2026-11-27): 통과 0마리 = 3개 · 1마리 = 2개 · 2마리 = 1개 · 실패(3마리째 통과) = 0 */
+export function starsFor(cleared: boolean, leaked: number): number {
+  return cleared ? Math.max(1, 3 - leaked) : 0
 }

@@ -27,7 +27,10 @@ export interface DefenseConfig {
   agility: Range
   /** 공속 뽑기 범위 (1~5, 같은 확률). 공속 N = 1초에 N대 (레벨업 중엔 최대 8) */
   attackSpeed: Range
-  /** 시작 목숨 */
+  /**
+   * 몇 마리가 출구를 통과하면 실패하나 (2026-11-27: 3마리째 통과 = 실패, 2마리까지 허용).
+   * 이름은 예전 그대로(목숨) — 몬스터 한 마리 통과 = 1 깎임 (우두머리도 1)
+   */
   startLives: number
   /** 몬스터 속도·체력 배율 */
   monsterSpeedBp: number
@@ -45,7 +48,7 @@ export const DEFAULT_CONFIG: Readonly<DefenseConfig> = Object.freeze({
   range: { min: 1, max: 2 },
   agility: { min: 5, max: 10 },
   attackSpeed: { min: 1, max: 5 },
-  startLives: 20,
+  startLives: 3,
   monsterSpeedBp: 10_000,
   monsterHpBp: 10_000,
   abilityChanceBp: 3000,

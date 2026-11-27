@@ -30,7 +30,11 @@ import {
   autoPlace,
   REFERENCE_MAX_STAGE,
   referenceDeck,
-  referenceMaxLoss,
+  referencePasses,
+  starsFor,
+  baseStats,
+  statScore,
+  type MonsterAbilityKind,
   STAGE_HP_BP,
   stageHpBp,
 } from '../src/index.ts'
@@ -286,15 +290,14 @@ describe('진행', () => {
     }
   })
 
-  it('탄 체력 표: 1~70탄 모두 기준 덱이 목숨 절반 남기고 깸 (npm run calibrate 결과와 맞는지)', () => {
+  it('탄 체력 표: 1~70탄 모두 기준 덱이 겨우 깸 (npm run calibrate 결과와 맞는지)', () => {
     expect(STAGE_HP_BP.length).toBe(REFERENCE_MAX_STAGE)
     for (let n = 1; n <= REFERENCE_MAX_STAGE; n++) {
       const st = stageDef(n)
       const map = maps[st.mapId]!
       const deck = referenceDeck(n)
       const r = runWave(createWave(cfg, map, st, deck, autoPlace(cfg, map, deck), cfg.startLives))
-      const totalLeak = st.groups.reduce((s, g) => s + g.count * st.monsters[g.monster]!.leak, 0)
-      expect(r.cleared && cfg.startLives - r.lives <= referenceMaxLoss(cfg.startLives, totalLeak), `${n}탄 — 규칙을 바꿨으면 npm run calibrate`).toBe(true)
+      expect(referencePasses(r), `${n}탄 — 규칙을 바꿨으면 npm run calibrate`).toBe(true)
     }
     // 71탄부터: 61~69탄 평균(우두머리 탄은 70탄 값) 바탕으로 탄마다 +3% (정수)
     const tail = STAGE_HP_BP.slice(60, 69)
@@ -302,6 +305,55 @@ describe('진행', () => {
     expect(stageHpBp(71)).toBe(Math.floor((normalBase * 10300) / 10000))
     expect(stageHpBp(80)).toBeLessThan(stageHpBp(79)) // 우두머리 탄은 일반 탄보다 배율 낮음 (우두머리가 단단하니까)
     expect(stageHpBp(150)).toBeGreaterThan(stageHpBp(100))
+  })
+
+  it('전체 강화: 공격력·공속·민첩 모두 × 1.1/1.2/1.3 (최대를 넘을 수 있음, 사거리 그대로, 봉인 중엔 원래 값), 헬멧 점수도 올라감', () => {
+    const base = unit(0, 17, 1, 3, 7)
+    const b = (mulBp: number) => ({ ...base, ability: { kind: 'boostAll', chanceBp: 0, mulBp } as Ability })
+    expect(baseStats(cfg, b(11_000))).toEqual({ atk: 18, range: 1, attackSpeed: 3.3, agility: 7.7 }) // 17 × 1.1 = 18.7 → 내림
+    expect(baseStats(cfg, b(12_000))).toEqual({ atk: 20, range: 1, attackSpeed: 3.6, agility: 8.4 })
+    expect(baseStats(cfg, { ...unit(0, 30, 2, 5, 10), ability: { kind: 'boostAll', chanceBp: 0, mulBp: 13_000 } })).toEqual({ atk: 39, range: 2, attackSpeed: 6.5, agility: 13 }) // 최대 초과
+    expect(baseStats(cfg, b(13_000), true)).toEqual({ atk: 17, range: 1, attackSpeed: 3, agility: 7 }) // 봉인
+    expect(statScore(cfg, b(13_000))).toBeGreaterThan(statScore(cfg, base))
+  })
+
+  it('몬스터 봉인: 걸린 캐릭은 3초 동안 특수능력이 발동 안 함', () => {
+    const st0 = stageDef(12)
+    const map = maps[st0.mapId]!
+    const t = st0.groups[0]!.monster
+    const spec = { ...st0.monsters[t]!, abilities: ['seal'] as MonsterAbilityKind[] }
+    const st = { ...st0, monsters: { [t]: spec }, groups: [{ monster: t, count: 1, delayMs: 0, intervalMs: 0 }] }
+    const cfg1 = makeConfig({ maxDeploy: 1 })
+    // 민첩 0 → 봉인을 못 피함. 2배 데미지 확률 100% 로 발동 여부를 봄
+    const ros = [{ ...unit(0, 1, 16, 5, 0), ability: { kind: 'crit', chanceBp: 10000 } as Ability }]
+    const spot = map.tiles.flat().indexOf('slot')
+    const sim = createWave(cfg1, map, st, ros, { t0: { x: spot % map.width, y: Math.floor(spot / map.width) } }, 20)
+    let sealedTicks = 0
+    let procsWhileSealed = 0
+    let procs = 0
+    for (let k = 0; k < 200; k++) {
+      const sealedBefore = sim.tick < sim.units[0]!.sealedUntil
+      stepWave(sim)
+      const m = sim.monsters[0]
+      if (m) {
+        m.hp = m.maxHp = 1e9
+        m.speed = 0
+      }
+      if (sealedBefore) sealedTicks++
+      for (const e of sim.events) if (e.type === 'proc') sealedBefore ? procsWhileSealed++ : procs++
+    }
+    expect(sealedTicks).toBeGreaterThan(0)
+    expect(procs).toBeGreaterThan(0)
+    expect(procsWhileSealed).toBe(0)
+  })
+
+  it('통과 규칙: 3마리째 통과하면 실패, 별 = 통과 0 → 3개 · 1 → 2개 · 2 → 1개', () => {
+    expect([0, 1, 2].map((k) => starsFor(true, k))).toEqual([3, 2, 1])
+    expect(starsFor(false, 3)).toBe(0)
+    const st = stageDef(1)
+    const r = runWave(createWave(cfg, maps[st.mapId]!, st, roster, {}, cfg.startLives))
+    expect(cfg.startLives).toBe(3)
+    expect([r.cleared, r.leaked, r.stars]).toEqual([false, 3, 0]) // 아무도 안 세우면 3마리째에 끝
   })
 
   it('아무도 없으면 전부 출구로', () => {

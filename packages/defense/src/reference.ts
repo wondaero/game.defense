@@ -4,20 +4,16 @@ import { IMAGES, type UnitInstance } from './roster.ts'
  * 탄 난이도의 기준이 되는 덱 (2026-11-26 사용자 결정).
  * - 특수능력 없는 10명. 1탄 = 능력치 모두 최하, REFERENCE_MAX_STAGE 탄 = 모두 최고
  * - 그 사이는 10명 **합계**가 고르게 오름 (사거리는 2칸짜리 인원이 한 명씩 늘어남)
- * - n탄 몬스터 체력 = "n탄 기준 덱이 목숨 절반을 남기고 겨우 깨는 최대 체력" (scripts/calibrate.ts)
+ * - n탄 몬스터 체력 = "n탄 기준 덱이 겨우 깨는(2마리까지 통과) 최대 체력" (scripts/calibrate.ts)
  */
 export const REFERENCE_SIZE = 10
 export const REFERENCE_MAX_STAGE = 70
 /**
- * "겨우 깬다" = 시작 목숨 20 중 10 이상 남기고 깸 (사용자 결정: 목숨 절반).
- * 단 몬스터가 적은 탄(1탄 = 10마리 = 다 놓쳐도 목숨 10)에선 의미가 없으므로
- * 놓친 목숨 ≤ min(10, 그 탄에서 잃을 수 있는 목숨 전체의 절반)
+ * "겨우 깬다" = 깸 (2마리까지 통과, 별 1개 이상). 2026-11-27 몬스터 수 규칙으로 바뀜 (예전: 목숨 20 중 절반)
+ * → 기준 덱은 별 1개로 겨우 깨고, 별 2~3개는 더 좋은 덱·배치·특수능력의 몫
  */
-export const REFERENCE_TARGET_LIVES = 10
-
-/** 기준 덱이 놓쳐도 되는 최대 목숨 */
-export function referenceMaxLoss(startLives: number, stageTotalLeak: number): number {
-  return Math.min(startLives - REFERENCE_TARGET_LIVES, Math.floor(stageTotalLeak / 2))
+export function referencePasses(r: { cleared: boolean }): boolean {
+  return r.cleared
 }
 
 /** 합계 범위 [1탄, 최고 탄] */

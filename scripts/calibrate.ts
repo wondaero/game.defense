@@ -3,7 +3,7 @@
  * 실행: npm run calibrate  (규칙·몬스터·맵·기준 덱을 바꾸면 다시 실행)
  *
  * n탄 체력 배율 = n탄 기준 덱(reference.ts)이 자동 배치(autoplace.ts)로
- *   목숨 절반을 남기고(몬스터가 적은 탄은 '잃을 수 있는 목숨의 절반'까지만 놓치고) 깨는 최대 배율.
+ *   겨우 깨는(2마리까지 통과) 최대 배율.
  *   0.5% 정밀도 이진 탐색.
  * 엔진이 결정적이라 같은 규칙이면 항상 같은 표가 나온다.
  */
@@ -17,7 +17,7 @@ import {
   parseMap,
   REFERENCE_MAX_STAGE,
   referenceDeck,
-  referenceMaxLoss,
+  referencePasses,
   referenceSummary,
   runWave,
   stageDefWithHp,
@@ -32,8 +32,7 @@ function passes(n: number, hpBp: number): boolean {
   const map = maps[st.mapId]!
   const deck = referenceDeck(n)
   const r = runWave(createWave(cfg, map, st, deck, autoPlace(cfg, map, deck), cfg.startLives))
-  const totalLeak = st.groups.reduce((s, g) => s + g.count * st.monsters[g.monster]!.leak, 0)
-  return r.cleared && cfg.startLives - r.lives <= referenceMaxLoss(cfg.startLives, totalLeak)
+  return referencePasses(r)
 }
 
 function calibrate(n: number): number {

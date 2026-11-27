@@ -37,7 +37,7 @@ export type MonsterTrait = 'hp' | 'armor' | 'agi' | 'spd'
 export const MONSTER_TRAITS: readonly MonsterTrait[] = ['hp', 'armor', 'agi', 'spd']
 export const TRAIT_NAMES: Readonly<Record<MonsterTrait, string>> = { hp: '체력', armor: '방어', agi: '민첩', spd: '속도' }
 /** 몬스터 특수능력 (사용자 작성 docs/spec 1~8번 + 예전 단단해지기) */
-export type MonsterAbilityKind = 'freeze' | 'fullHeal' | 'groupHeal' | 'haste' | 'blink' | 'invincible' | 'scatter' | 'weaken' | 'armorUp'
+export type MonsterAbilityKind = 'freeze' | 'fullHeal' | 'groupHeal' | 'haste' | 'blink' | 'invincible' | 'scatter' | 'weaken' | 'armorUp' | 'seal'
 
 /** 몬스터 종류의 기본값 (1탄 기준) */
 export interface MonsterBase {
@@ -131,10 +131,12 @@ export const MONSTER_ABILITIES: Readonly<Record<MonsterAbilityKind, MonsterAbili
   weaken: { name: '약화', icon: '↓', chanceBp: 1000, cooldownMs: 20_000, durationMs: 5000, uses: 0 },
   // 9. (예전) 맞으면 3초간 방어력 + / 쿨 10초
   armorUp: { name: '단단해지기', icon: '🛡', chanceBp: 10_000, cooldownMs: 10_000, durationMs: 3000, uses: 0 },
+  // 10. 20% 확률로 때린 캐릭 3초 봉인(특수능력 발동 안 됨 · 강화 효과도 꺼짐) / 쿨 10초 (2026-11-27)
+  seal: { name: '봉인', icon: '⛓', chanceBp: 2000, cooldownMs: 10_000, durationMs: 3000, uses: 0 },
 }
 
 /** 판정 순서 (한 공격에 여러 능력이 있으면 이 순서로 굴림 → 결정성) */
-export const MONSTER_ABILITY_KINDS: readonly MonsterAbilityKind[] = ['invincible', 'fullHeal', 'groupHeal', 'haste', 'blink', 'freeze', 'scatter', 'weaken', 'armorUp']
+export const MONSTER_ABILITY_KINDS: readonly MonsterAbilityKind[] = ['invincible', 'fullHeal', 'groupHeal', 'haste', 'blink', 'freeze', 'scatter', 'weaken', 'seal', 'armorUp']
 
 /** 얼었다 풀린 캐릭은 이 시간 동안 다시 얼지 않음 (계속 얼어 있는 것 방지, *임시*) */
 export const FREEZE_IMMUNE_MS = 3000
@@ -227,6 +229,8 @@ export function monsterAbilityDesc(kind: MonsterAbilityKind, spec: MonsterSpec):
       return `맞으면 ${pct} 확률로 때린 캐릭의 공속·명중률을 ${sec(d.durationMs)} 동안 절반으로${tail}${dodge}`
     case 'armorUp':
       return `맞으면 ${sec(d.durationMs)} 동안 방어력 +${spec.armorUpAmount}${tail}`
+    case 'seal':
+      return `맞으면 ${pct} 확률로 때린 캐릭의 특수능력을 ${sec(d.durationMs)} 동안 봉인 (강화 효과도 꺼짐)${tail}${dodge}`
   }
 }
 

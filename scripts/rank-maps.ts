@@ -16,7 +16,7 @@ import {
   MAP_DEFS,
   parseMap,
   referenceDeck,
-  referenceMaxLoss,
+  referencePasses,
   runWave,
   stageDefWithHp,
   type GameMap,
@@ -29,8 +29,7 @@ function passes(map: GameMap, n: number, hpBp: number): boolean {
   const st = { ...stageDefWithHp(n, hpBp), mapId: map.id }
   const deck = referenceDeck(n)
   const r = runWave(createWave(cfg, map, st, deck, autoPlace(cfg, map, deck), cfg.startLives))
-  const totalLeak = st.groups.reduce((s, g) => s + g.count * st.monsters[g.monster]!.leak, 0)
-  return r.cleared && cfg.startLives - r.lives <= referenceMaxLoss(cfg.startLives, totalLeak)
+  return referencePasses(r)
 }
 
 function maxHp(map: GameMap, n: number): number {

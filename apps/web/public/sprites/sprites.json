@@ -341,6 +341,32 @@
         }
       }
     },
+    "tool_boostAll": {
+      "name": "황금 방패 — 전체 강화",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
     "tool_poison": {
       "name": "독 병 — 맹독",
       "kind": "unit",
@@ -720,7 +746,7 @@
       }
     },
     "mon_boss": {
-      "name": "우두머리 (왕관 + 망토)",
+      "name": "우두머리 (왕 모자 + 망토)",
       "kind": "monster",
       "cols": 6,
       "rows": 4,

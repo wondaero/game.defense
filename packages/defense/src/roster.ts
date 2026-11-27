@@ -46,7 +46,26 @@ export function rollRoster(cfg: DefenseConfig, rngState: RngState): { units: Uni
  * 능력치 점수 0~100 (2026-11-27): 공격력·사거리·공속·민첩을 각각 범위 안에서 0~25점으로 바꿔 더함.
  * 캐릭 헬멧 색 = 이 점수의 등급. 특수능력은 점수에 안 들어감 (손에 든 도구로 따로 표시)
  */
-export function statScore(cfg: DefenseConfig, u: Pick<UnitInstance, 'atk' | 'range' | 'attackSpeed' | 'agility'>): number {
+/**
+ * 실제로 쓰는 기본 능력치 (2026-11-27): 전체 강화 특수능력이 있으면 공격력·공속·민첩 모두 × 1.1/1.2/1.3 (최대를 넘을 수 있음, 사거리는 1~2칸이라 그대로).
+ * 공격력은 내림(정수), 공속·민첩은 소수 첫째 자리까지. sealed(몬스터 "봉인") 중엔 원래 뽑힌 값
+ */
+export function baseStats(cfg: DefenseConfig, u: Pick<UnitInstance, 'atk' | 'range' | 'attackSpeed' | 'agility' | 'ability'>, sealed = false) {
+  let { atk, range, attackSpeed, agility } = u
+  const a = sealed ? null : u.ability
+  if (a && a.kind === 'boostAll') {
+    const tenth = (v: number) => Math.round((v * a.mulBp) / 1000) / 10
+    atk = Math.floor((atk * a.mulBp) / 10_000)
+    attackSpeed = tenth(attackSpeed)
+    agility = tenth(agility)
+  }
+  void cfg
+  return { atk, range, attackSpeed, agility }
+}
+
+export function statScore(cfg: DefenseConfig, unit: Pick<UnitInstance, 'atk' | 'range' | 'attackSpeed' | 'agility'> & { ability?: UnitInstance['ability'] }): number {
+  // 강화된 능력치로 계산 (최대를 넘는 건 최대로)
+  const u = baseStats(cfg, { ability: null, ...unit })
   const part = (v: number, r: { min: number; max: number }) => (r.max > r.min ? (Math.min(Math.max(v, r.min), r.max) - r.min) / (r.max - r.min) : 1) * 25
   return Math.round(part(u.atk, cfg.atk) + part(u.range, cfg.range) + part(u.attackSpeed, cfg.attackSpeed) + part(u.agility, cfg.agility))
 }
@@ -63,7 +82,7 @@ export const STAT_TIERS = [
   { tier: 6, min: 88, name: '무지개', color: '#e040fb' },
 ] as const
 
-export function statTier(cfg: DefenseConfig, u: Pick<UnitInstance, 'atk' | 'range' | 'attackSpeed' | 'agility'>) {
+export function statTier(cfg: DefenseConfig, u: Pick<UnitInstance, 'atk' | 'range' | 'attackSpeed' | 'agility'> & { ability?: UnitInstance['ability'] }) {
   const s = statScore(cfg, u)
   let t: (typeof STAT_TIERS)[number] = STAT_TIERS[0]
   for (const x of STAT_TIERS) if (s >= x.min) t = x

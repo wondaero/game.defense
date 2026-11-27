@@ -11,7 +11,12 @@ export const UNIT_SCALE = 0.98
 
 /** 화면 효과 (시간은 performance.now 밀리초) */
 export interface Fx {
-  kind: 'shot' | 'text' | 'leak' | 'skill'
+  /** bolt = 날아가는 빛 구슬 · slash = 베기 반달 · burst = 맞은 자리 팡 (2026-11-27 평타 효과) */
+  kind: 'shot' | 'text' | 'leak' | 'skill' | 'bolt' | 'slash' | 'burst'
+  /** 크기 배율 (2배 데미지는 크게) */
+  size?: number
+  /** 베기 방향 (라디안) */
+  angle?: number
   born: number
   life: number
   from?: { x: number; y: number }
@@ -43,6 +48,8 @@ export interface AnimState {
   /** 몬스터가 마지막으로 왼쪽을 보고 있었나 (위아래로 갈 땐 그대로) */
   monsterFlip: Map<number, boolean>
   corpses: { type: string; size: number; x: number; y: number; flip: boolean; at: number }[]
+  /** 이 시각(실제 시간)까지 화면 살짝 흔들림 (2배 데미지) */
+  shakeUntil?: number
 }
 
 export const newAnimState = (): AnimState => ({ clock: 0, unitAttackAt: new Map(), monsterHitAt: new Map(), monsterFlip: new Map(), corpses: [] })
@@ -75,6 +82,8 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
   ctx.clearRect(0, 0, W + PAD * 2, H + PAD * 2)
   ctx.save()
   ctx.translate(PAD, PAD)
+  // 2배 데미지: 판이 살짝 흔들림
+  if (d.anim.shakeUntil && d.now < d.anim.shakeUntil) ctx.translate(Math.sin(d.now * 0.9) * 3, Math.cos(d.now * 1.3) * 2)
 
   // 진행 중엔 sim 의 실제 자리 (날려 보내기로 옮겨질 수 있음), 준비 중엔 배치
   const unitAt = new Map<string, UnitInstance>()
@@ -163,6 +172,7 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
     const su = d.sim?.units.find((s) => s.inst.id === u.id)
     const frozen = !!(su && d.sim && d.sim.tick < su.frozenUntil)
     const weakened = !!(su && d.sim && d.sim.tick < su.weakenedUntil)
+    const sealed = !!(su && d.sim && d.sim.tick < su.sealedUntil)
     if (u.id === d.selectedId) {
       ctx.fillStyle = 'rgba(255,245,157,0.35)'
       ctx.strokeStyle = '#fff59d'
@@ -194,6 +204,11 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
         ctx.fillStyle = 'rgba(129,212,250,0.6)'
         ctx.fillRect(x * CELL_PX + 3, y * CELL_PX + 3, CELL_PX - 6, CELL_PX - 6)
       }
+    }
+    if (sealed) {
+      // 봉인: 사슬 자물쇠 (특수능력·닌자·장군 효과 꺼짐)
+      ctx.font = '16px serif'
+      ctx.fillText('🔒', cx + CELL_PX * 0.32, cy - CELL_PX * 0.32)
     }
     if (weakened) {
       // 약화: 보라 아래 화살표
@@ -324,6 +339,67 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
       ctx.lineWidth = 3
       ctx.strokeText(f.text ?? '', f.to.x, f.to.y - 16 - k * 18)
       ctx.fillText(f.text ?? '', f.to.x, f.to.y - 16 - k * 18)
+      ctx.lineWidth = 1
+    } else if (f.kind === 'bolt' && f.from) {
+      // 빛 구슬: 꼬리 4개 + 빛나는 머리
+      ctx.globalAlpha = 1
+      const sz = f.size ?? 1
+      const at = (q: number) => ({ x: f.from!.x + (f.to.x - f.from!.x) * q, y: f.from!.y + (f.to.y - f.from!.y) * q })
+      for (let t = 4; t >= 1; t--) {
+        const q = Math.max(0, k - t * 0.09)
+        const p = at(q)
+        ctx.fillStyle = f.color ?? '#fff'
+        ctx.globalAlpha = 0.18 * (5 - t)
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, (5 - t) * 1.3 * sz, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      ctx.globalAlpha = 1
+      const p = at(k)
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 8 * sz)
+      g.addColorStop(0, '#ffffff')
+      g.addColorStop(0.45, f.color ?? '#fff')
+      g.addColorStop(1, 'rgba(255,255,255,0)')
+      ctx.fillStyle = g
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, 8 * sz, 0, Math.PI * 2)
+      ctx.fill()
+    } else if (f.kind === 'slash') {
+      // 베기: 맞은 자리에서 반달이 휙 돌아감
+      const sz = f.size ?? 1
+      const a0 = (f.angle ?? 0) - 1.2 + k * 1.4
+      ctx.lineCap = 'round'
+      ctx.strokeStyle = f.color ?? '#fff'
+      ctx.lineWidth = 6 * sz
+      ctx.beginPath()
+      ctx.arc(f.to.x, f.to.y, 15 * sz, a0, a0 + 2.1)
+      ctx.stroke()
+      ctx.strokeStyle = '#ffffff'
+      ctx.lineWidth = 2 * sz
+      ctx.beginPath()
+      ctx.arc(f.to.x, f.to.y, 15 * sz, a0 + 0.3, a0 + 1.8)
+      ctx.stroke()
+      ctx.lineCap = 'butt'
+      ctx.lineWidth = 1
+    } else if (f.kind === 'burst') {
+      // 팡: 퍼지는 고리 + 튀는 불똥 6개
+      const sz = f.size ?? 1
+      ctx.strokeStyle = f.color ?? '#fff'
+      ctx.lineWidth = 3 * (1 - k) + 1
+      ctx.beginPath()
+      ctx.arc(f.to.x, f.to.y, (5 + k * 16) * sz, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.lineCap = 'round'
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI * 2 * i) / 6 + 0.4
+        const r0 = (6 + k * 14) * sz
+        const r1 = (10 + k * 20) * sz
+        ctx.beginPath()
+        ctx.moveTo(f.to.x + Math.cos(a) * r0, f.to.y + Math.sin(a) * r0)
+        ctx.lineTo(f.to.x + Math.cos(a) * r1, f.to.y + Math.sin(a) * r1)
+        ctx.stroke()
+      }
+      ctx.lineCap = 'butt'
       ctx.lineWidth = 1
     } else if (f.kind === 'leak' || f.kind === 'skill') {
       ctx.strokeStyle = f.color ?? '#f44336'

@@ -1,6 +1,7 @@
 /**
  * 캐릭 특수능력 (사용자 작성 docs/spec, 2026-11-26).
- * - 캐릭당 0~1개. 붙을 확률은 설정 abilityChanceBp, 붙으면 8종 균등 (2026-11-27 맹독 추가, 수치 강화)
+ * - 캐릭당 0~1개. 붙을 확률은 설정 abilityChanceBp, 붙으면 9종 균등 (2026-11-27 맹독·전체 강화 추가, 수치 강화)
+ * - 전체 강화는 발동하는 능력이 아니라 자기 공격력·공속·민첩을 한꺼번에 × 1.1/1.2/1.3 (최대를 넘을 수 있음, roster.ts baseStats)
  * - 모두 **공격할 때 발동, 빗나가도 발동**
  * - 능력마다 뽑는 수치는 최대 2개 (확률 + 시간 / 확률만 / 능력치 종류 + 레벨 등)
  * - 쿨타임은 능력 종류마다 고정 (뽑기 아님)
@@ -9,7 +10,7 @@
  */
 import { Rng } from './rng.ts'
 
-export type AbilityKind = 'stun' | 'splash' | 'crit' | 'obstacle' | 'recall' | 'teamLevel' | 'allAttack' | 'poison'
+export type AbilityKind = 'stun' | 'splash' | 'crit' | 'obstacle' | 'recall' | 'teamLevel' | 'allAttack' | 'poison' | 'boostAll'
 export type BuffStat = 'atk' | 'range' | 'speed' | 'agility' | 'all'
 export type ObstacleKind = 'damage' | 'slow'
 
@@ -24,8 +25,10 @@ export type Ability =
   | { kind: 'allAttack'; chanceBp: number }
   /** pctBp: 1초마다 공격력의 % (몬스터당 한 번, 중첩 없음, 죽을 때까지) */
   | { kind: 'poison'; chanceBp: number; pctBp: number }
+  /** 전체 강화: 자기 공격력·공속·민첩을 모두 × mulBp (11000 = 1.1배). 발동 없음 (chanceBp 0) — 2026-11-27 닌자·장군 대신 */
+  | { kind: 'boostAll'; chanceBp: 0; mulBp: number }
 
-export const ABILITY_KINDS: readonly AbilityKind[] = ['stun', 'splash', 'crit', 'obstacle', 'recall', 'teamLevel', 'allAttack', 'poison']
+export const ABILITY_KINDS: readonly AbilityKind[] = ['stun', 'splash', 'crit', 'obstacle', 'recall', 'teamLevel', 'allAttack', 'poison', 'boostAll']
 
 export const ABILITY_NAMES: Readonly<Record<AbilityKind, string>> = {
   stun: '스턴',
@@ -36,6 +39,7 @@ export const ABILITY_NAMES: Readonly<Record<AbilityKind, string>> = {
   teamLevel: '아군 전체 레벨업',
   allAttack: '전체 공격',
   poison: '맹독',
+  boostAll: '전체 강화',
 }
 
 /** 쿨타임 (0 = 없음). 장애물은 판당 1회라 따로 */
@@ -48,6 +52,7 @@ export const ABILITY_COOLDOWN_MS: Readonly<Record<AbilityKind, number>> = {
   teamLevel: 20_000,
   allAttack: 1000,
   poison: 0,
+  boostAll: 0,
 }
 
 /** 뽑기 표 (docs/spec 그대로) */
@@ -60,6 +65,7 @@ export const ROLL_TABLE = {
   teamLevel: { chanceBp: [500], stat: ['atk', 'range', 'speed', 'agility', 'all'] as BuffStat[], level: [1, 2, 3] },
   allAttack: { chanceBp: [200, 300, 400, 500] },
   poison: { chanceBp: [500, 1000], pctBp: [2000, 3000, 4000] },
+  boost: { mulBp: [11_000, 12_000, 13_000] },
 } as const
 
 /** 광역공격 범위: 맞힌 자리 중심 (2 × 반경 + 1) 칸 정사각형 = 5×5 */
@@ -110,6 +116,8 @@ export function rollAbility(rng: Rng): Ability {
       return { kind, chanceBp: pick(rng, t.allAttack.chanceBp) }
     case 'poison':
       return { kind, chanceBp: pick(rng, t.poison.chanceBp), pctBp: pick(rng, t.poison.pctBp) }
+    case 'boostAll':
+      return { kind, chanceBp: 0, mulBp: pick(rng, t.boost.mulBp) }
   }
 }
 
@@ -147,5 +155,7 @@ export function abilityDesc(a: Ability): string {
       return `${pct(a.chanceBp)} 확률로 맵에 있는 몬스터 전체 공격 (공격력 − 방어력)${tail}`
     case 'poison':
       return `${pct(a.chanceBp)} 확률로 맹독: 죽을 때까지 1초마다 공격력의 ${pct(a.pctBp)} (방어 무시, 몬스터당 한 번)`
+    case 'boostAll':
+      return `공격력·공속·민첩 모두 × ${a.mulBp / 10000} (최대를 넘을 수 있음, 사거리 제외, 봉인되면 원래 값)`
   }
 }
