@@ -15,6 +15,8 @@ import {
   referenceSummary,
   stageHpBp,
   rollRoster,
+  START_TICKETS,
+  type Tickets,
   statScore,
   stageDef,
   stageSummary,
@@ -32,7 +34,9 @@ import { loadSprites, motionDuration } from './sprites.ts'
 import { Bench } from './Bench.tsx'
 import { ResultOverlay } from './ResultOverlay.tsx'
 import { StageMap } from './StageMap.tsx'
-import { abilityText, unitLook } from './format.ts'
+import { unitLook } from './format.ts'
+import { RosterTools, UnitRow, viewRoster, type RosterView } from './UnitList.tsx'
+import { Barracks } from './Barracks.tsx'
 
 const MAPS = MAP_DEFS.map(parseMap)
 const mapById = (id: string) => MAPS.find((m) => m.id === id)!
@@ -48,16 +52,33 @@ interface Save {
   unlockAll: boolean
   /** 탄별 가장 좋은 별 (1~3) */
   stars: Record<number, number>
+  /** 막사 캐릭 (2026-11-27: 씨앗으로 매번 만들지 않고 실제로 저장 — 뽑기·변경·합성으로 바뀜) */
+  units: UnitInstance[]
+  /** 다음 캐릭 번호 (u1, u2, …) */
+  nextUnitId: number
+  /** 가진 권 */
+  tickets: Tickets
 }
 const SAVE_KEY = 'defense.save.v1'
 function loadSave(): Save {
-  const empty: Save = { best: 0, rosterSeed: '시험판-1', placementsByMap: {}, unlockAll: false, stars: {} }
+  const empty = { best: 0, rosterSeed: '시험판-1', placementsByMap: {}, unlockAll: false, stars: {}, tickets: { ...START_TICKETS } }
+  let s: Partial<Save> = {}
   try {
     const raw = localStorage.getItem(SAVE_KEY)
-    return raw ? { ...empty, ...(JSON.parse(raw) as Partial<Save>) } : empty
+    if (raw) s = JSON.parse(raw) as Partial<Save>
   } catch {
-    return empty
+    s = {}
   }
+  const merged = { ...empty, ...s }
+  // 예전 저장(캐릭을 씨앗으로 만들던 때)은 같은 씨앗으로 한 번 만들어 저장 → 원래 캐릭 그대로
+  const units = s.units ?? freshBarracks(DEFAULT_CONFIG, merged.rosterSeed).units
+  return { ...merged, units, nextUnitId: s.nextUnitId ?? units.length + 1, tickets: { ...START_TICKETS, ...s.tickets } }
+}
+
+/** 시험판 막사: 씨앗으로 rosterSize 명을 뽑아 둠 */
+function freshBarracks(cfg: DefenseConfig, rosterSeed: string) {
+  const units = rollRoster(cfg, createRngState(rosterSeed)).units
+  return { rosterSeed, units, nextUnitId: units.length + 1 }
 }
 
 /** 몬스터 능력 효과 색 */
@@ -107,7 +128,7 @@ export function App() {
 
   const stage = useMemo(() => stageDef(stageNo), [stageNo])
   const map = mapById(stage.mapId)
-  const roster = useMemo(() => rollRoster(cfg, createRngState(save.rosterSeed)).units, [cfg, save.rosterSeed])
+  const roster = save.units
   // 저장된 배치 중 지금 보관함·설정에 맞는 것만
   const placements = useMemo(() => {
     const p: Placements = {}
@@ -466,30 +487,25 @@ export function App() {
         )}
 
         {tab === 'barracks' && (
-          <section>
-            <div className="barracks-actions">
-              {BARRACKS_ACTIONS.map((a) => (
-                <button key={a.label} disabled title="준비 중">
-                  <span className="big">{a.icon}</span>
-                  {a.label}
-                  <small>준비 중</small>
-                </button>
-              ))}
-            </div>
-            <h3>
-              막사 ({roster.length} / {cfg.rosterSize}명)
-            </h3>
-            <RosterTools view={view} onChange={setView} shown={shown.length} total={roster.length} />
-            <ul className="roster">
-              {shown.map((u) => (
-                <UnitRow key={u.id} u={u} cfg={cfg} />
-              ))}
-            </ul>
-            <div className="row" style={{ marginTop: 8 }}>
-              <button onClick={() => setSave({ ...save, rosterSeed: `시험판-${Math.floor(Math.random() * 1e6)}`, placementsByMap: {} })}>🎲 시험용: 막사 전체 다시 뽑기</button>
-              <span className="dim">씨앗: {save.rosterSeed}</span>
-            </div>
-          </section>
+          <Barracks
+            cfg={cfg}
+            data={{ units: roster, tickets: save.tickets, nextUnitId: save.nextUnitId }}
+            onChange={(next, removed) =>
+              setSave((s) => ({
+                ...s,
+                units: next.units,
+                tickets: next.tickets,
+                nextUnitId: next.nextUnitId,
+                // 합성으로 없어진 캐릭은 모든 맵 배치에서 뺌
+                placementsByMap: removed?.length
+                  ? Object.fromEntries(Object.entries(s.placementsByMap).map(([m, p]) => [m, Object.fromEntries(Object.entries(p).filter(([id]) => !removed.includes(id)))]))
+                  : s.placementsByMap,
+              }))
+            }
+            view={view}
+            onView={setView}
+            onReroll={() => setSave((s) => ({ ...s, ...freshBarracks(cfg, `시험판-${Math.floor(Math.random() * 1e6)}`), placementsByMap: {} }))}
+          />
         )}
 
         {tab === 'shop' && (
@@ -709,55 +725,6 @@ const SHOP_ITEMS = [
   { icon: '⏩', name: '4배속', desc: '나중에 유료가 될 수도 있음 (지금은 무료)' },
 ]
 
-/** 캐릭 목록 보기: 필터(특수능력 있음/없음) + 정렬(높은 순) — 2026-11-27 */
-type RosterView = { filter: 'all' | 'ability' | 'none'; sort: 'score' | 'atk' | 'attackSpeed' | 'agility' | 'range' }
-const SORT_LABELS: [RosterView['sort'], string][] = [
-  ['score', '점수'],
-  ['atk', '공격력'],
-  ['attackSpeed', '공속'],
-  ['agility', '민첩'],
-  ['range', '사거리'],
-]
-const FILTER_LABELS: [RosterView['filter'], string][] = [
-  ['all', '전체'],
-  ['ability', '특수능력 있음'],
-  ['none', '없음'],
-]
-
-function viewRoster(cfg: DefenseConfig, roster: UnitInstance[], view: RosterView): UnitInstance[] {
-  const list = roster.filter((u) => (view.filter === 'all' ? true : view.filter === 'ability' ? !!u.ability : !u.ability))
-  // 실제로 쓰는 값(전체 강화·호크아이 반영)으로 높은 순, 같으면 점수 → 원래 순서
-  const key = (u: UnitInstance) => (view.sort === 'score' ? statScore(cfg, u) : baseStats(cfg, u)[view.sort])
-  return list
-    .map((u, i) => ({ u, i, k: key(u), s: statScore(cfg, u) }))
-    .sort((a, b) => b.k - a.k || b.s - a.s || a.i - b.i)
-    .map((x) => x.u)
-}
-
-function RosterTools(props: { view: RosterView; onChange: (v: RosterView) => void; shown: number; total: number }) {
-  const { view } = props
-  return (
-    <div className="roster-tools">
-      <div className="chips">
-        {FILTER_LABELS.map(([k, label]) => (
-          <button key={k} className={view.filter === k ? 'on' : ''} onClick={() => props.onChange({ ...view, filter: k })}>
-            {label}
-          </button>
-        ))}
-        <span className="dim">{props.shown}명</span>
-      </div>
-      <div className="chips">
-        <span className="dim">정렬</span>
-        {SORT_LABELS.map(([k, label]) => (
-          <button key={k} className={view.sort === k ? 'on' : ''} onClick={() => props.onChange({ ...view, sort: k })}>
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function MonsterRow({ spec, count, cfg }: { spec: MonsterSpec; count: number; cfg: DefenseConfig }) {
   const hp = Math.max(1, Math.floor((spec.hp * cfg.monsterHpBp) / 10000))
   const speed = (spec.speed * cfg.monsterSpeedBp) / 10000 / 1000
@@ -776,49 +743,6 @@ function MonsterRow({ spec, count, cfg }: { spec: MonsterSpec; count: number; cf
           ◆ {MONSTER_ABILITIES[a].name}: {monsterAbilityDesc(a, spec)}
         </div>
       ))}
-    </li>
-  )
-}
-
-/** 캐릭 얼굴: 스프라이트 첫 프레임(몸 + 도구)을 작게 */
-function UnitFace({ body, tool }: { body: string; tool: string | null }) {
-  const bg = [tool, body].filter(Boolean).map((id) => `url(sprites/${id}.png)`).join(', ')
-  return <span className="face sprite" style={{ backgroundImage: bg }} />
-}
-
-/** 능력치 한 줄. 닌자·장군이 올린 값은 ▲ 표시 */
-function statText(cfg: DefenseConfig, u: UnitInstance): string {
-  const b = baseStats(cfg, u)
-  const v = (now: number, orig: number) => (now !== orig ? `${now}▲` : `${now}`)
-  return `공격 ${v(b.atk, u.atk)} · 사거리 ${b.range} · 공속 ${v(b.attackSpeed, u.attackSpeed)} · 민첩 ${v(b.agility, u.agility)}`
-}
-
-function UnitRow(props: {
-  u: UnitInstance
-  cfg: DefenseConfig
-  selected?: boolean
-  placed?: boolean
-  onClick?: () => void
-  children?: React.ReactNode
-}) {
-  const { u } = props
-  const look = unitLook(props.cfg, u)
-  const ab = abilityText(u)
-  return (
-    <li className={`${props.selected ? 'sel' : ''} ${props.placed ? 'placed' : ''} ${look.tier === 6 ? 'rainbow-row' : ''} ${look.special === 'trainee' ? 'trainee-row' : ''}`} onClick={props.onClick}>
-      <UnitFace body={look.body} tool={look.tool} />
-      <div className="info">
-        <div>
-          <b className={`tier ${look.tierName === '무지개' ? 'rainbow' : ''} ${look.special === 'trainee' ? 'trainee' : ''}`} style={{ color: look.color }}>{look.title}</b> {statText(props.cfg, u)}
-          {props.placed && <span className="tag">출전</span>}
-        </div>
-        {ab && (
-          <div className="ab" title={ab.desc}>
-            ★ {ab.name}: {ab.desc}
-          </div>
-        )}
-      </div>
-      {props.children}
     </li>
   )
 }

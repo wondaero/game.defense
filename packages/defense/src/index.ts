@@ -1,4 +1,5 @@
 export * from './abilities.ts'
+export * from './barracks.ts'
 export * from './autoplace.ts'
 export * from './config.ts'
 export * from './map.ts'

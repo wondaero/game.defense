@@ -198,3 +198,25 @@ button.link.back { font-size: 20px; }
 .shop-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .shop-list li { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid #2f363e; border-radius: 8px; }
 .shop-list li > div { flex: 1; }
+
+/* 막사 (2026-11-27) */
+.tickets { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.ticket { font-size: 12px; padding: 3px 8px; border-radius: 12px; background: #2a3138; border: 1px solid #3a424b; }
+.ticket b { color: #fdd835; margin-left: 2px; }
+.ticket.none { opacity: .45; }
+.barracks-actions button.on { border-color: #fdd835; background: #3a3a22; }
+.mode-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; margin-bottom: 8px; border-radius: 8px; background: #2f2a14; border: 1px solid #8d7a1e; font-size: 13px; }
+.mode-bar .seg { margin-bottom: 0; }
+.mode-bar > span { flex: 1; min-width: 160px; }
+.roster.picking li { cursor: pointer; }
+.roster li.dimmed { opacity: .35; }
+.roster.small li { padding: 2px 4px; }
+.modal-back { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal { background: #1f252b; border: 1px solid #3a424b; border-radius: 12px; padding: 14px; width: min(520px, 100%); max-height: 85vh; overflow: auto; }
+.modal h3 { margin: 0 0 10px; }
+.modal .row.end { justify-content: flex-end; margin-top: 12px; }
+.modal .chips.keep { display: flex; flex-wrap: wrap; gap: 6px; }
+.modal .chips.keep button.on { background: #fdd835; color: #222; border-color: #fdd835; }
+.modal .warn { color: #ffab91; }
+.modal .lucky { color: #fdd835; font-weight: bold; }
+.modal .big-reward { font-size: 20px; font-weight: bold; text-align: center; margin: 12px 0; }
