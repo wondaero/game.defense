@@ -31,7 +31,12 @@ export function unitLook(cfg: DefenseConfig, u: UnitInstance) {
     tier: t.tier,
     tierName: t.name,
     score: t.score,
-    /** 캐릭 이름 = 색 + 점수 + "호" (예: 노랑 42호, 2026-11-27). 단 하나뿐인 100점(무지개 100호)은 "총사령관" */
-    title: t.score >= 100 ? '총사령관' : `${t.name} ${t.score}호`,
+    /**
+     * 캐릭 이름 (2026-11-27): 색 + (100 − 점수) + "호" — 번호가 작을수록 좋음. 99점 = 무지개 1호(총사령관 바로 아래), 1점 = 흰색 99호.
+     * 100점은 "총사령관", 0점은 "훈련병"
+     */
+    title: t.score >= 100 ? '총사령관' : t.score <= 0 ? '훈련병' : `${t.name} ${100 - t.score}호`,
+    /** 특별한 칭호 캐릭 (목록 배경이 다름) */
+    special: t.score >= 100 ? 'commander' : t.score <= 0 ? 'trainee' : null,
   }
 }

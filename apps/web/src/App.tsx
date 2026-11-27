@@ -82,6 +82,9 @@ export function App() {
   const [cfg, setCfg] = useState<DefenseConfig>({ ...DEFAULT_CONFIG })
   // 캐릭 목록 필터·정렬 (두 화면 공통)
   const [view, setView] = useState<RosterView>({ filter: 'all', sort: 'score' })
+  // 아래 고정 메뉴 (2026-11-27): 막사 · 스테이지 · 상점
+  const [tab, setTab] = useState<Tab>('stages')
+  const [shopTab, setShopTab] = useState<'shop' | 'trade'>('shop')
   const [save, setSave] = useState<Save>(loadSave)
   const [screen, setScreen] = useState<Screen>('select')
   const [stageNo, setStageNo] = useState(1)
@@ -413,62 +416,122 @@ export function App() {
 
   if (screen === 'bench') return <Bench onBack={goSelect} />
 
-  // ── 탄 고르기 ──
+  // ── 첫 화면: 아래 고정 메뉴로 막사 · 스테이지 · 상점 (2026-11-27) ──
   if (screen === 'select') {
     const infinite = Math.max(LAST_NORMAL_STAGE + 1, save.best + 1)
+    const shown = viewRoster(cfg, roster, view)
     return (
-      <div className="app">
+      <div className="app with-tabbar">
         <header>
-          <h1>디펜스 시험판</h1>
+          <h1>{TAB_TITLES[tab]}</h1>
           <div className="stats">
             <span>🏆 최고 기록 {save.best}탄</span>
           </div>
         </header>
-        <section>
-          <h3>탄 고르기</h3>
-          <StageMap count={LAST_NORMAL_STAGE} best={save.best} stars={save.stars ?? {}} maxOpen={maxOpen} onOpen={openStage} />
-          <div className="row" style={{ marginTop: 10 }}>
-            <button className="primary inline" disabled={save.best < LAST_NORMAL_STAGE && !save.unlockAll} onClick={() => openStage(infinite)}>
-              ♾ 무한 ({infinite}탄)
+
+        {tab === 'stages' && (
+          <>
+            <section>
+              <StageMap count={LAST_NORMAL_STAGE} best={save.best} stars={save.stars ?? {}} maxOpen={maxOpen} onOpen={openStage} />
+              <div className="row" style={{ marginTop: 10 }}>
+                <button className="primary inline" disabled={save.best < LAST_NORMAL_STAGE && !save.unlockAll} onClick={() => openStage(infinite)}>
+                  ♾ 무한 ({infinite}탄)
+                </button>
+                <span className="dim">100탄을 깨면 열림. 그 뒤로 끝없이 어려워짐</span>
+              </div>
+            </section>
+            <section>
+              <div className="row">
+                <label className="dim">
+                  <input type="checkbox" checked={save.unlockAll} onChange={(e) => setSave({ ...save, unlockAll: e.target.checked })} /> 시험용: 모든 탄 열기
+                </label>
+                <button onClick={() => confirm('최고 기록을 0으로 되돌릴까요?') && setSave({ ...save, best: 0 })}>기록 지우기</button>
+                <button
+                  onClick={() => {
+                    enterSubScreen()
+                    live.current.screen = 'bench'
+                    setScreen('bench')
+                  }}
+                >
+                  🧪 그리기 성능 시험 (200개~)
+                </button>
+                <a className="dim" href="sprites/preview.html" target="_blank">스프라이트 모아 보기</a>
+              </div>
+              <button className="link" onClick={() => setShowSettings(!showSettings)}>
+                ⚙ 설정 {showSettings ? '접기' : '펼치기'}
+              </button>
+              {showSettings && <Settings cfg={cfg} onChange={(p) => setCfg({ ...cfg, ...p })} />}
+            </section>
+          </>
+        )}
+
+        {tab === 'barracks' && (
+          <section>
+            <div className="barracks-actions">
+              {BARRACKS_ACTIONS.map((a) => (
+                <button key={a.label} disabled title="준비 중">
+                  <span className="big">{a.icon}</span>
+                  {a.label}
+                  <small>준비 중</small>
+                </button>
+              ))}
+            </div>
+            <h3>
+              막사 ({roster.length} / {cfg.rosterSize}명)
+            </h3>
+            <RosterTools view={view} onChange={setView} shown={shown.length} total={roster.length} />
+            <ul className="roster">
+              {shown.map((u) => (
+                <UnitRow key={u.id} u={u} cfg={cfg} />
+              ))}
+            </ul>
+            <div className="row" style={{ marginTop: 8 }}>
+              <button onClick={() => setSave({ ...save, rosterSeed: `시험판-${Math.floor(Math.random() * 1e6)}`, placementsByMap: {} })}>🎲 시험용: 막사 전체 다시 뽑기</button>
+              <span className="dim">씨앗: {save.rosterSeed}</span>
+            </div>
+          </section>
+        )}
+
+        {tab === 'shop' && (
+          <section>
+            <div className="seg">
+              <button className={shopTab === 'shop' ? 'on' : ''} onClick={() => setShopTab('shop')}>
+                상점
+              </button>
+              <button className={shopTab === 'trade' ? 'on' : ''} onClick={() => setShopTab('trade')}>
+                거래소
+              </button>
+            </div>
+            {shopTab === 'shop' ? (
+              <>
+                <p className="dim">게임과 거래 — 권·화폐를 사는 곳 (준비 중)</p>
+                <ul className="shop-list">
+                  {SHOP_ITEMS.map((it) => (
+                    <li key={it.name}>
+                      <span className="big">{it.icon}</span>
+                      <div>
+                        <b>{it.name}</b>
+                        <div className="dim">{it.desc}</div>
+                      </div>
+                      <button disabled>준비 중</button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="dim">다른 사람과 캐릭을 주고받는 곳 (서버를 붙인 뒤 만듦, 준비 중)</p>
+            )}
+          </section>
+        )}
+
+        <nav className="tabbar">
+          {TABS.map((t) => (
+            <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
+              <span className="big">{t.icon}</span>
+              {t.label}
             </button>
-            <span className="dim">100탄을 깨면 열림. 그 뒤로 끝없이 어려워짐</span>
-          </div>
-          <div className="row" style={{ marginTop: 10 }}>
-            <label className="dim">
-              <input type="checkbox" checked={save.unlockAll} onChange={(e) => setSave({ ...save, unlockAll: e.target.checked })} /> 시험용: 모든 탄 열기
-            </label>
-            <button onClick={() => confirm('최고 기록을 0으로 되돌릴까요?') && setSave({ ...save, best: 0 })}>기록 지우기</button>
-            <button
-              onClick={() => {
-                enterSubScreen()
-                live.current.screen = 'bench'
-                setScreen('bench')
-              }}
-            >
-              🧪 그리기 성능 시험 (200개~)
-            </button>
-            <a className="dim" href="sprites/preview.html" target="_blank">스프라이트 모아 보기</a>
-          </div>
-        </section>
-        <section>
-          <h3>막사 ({roster.length} / {cfg.rosterSize}명)</h3>
-          <RosterTools view={view} onChange={setView} shown={viewRoster(cfg, roster, view).length} total={roster.length} />
-          <ul className="roster">
-            {viewRoster(cfg, roster, view).map((u) => (
-              <UnitRow key={u.id} u={u} cfg={cfg} />
-            ))}
-          </ul>
-          <div className="row" style={{ marginTop: 8 }}>
-            <button onClick={() => setSave({ ...save, rosterSeed: `시험판-${Math.floor(Math.random() * 1e6)}`, placementsByMap: {} })}>🎲 캐릭 다시 뽑기</button>
-            <span className="dim">씨앗: {save.rosterSeed}</span>
-          </div>
-        </section>
-        <section>
-          <button className="link" onClick={() => setShowSettings(!showSettings)}>
-            ⚙ 설정 {showSettings ? '접기' : '펼치기'}
-          </button>
-          {showSettings && <Settings cfg={cfg} onChange={(p) => setCfg({ ...cfg, ...p })} />}
-        </section>
+          ))}
+        </nav>
       </div>
     )
   }
@@ -623,6 +686,29 @@ export function App() {
   )
 }
 
+/** 아래 고정 메뉴 (막사 · 스테이지 · 상점, 가운데 스테이지) */
+type Tab = 'barracks' | 'stages' | 'shop'
+const TABS: { id: Tab; icon: string; label: string }[] = [
+  { id: 'barracks', icon: '⛺', label: '막사' },
+  { id: 'stages', icon: '⚔️', label: '스테이지' },
+  { id: 'shop', icon: '🛒', label: '상점' },
+]
+const TAB_TITLES: Record<Tab, string> = { barracks: '막사', stages: '스테이지', shop: '상점' }
+/** 막사에서 할 일 (아직 준비 중) */
+const BARRACKS_ACTIONS = [
+  { icon: '🎟️', label: '캐릭 뽑기' },
+  { icon: '🔄', label: '능력치 변경' },
+  { icon: '✨', label: '특수능력 변경' },
+  { icon: '🧪', label: '합성' },
+]
+/** 상점 물건 (아직 준비 중, 값 미정) */
+const SHOP_ITEMS = [
+  { icon: '🎟️', name: '뽑기권', desc: '캐릭 1명 뽑기' },
+  { icon: '🔄', name: '능력치 변경권', desc: '보통 · 상급(1개 유지) · 최상급(2개 유지)' },
+  { icon: '✨', name: '특수능력 변경권', desc: '특수능력만 다시 (특수능력 있는 캐릭만)' },
+  { icon: '⏩', name: '4배속', desc: '나중에 유료가 될 수도 있음 (지금은 무료)' },
+]
+
 /** 캐릭 목록 보기: 필터(특수능력 있음/없음) + 정렬(높은 순) — 2026-11-27 */
 type RosterView = { filter: 'all' | 'ability' | 'none'; sort: 'score' | 'atk' | 'attackSpeed' | 'agility' | 'range' }
 const SORT_LABELS: [RosterView['sort'], string][] = [
@@ -719,11 +805,11 @@ function UnitRow(props: {
   const look = unitLook(props.cfg, u)
   const ab = abilityText(u)
   return (
-    <li className={`${props.selected ? 'sel' : ''} ${props.placed ? 'placed' : ''} ${look.tier === 6 ? 'rainbow-row' : ''}`} onClick={props.onClick}>
+    <li className={`${props.selected ? 'sel' : ''} ${props.placed ? 'placed' : ''} ${look.tier === 6 ? 'rainbow-row' : ''} ${look.special === 'trainee' ? 'trainee-row' : ''}`} onClick={props.onClick}>
       <UnitFace body={look.body} tool={look.tool} />
       <div className="info">
         <div>
-          <b className={`tier ${look.tierName === '무지개' ? 'rainbow' : ''}`} style={{ color: look.color }}>{look.title}</b> {statText(props.cfg, u)}
+          <b className={`tier ${look.tierName === '무지개' ? 'rainbow' : ''} ${look.special === 'trainee' ? 'trainee' : ''}`} style={{ color: look.color }}>{look.title}</b> {statText(props.cfg, u)}
           {props.placed && <span className="tag">출전</span>}
         </div>
         {ab && (

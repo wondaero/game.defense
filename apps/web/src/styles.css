@@ -170,3 +170,31 @@ button.link.back { font-size: 20px; }
 .roster-tools button { padding: 2px 9px; font-size: 12px; border-radius: 12px; }
 .roster-tools button.on { background: #fdd835; color: #222; border-color: #fdd835; }
 .roster-tools .dim { font-size: 12px; margin: 0 2px; }
+
+/* 훈련병(흰색 0호): 국방색 줄무늬 배경 + 노란 이름 (2026-11-27) */
+.roster li.trainee-row {
+  background: repeating-linear-gradient(135deg, rgba(85,107,47,.45) 0 10px, rgba(107,128,62,.38) 10px 20px);
+  border-color: rgba(205,220,57,.55);
+}
+.roster li.trainee-row:hover { filter: brightness(1.15); }
+.roster li.trainee-row.sel { border-color: #fff59d; }
+.roster li.trainee-row .face.sprite { background-color: #556b2f; box-shadow: 0 0 0 2px #cddc39; }
+.tier.trainee { color: #e6ee9c !important; }
+
+/* 아래 고정 메뉴 (2026-11-27) */
+.app.with-tabbar { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; justify-content: center; background: #14181c; border-top: 1px solid #2f363e; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
+.tabbar button { flex: 1; max-width: 220px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; border: none; background: transparent; color: #9aa4ae; font-size: 12px; border-radius: 10px; }
+.tabbar button .big { font-size: 22px; line-height: 1; filter: grayscale(.6); }
+.tabbar button.on { color: #fdd835; background: #232a31; }
+.tabbar button.on .big { filter: none; }
+.barracks-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+.barracks-actions button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; font-size: 12px; }
+.barracks-actions .big, .shop-list .big { font-size: 22px; }
+.barracks-actions small { font-size: 10px; opacity: .7; }
+.seg { display: inline-flex; border: 1px solid #3a424b; border-radius: 10px; overflow: hidden; margin-bottom: 8px; }
+.seg button { border: none; border-radius: 0; padding: 5px 16px; background: transparent; }
+.seg button.on { background: #fdd835; color: #222; }
+.shop-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.shop-list li { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid #2f363e; border-radius: 8px; }
+.shop-list li > div { flex: 1; }
