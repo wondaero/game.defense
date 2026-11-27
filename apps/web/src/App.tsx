@@ -78,6 +78,9 @@ const MSKILL_COLOR: Record<MonsterAbilityKind, string> = {
   weaken: '#b388ff',
   armorUp: '#cfd8dc',
   seal: '#90a4ae',
+  agiSteal: '#4db6ac',
+  absorb: '#69f0ae',
+  split: '#aed581',
 }
 
 const pct = (bp: number) => `${Math.round(bp / 100)}%`
@@ -285,6 +288,11 @@ export function App() {
         fxRef.current.push({ kind: 'leak', born: now, life: 500, to: { x: (e.x + 0.5) * CELL_PX, y: (e.y + 0.5) * CELL_PX } })
       } else if (ev.type === 'resist') {
         fxRef.current.push({ kind: 'text', born: now, life: 700, to: { ...monsterScreenPos(map, ev.dist, ev.monsterId), y: monsterScreenPos(map, ev.dist, ev.monsterId).y - 14 }, text: '버팀!', color: '#b0bec5' })
+      } else if (ev.type === 'immune') {
+        fxRef.current.push({ kind: 'text', born: now, life: 800, to: { ...monsterScreenPos(map, ev.dist, ev.monsterId), y: monsterScreenPos(map, ev.dist, ev.monsterId).y - 14 }, text: '왕은 안 통함', color: '#b0bec5' })
+      } else if (ev.type === 'heal') {
+        // 흡수: 피해가 체력으로
+        if (ev.amount > 0) fxRef.current.push({ kind: 'text', born: now, life: 600, to: monsterScreenPos(map, ev.dist, ev.monsterId), text: `+${ev.amount}`, color: '#69f0ae' })
       } else if (ev.type === 'block') {
         anim.unitAttackAt.set(ev.unitId, at)
         fxRef.current.push({ kind: 'text', born: now, life: 600, to: monsterScreenPos(map, ev.dist, ev.monsterId), text: '무적', color: '#ffd54f' })

@@ -26,6 +26,8 @@ import {
   unitStats,
   MONSTER_ABILITIES,
   MONSTER_ABILITY_KINDS,
+  monsterAgility,
+  unitStatsNow,
   type WaveSim,
   autoPlace,
   REFERENCE_MAX_STAGE,
@@ -164,16 +166,21 @@ describe('진행', () => {
     const kinds = new Set<string>()
     let stunned = false
     let recalled = false
+    let recallResisted = false
     while (!sim.done) {
       const before = new Map(sim.monsters.map((m) => [m.id, m.dist]))
       stepWave(sim)
-      for (const e of sim.events) if (e.type === 'proc') kinds.add(e.kind)
+      for (const e of sim.events) {
+        if (e.type === 'proc') kinds.add(e.kind)
+        if (e.type === 'resist' && e.kind === 'recall') recallResisted = true
+      }
       if (sim.monsters.some((m) => sim.tick <= m.stunnedUntil)) stunned = true
       if (sim.monsters.some((m) => (before.get(m.id) ?? 0) > 2000 && m.dist === 0)) recalled = true
     }
     expect([...kinds].sort()).toEqual(['allAttack', 'crit', 'obstacle', 'poison', 'recall', 'splash', 'stun', 'teamLevel'])
     expect(sim.obstacles.length).toBe(1) // 판당 1회
-    expect(stunned && recalled).toBe(true)
+    // 출발지로 보내기는 저항(민첩)으로 버틸 수 있음 → 보내졌거나 버텼으면 됨 (탄 구성이 바뀌어도 운에 덜 흔들리게)
+    expect(stunned && (recalled || recallResisted)).toBe(true)
     expect(runWave(createWave(cfg, map, st, ros, p, 20))).toEqual(runWave(createWave(cfg, map, st, ros, p, 20)))
   })
 
@@ -483,4 +490,137 @@ describe('진행', () => {
     }
     console.log(rows.join('\n'))
   }, 120_000)
+})
+
+describe('새 능력 (2026-11-28: 캐릭 즉사·빙결·자장가·민첩 복사 / 몬스터 민첩 빼앗기·흡수·분열)', () => {
+  /** 사거리 16 캐릭 1명 + 몬스터 count 마리 (멈춰 있음, 체력 아주 많음). 몬스터 민첩 0 = 저항 없음 */
+  function setup(ability: Ability | null, opts: { boss?: boolean; count?: number; mAbilities?: MonsterAbilityKind[]; agility?: number; unitAgi?: number } = {}) {
+    const st0 = stageDef(opts.boss ? 10 : 12)
+    const map = maps[st0.mapId]!
+    const type = opts.boss ? 'boss' : st0.groups[0]!.monster
+    const spec = { ...st0.monsters[type]!, agility: opts.agility ?? 0, armor: 0, abilities: [] as MonsterAbilityKind[] }
+    const st = { ...st0, monsters: { [type]: spec }, groups: [{ monster: type, count: opts.count ?? 1, delayMs: 0, intervalMs: 0 }] }
+    const spot = map.tiles.flat().indexOf('slot')
+    const ros = [{ ...unit(0, 10, 16, 5, opts.unitAgi ?? 10), ability }]
+    const sim = createWave(makeConfig({ maxDeploy: 1 }), map, st, ros, { t0: { x: spot % map.width, y: Math.floor(spot / map.width) } }, 20)
+    sim.monsters.length = 0
+    stepWave(sim)
+    for (const m of sim.monsters) {
+      m.hp = m.maxHp = 1_000_000
+      m.speed = 50
+    }
+    // 몬스터 능력은 준비(첫 틱) 뒤에 붙임 — 첫 공격에서 미리 터지지 않게
+    spec.abilities = opts.mAbilities ?? []
+    return { sim, u: sim.units[0]!, ms: sim.monsters }
+  }
+  /** 다음에 그 이벤트가 나올 때까지 진행 */
+  function until(sim: WaveSim, pred: () => boolean, max = 100) {
+    for (let t = 0; t < max && !pred(); t++) stepWave(sim)
+  }
+  /** 몬스터 능력 확률을 잠시 100% 로 */
+  function always<T>(kind: MonsterAbilityKind, f: () => T): T {
+    const d = MONSTER_ABILITIES[kind] as { chanceBp: number }
+    const saved = d.chanceBp
+    d.chanceBp = 10_000
+    try {
+      return f()
+    } finally {
+      d.chanceBp = saved
+    }
+  }
+
+  it('즉사: 몬스터는 바로 죽고, 왕에겐 안 통함', () => {
+    const a = { kind: 'instakill', chanceBp: 10_000 } as Ability
+    const n = setup(a)
+    stepWave(n.sim)
+    expect(n.sim.killed).toBe(1)
+    const b = setup(a, { boss: true })
+    let immune = 0
+    for (let t = 0; t < 20; t++) {
+      stepWave(b.sim)
+      immune += b.sim.events.filter((e) => e.type === 'immune').length
+    }
+    expect(immune).toBeGreaterThan(0)
+    expect(b.sim.killed).toBe(0)
+  })
+
+  it('빙결: 맞은 몬스터가 있는 칸의 몬스터 모두 1초 멈춤 + 스턴과 면역 공유', () => {
+    const n = setup({ kind: 'iceTile', chanceBp: 10_000 }, { count: 3 })
+    stepWave(n.sim)
+    const frozen = n.ms.filter((m) => n.sim.tick <= m.iceUntil)
+    expect(frozen.length).toBe(3) // 셋 다 같은 칸(입구)
+    const at = n.ms.map((m) => m.dist)
+    for (let t = 0; t < 10; t++) stepWave(n.sim)
+    expect(n.ms.map((m) => m.dist)).toEqual(at) // 0.5초 동안 그대로
+    // 풀린 뒤 1초 면역 → 다시 바로 얼지 않음
+    for (let t = 0; t < 12; t++) stepWave(n.sim)
+    expect(n.ms.every((m) => n.sim.tick >= m.stunnedUntil)).toBe(true)
+  })
+
+  it('자장가: 모두 잠들어 안 움직이고, 5대 맞으면 깸', () => {
+    const n = setup({ kind: 'lullaby', chanceBp: 10_000 }, { count: 2 })
+    stepWave(n.sim)
+    const asleep = n.ms.filter((m) => n.sim.tick < m.sleepUntil)
+    expect(asleep.length).toBe(2)
+    const before = n.ms.map((m) => m.dist)
+    for (let t = 0; t < 10; t++) stepWave(n.sim)
+    expect(n.ms.map((m) => m.dist)).toEqual(before) // 자는 동안 안 움직임
+    // 맞은 수 세기: 몬스터를 세워 두고(앞선 몬스터가 바뀌지 않게) 잠을 길게 늘려 5대째에 깨는지
+    // (속도 0 이어도 엔진은 최소 1씩 움직이므로, 먼저 깬 몬스터가 앞서지 않게 둘 다 오래 재움)
+    for (const m of n.ms) {
+      m.sleepUntil = n.sim.tick + 1000
+      m.sleepHits = 0
+    }
+    const target = n.ms[0]!
+    until(n.sim, () => target.sleepUntil === 0)
+    expect(target.sleepHits).toBe(5)
+  })
+
+  it('민첩 복사: 때린 몬스터 민첩을 3초 동안 내 민첩에 더함', () => {
+    const n = setup({ kind: 'agiCopy', chanceBp: 10_000 }, { agility: 7 })
+    stepWave(n.sim)
+    expect(unitStatsNow(n.sim, n.u).agility).toBe(17)
+    for (let t = 0; t < 70; t++) stepWave(n.sim)
+    // 쿨타임 10초라 3초 뒤엔 원래대로
+    expect(unitStatsNow(n.sim, n.u).agility).toBe(10)
+  })
+
+  it('몬스터 민첩 빼앗기: 캐릭 민첩 1, 뺏은 만큼 몬스터 민첩 +', () => {
+    always('agiSteal', () => {
+      // 몬스터 민첩 30 → 캐릭(10)이 피할 확률 25%. 피하면 쿨 10초라 몬스터를 세워 둠
+      const n = setup(null, { mAbilities: ['agiSteal'], agility: 30, unitAgi: 10 })
+      n.ms[0]!.speed = 0
+      // 피하면(민첩 대결) 쿨타임 10초 뒤 다시 → 걸릴 때까지
+      until(n.sim, () => n.sim.tick < n.u.agiStolenUntil, 3000)
+      expect(unitStatsNow(n.sim, n.u).agility).toBe(1)
+      expect(monsterAgility(n.sim, n.ms[0]!)).toBe(30 + 9)
+    })
+  })
+
+  it('몬스터 흡수: 1초 동안 피해가 체력으로 (최대 체력까지)', () => {
+    always('absorb', () => {
+      const n = setup(null, { mAbilities: ['absorb'] })
+      const m = n.ms[0]!
+      until(n.sim, () => n.sim.tick < m.absorbUntil) // 맞으면 흡수 시작 (그 공격은 이미 들어감)
+      m.hp = m.maxHp - 3
+      until(n.sim, () => n.sim.events.some((e) => e.type === 'heal'))
+      expect(m.hp).toBe(m.maxHp) // 공격력 10 피해 → 체력으로, 3만 차서 최대
+    })
+  })
+
+  it('몬스터 분열: 체력 반씩 두 마리, 나온 쪽은 능력 없음, 마리당 1번, 왕은 분열 능력이 없음', () => {
+    always('split', () => {
+      const n = setup(null, { mAbilities: ['split'] })
+      const m = n.ms[0]!
+      m.hp = 1001
+      until(n.sim, () => n.sim.monsters.length === 2)
+      const clone = n.sim.monsters.find((x) => x.isClone)!
+      expect(clone.spec.abilities).toEqual([])
+      expect(clone.hp + m.hp).toBe(1001 - 10) // 공격력 10 맞고 나서 반씩
+      expect(Math.abs(clone.hp - m.hp)).toBeLessThanOrEqual(1)
+      for (let t = 0; t < 40; t++) stepWave(n.sim)
+      expect(n.sim.monsters.length).toBe(2) // 다시 분열 안 함
+    })
+    for (let s = 10; s <= 200; s += 10) expect(stageDef(s).monsters.boss!.abilities).not.toContain('split')
+  })
 })

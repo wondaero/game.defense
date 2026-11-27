@@ -187,6 +187,19 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
     const weakened = !!(su && d.sim && d.sim.tick < su.weakenedUntil)
     const sealed = !!(su && d.sim && d.sim.tick < su.sealedUntil)
     const frenzy = !!(su && d.sim && d.sim.tick < su.frenzyUntil)
+    const agiCopy = !!(su && d.sim && d.sim.tick < su.agiCopyUntil)
+    const agiStolen = !!(su && d.sim && d.sim.tick < su.agiStolenUntil)
+    if (agiCopy) {
+      // 민첩 복사: 발밑 하늘색 고리
+      ctx.strokeStyle = 'rgba(77,208,225,0.95)'
+      ctx.fillStyle = 'rgba(77,208,225,0.18)'
+      ctx.lineWidth = 2.5
+      ctx.beginPath()
+      ctx.ellipse(cx, cy + CELL_PX * 0.4, CELL_PX * 0.38, CELL_PX * 0.13, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+      ctx.lineWidth = 1
+    }
     if (frenzy) {
       // 광폭화: 발밑 빨간 불꽃 고리 (깜빡임)
       const pulse = 0.55 + 0.45 * Math.sin(d.now / 70)
@@ -236,6 +249,17 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
       ctx.font = '16px serif'
       ctx.fillText('🔒', cx + CELL_PX * 0.32, cy - CELL_PX * 0.32)
     }
+    if (agiStolen) {
+      // 몬스터에게 민첩을 빼앗김: 민첩 1
+      ctx.font = 'bold 11px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.lineWidth = 3
+      ctx.strokeStyle = '#000'
+      ctx.strokeText('민첩 1', cx, cy + CELL_PX * 0.5)
+      ctx.fillStyle = '#80cbc4'
+      ctx.fillText('민첩 1', cx, cy + CELL_PX * 0.5)
+      ctx.lineWidth = 1
+    }
     if (weakened) {
       // 약화: 보라 아래 화살표
       ctx.font = 'bold 14px sans-serif'
@@ -262,7 +286,8 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
       const p = monsterScreenPos(map, dist, m.id)
       const t = m.spec
       // 블랙홀에서 나오며 작게 → 원래 크기
-      const size = monsterSize(t.size) * (0.25 + 0.75 * emergeT(dist))
+      // 분열로 나온 쪽은 조금 작게 (2026-11-28)
+      const size = monsterSize(t.size) * (0.25 + 0.75 * emergeT(dist)) * (m.isClone ? 0.85 : 1)
       // 최면 중엔 뒤로 걸으니 반대쪽을 봄
       const flip = monsterFacesLeft(map, dist, m.id, d.anim.monsterFlip) !== m.hypnoLeft > 0
       const stunned = d.sim.tick < m.stunnedUntil
@@ -302,7 +327,69 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
         ctx.stroke()
         ctx.lineWidth = 1
       }
+      if (d.sim.tick < m.absorbUntil) {
+        // 흡수: 초록 고리가 안으로 빨려 들어감
+        const q = (d.now / 400) % 1
+        ctx.strokeStyle = `rgba(105,240,174,${0.4 + 0.6 * q})`
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        ctx.arc(p.x, foot - size * 0.42, size * (0.75 - 0.3 * q), 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.lineWidth = 1
+      }
       const drawn = sprites && drawSprite(ctx, facing(monsterSprite(m.spec), flip), motion, mt, p.x, foot, size, flip)
+      if (d.sim.tick < m.iceUntil) {
+        // 빙결: 반투명 얼음 덩어리 + 반짝 줄
+        const w = size * 0.8
+        const h = size * 0.85
+        const x0 = p.x - w / 2
+        const y0 = foot - h
+        ctx.fillStyle = 'rgba(179,229,252,0.55)'
+        ctx.strokeStyle = '#e1f5fe'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.roundRect(x0, y0, w, h, size * 0.12)
+        ctx.fill()
+        ctx.stroke()
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)'
+        ctx.beginPath()
+        ctx.moveTo(x0 + w * 0.18, y0 + h * 0.2)
+        ctx.lineTo(x0 + w * 0.38, y0 + h * 0.08)
+        ctx.moveTo(x0 + w * 0.2, y0 + h * 0.38)
+        ctx.lineTo(x0 + w * 0.5, y0 + h * 0.16)
+        ctx.stroke()
+        ctx.lineWidth = 1
+      }
+      if (d.sim.tick < m.sleepUntil) {
+        // 자장가: Z 가 올라가며 커짐
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        for (let k = 0; k < 2; k++) {
+          const q = (d.now / 800 + k / 2 + m.id * 0.13) % 1
+          ctx.globalAlpha = 1 - q
+          ctx.font = `bold ${Math.round(size * (0.22 + 0.16 * q))}px sans-serif`
+          const zx = p.x + size * (0.2 + 0.25 * q)
+          const zy = foot - size * (0.9 + 0.4 * q)
+          ctx.lineWidth = 3
+          ctx.strokeStyle = 'rgba(0,0,0,0.5)'
+          ctx.strokeText('Z', zx, zy)
+          ctx.fillStyle = '#b3e5fc'
+          ctx.fillText('Z', zx, zy)
+        }
+        ctx.globalAlpha = 1
+        ctx.lineWidth = 1
+      }
+      if (d.sim.tick < m.stolenUntil && m.stolenAgi > 0) {
+        // 민첩 빼앗기: 머리 옆 청록 ⇄
+        ctx.font = `bold ${Math.round(size * 0.28)}px sans-serif`
+        ctx.textAlign = 'center'
+        ctx.lineWidth = 3
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)'
+        ctx.strokeText('⇄', p.x - size * 0.42, foot - size * 0.78)
+        ctx.fillStyle = '#4db6ac'
+        ctx.fillText('⇄', p.x - size * 0.42, foot - size * 0.78)
+        ctx.lineWidth = 1
+      }
       if (m.hypnoLeft > 0) {
         // 최면: 머리 위에 물음표가 계속 퐁퐁 (세 개가 번갈아 올라가며 흐려짐)
         ctx.textAlign = 'center'

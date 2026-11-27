@@ -1,6 +1,6 @@
 /**
  * 캐릭 특수능력 (사용자 작성 docs/spec, 2026-11-26).
- * - 캐릭당 0~1개. 붙을 확률은 설정 abilityChanceBp, 붙으면 11종 균등 (2026-11-27 맹독·전체 강화·광폭화·호크아이 추가, 수치 강화)
+ * - 캐릭당 0~1개. 붙을 확률은 설정 abilityChanceBp, 붙으면 16종 균등 (2026-11-27 맹독·전체 강화·광폭화·호크아이·최면, 2026-11-28 즉사·빙결·자장가·민첩 복사 추가)
  * - 전체 강화는 발동하는 능력이 아니라 자기 공격력·공속·민첩을 한꺼번에 × 1.1/1.2/1.3 (최대를 넘을 수 있음, roster.ts baseStats)
  * - 모두 **공격할 때 발동, 빗나가도 발동**
  * - 능력마다 뽑는 수치는 최대 2개 (확률 + 시간 / 확률만 / 능력치 종류 + 레벨 등)
@@ -10,7 +10,7 @@
  */
 import { Rng } from './rng.ts'
 
-export type AbilityKind = 'stun' | 'splash' | 'crit' | 'obstacle' | 'recall' | 'teamLevel' | 'allAttack' | 'poison' | 'boostAll' | 'frenzy' | 'hawkeye' | 'hypnosis'
+export type AbilityKind = 'stun' | 'splash' | 'crit' | 'obstacle' | 'recall' | 'teamLevel' | 'allAttack' | 'poison' | 'boostAll' | 'frenzy' | 'hawkeye' | 'hypnosis' | 'instakill' | 'iceTile' | 'lullaby' | 'agiCopy'
 export type BuffStat = 'atk' | 'range' | 'speed' | 'agility' | 'all'
 export type ObstacleKind = 'damage' | 'slow'
 
@@ -33,8 +33,16 @@ export type Ability =
   | { kind: 'hawkeye'; chanceBp: 0; plus: number }
   /** 최면: 때린 몬스터가 HYPNOSIS_CELLS 칸 뒤로 걸어갔다가 다시 옴. 몬스터당 한 번 (2026-11-27 spec 12) */
   | { kind: 'hypnosis'; chanceBp: number }
+  /** 즉사: 때린 몬스터가 바로 죽음. 왕(우두머리)에겐 안 통함 (2026-11-28 spec 13) */
+  | { kind: 'instakill'; chanceBp: number }
+  /** 빙결: 때린 몬스터가 있는 길 1칸의 몬스터 모두 ICE_TILE_MS 멈춤 (스턴과 같은 규칙·면역 공유, spec 14) */
+  | { kind: 'iceTile'; chanceBp: number }
+  /** 자장가: 판 위 몬스터 모두 LULLABY_MS 잠듦 (LULLABY_WAKE_HITS 대 맞으면 깸, spec 15, 손 도구 = 마이크) */
+  | { kind: 'lullaby'; chanceBp: number }
+  /** 민첩 복사: 때린 몬스터의 민첩을 AGI_COPY_MS 동안 내 민첩에 더함 (spec 16) */
+  | { kind: 'agiCopy'; chanceBp: number }
 
-export const ABILITY_KINDS: readonly AbilityKind[] = ['stun', 'splash', 'crit', 'obstacle', 'recall', 'teamLevel', 'allAttack', 'poison', 'boostAll', 'frenzy', 'hawkeye', 'hypnosis']
+export const ABILITY_KINDS: readonly AbilityKind[] = ['stun', 'splash', 'crit', 'obstacle', 'recall', 'teamLevel', 'allAttack', 'poison', 'boostAll', 'frenzy', 'hawkeye', 'hypnosis', 'instakill', 'iceTile', 'lullaby', 'agiCopy']
 
 export const ABILITY_NAMES: Readonly<Record<AbilityKind, string>> = {
   stun: '스턴',
@@ -49,6 +57,10 @@ export const ABILITY_NAMES: Readonly<Record<AbilityKind, string>> = {
   frenzy: '광폭화',
   hawkeye: '호크아이',
   hypnosis: '최면',
+  instakill: '즉사',
+  iceTile: '빙결',
+  lullaby: '자장가',
+  agiCopy: '민첩 복사',
 }
 
 /** 쿨타임 (0 = 없음). 장애물은 판당 1회라 따로 */
@@ -65,6 +77,10 @@ export const ABILITY_COOLDOWN_MS: Readonly<Record<AbilityKind, number>> = {
   frenzy: 0, // 개체마다 다름 (Ability.cooldownMs)
   hawkeye: 0,
   hypnosis: 0,
+  instakill: 0,
+  iceTile: 3000,
+  lullaby: 20_000,
+  agiCopy: 10_000,
 }
 
 /** 뽑기 표 (docs/spec 그대로) */
@@ -82,6 +98,10 @@ export const ROLL_TABLE = {
   frenzy: { chanceBp: [500, 1000], cooldownMs: [5000, 8000] },
   hawkeye: { plus: [1, 2, 3] },
   hypnosis: { chanceBp: [500, 1000] },
+  instakill: { chanceBp: [100] },
+  iceTile: { chanceBp: [300, 500] },
+  lullaby: { chanceBp: [100, 200, 300] },
+  agiCopy: { chanceBp: [500, 1000] },
 } as const
 
 /** 광역공격 범위: 맞힌 자리 중심 (2 × 반경 + 1) 칸 정사각형 = 5×5 */
@@ -101,7 +121,14 @@ export const HYPNOSIS_CELLS = 5
  */
 export const RESIST_POWER = 20
 /** 저항 판정을 하는 능력 */
-export const RESISTABLE: readonly AbilityKind[] = ['stun', 'recall', 'hypnosis', 'poison']
+export const RESISTABLE: readonly AbilityKind[] = ['stun', 'recall', 'hypnosis', 'poison', 'instakill', 'iceTile', 'lullaby']
+/** 빙결: 멈추는 시간 (스턴과 같은 규칙, 풀리면 STUN_IMMUNE_MS 면역) */
+export const ICE_TILE_MS = 1000
+/** 자장가: 잠드는 시간 / 이만큼 맞으면 깸 (2026-11-28 사용자: 맞아도 안 깸 또는 5대 맞으면 깸 → 5대) */
+export const LULLABY_MS = 1000
+export const LULLABY_WAKE_HITS = 5
+/** 민첩 복사 지속 시간 */
+export const AGI_COPY_MS = 3000
 /** 아군 전체 레벨업 지속 시간 */
 export const TEAM_LEVEL_MS = 5000
 
@@ -152,6 +179,14 @@ export function rollAbility(rng: Rng): Ability {
       return { kind, chanceBp: 0, plus: pick(rng, t.hawkeye.plus) }
     case 'hypnosis':
       return { kind, chanceBp: pick(rng, t.hypnosis.chanceBp) }
+    case 'instakill':
+      return { kind, chanceBp: pick(rng, t.instakill.chanceBp) }
+    case 'iceTile':
+      return { kind, chanceBp: pick(rng, t.iceTile.chanceBp) }
+    case 'lullaby':
+      return { kind, chanceBp: pick(rng, t.lullaby.chanceBp) }
+    case 'agiCopy':
+      return { kind, chanceBp: pick(rng, t.agiCopy.chanceBp) }
   }
 }
 
@@ -197,5 +232,13 @@ export function abilityDesc(a: Ability): string {
       return `사거리 +${a.plus} (항상, 봉인되면 원래 사거리)`
     case 'hypnosis':
       return `${pct(a.chanceBp)} 확률로 최면: 때린 몬스터가 ${HYPNOSIS_CELLS}칸 뒤로 갔다가 다시 옴 (몬스터당 한 번)`
+    case 'instakill':
+      return `${pct(a.chanceBp)} 확률로 때린 몬스터 즉사 (왕에겐 안 통함)`
+    case 'iceTile':
+      return `${pct(a.chanceBp)} 확률로 때린 몬스터가 있는 칸의 몬스터 모두 ${sec(ICE_TILE_MS)} 얼림${tail}`
+    case 'lullaby':
+      return `${pct(a.chanceBp)} 확률로 몬스터 모두 ${sec(LULLABY_MS)} 잠듦 (${LULLABY_WAKE_HITS}대 맞으면 깸)${tail}`
+    case 'agiCopy':
+      return `${pct(a.chanceBp)} 확률로 때린 몬스터의 민첩을 ${sec(AGI_COPY_MS)} 동안 내 민첩에 더함${tail}`
   }
 }

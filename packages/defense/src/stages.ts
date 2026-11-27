@@ -37,7 +37,7 @@ export type MonsterTrait = 'hp' | 'armor' | 'agi' | 'spd'
 export const MONSTER_TRAITS: readonly MonsterTrait[] = ['hp', 'armor', 'agi', 'spd']
 export const TRAIT_NAMES: Readonly<Record<MonsterTrait, string>> = { hp: '체력', armor: '방어', agi: '민첩', spd: '속도' }
 /** 몬스터 특수능력 (사용자 작성 docs/spec 1~8번 + 예전 단단해지기) */
-export type MonsterAbilityKind = 'freeze' | 'fullHeal' | 'groupHeal' | 'haste' | 'blink' | 'invincible' | 'scatter' | 'weaken' | 'armorUp' | 'seal'
+export type MonsterAbilityKind = 'freeze' | 'fullHeal' | 'groupHeal' | 'haste' | 'blink' | 'invincible' | 'scatter' | 'weaken' | 'armorUp' | 'seal' | 'agiSteal' | 'absorb' | 'split'
 
 /** 몬스터 종류의 기본값 (1탄 기준) */
 export interface MonsterBase {
@@ -133,10 +133,32 @@ export const MONSTER_ABILITIES: Readonly<Record<MonsterAbilityKind, MonsterAbili
   armorUp: { name: '단단해지기', icon: '🛡', chanceBp: 10_000, cooldownMs: 10_000, durationMs: 3000, uses: 0 },
   // 10. 20% 확률로 때린 캐릭 3초 봉인(특수능력 발동 안 됨 · 강화 효과도 꺼짐) / 쿨 10초 (2026-11-27)
   seal: { name: '봉인', icon: '⛓', chanceBp: 2000, cooldownMs: 10_000, durationMs: 3000, uses: 0 },
+  // 11. 때린 캐릭 민첩을 3초간 1로 만들고 뺏은 만큼 자기 민첩에 더함 / 쿨 10초 (2026-11-28, spec 20% → 추천대로 10%, 민첩으로 피함)
+  agiSteal: { name: '민첩 빼앗기', icon: '⇄', chanceBp: 1000, cooldownMs: 10_000, durationMs: 3000, uses: 0 },
+  // 12. 1초 동안 받는 피해를 모두 체력으로 (최대 체력까지) / 쿨 10초
+  absorb: { name: '흡수', icon: '◎', chanceBp: 1000, cooldownMs: 10_000, durationMs: 1000, uses: 0 },
+  // 13. 분열: 현재 체력을 반씩 나눠 두 마리 (나온 쪽은 능력 없음, 왕은 안 가짐) / 마리당 1회
+  split: { name: '분열', icon: '◐', chanceBp: 1000, cooldownMs: 0, durationMs: 0, uses: 1 },
 }
 
 /** 판정 순서 (한 공격에 여러 능력이 있으면 이 순서로 굴림 → 결정성) */
-export const MONSTER_ABILITY_KINDS: readonly MonsterAbilityKind[] = ['invincible', 'fullHeal', 'groupHeal', 'haste', 'blink', 'freeze', 'scatter', 'weaken', 'seal', 'armorUp']
+export const MONSTER_ABILITY_KINDS: readonly MonsterAbilityKind[] = [
+  'invincible',
+  'absorb',
+  'fullHeal',
+  'groupHeal',
+  'haste',
+  'blink',
+  'split',
+  'freeze',
+  'scatter',
+  'weaken',
+  'seal',
+  'agiSteal',
+  'armorUp',
+]
+/** 왕(우두머리)은 갖지 않는 능력 */
+export const NOT_FOR_BOSS: readonly MonsterAbilityKind[] = ['split']
 
 /** 얼었다 풀린 캐릭은 이 시간 동안 다시 얼지 않음 (계속 얼어 있는 것 방지, *임시*) */
 export const FREEZE_IMMUNE_MS = 3000
@@ -231,6 +253,12 @@ export function monsterAbilityDesc(kind: MonsterAbilityKind, spec: MonsterSpec):
       return `맞으면 ${sec(d.durationMs)} 동안 방어력 +${spec.armorUpAmount}${tail}`
     case 'seal':
       return `맞으면 ${pct} 확률로 때린 캐릭의 특수능력을 ${sec(d.durationMs)} 동안 봉인 (강화 효과도 꺼짐)${tail}${dodge}`
+    case 'agiSteal':
+      return `맞으면 ${pct} 확률로 때린 캐릭의 민첩을 ${sec(d.durationMs)} 동안 1로 만들고 뺏은 만큼 자기 민첩에 더함${tail}${dodge}`
+    case 'absorb':
+      return `맞으면 ${pct} 확률로 ${sec(d.durationMs)} 동안 받는 피해를 모두 체력으로 회복 (최대 체력까지)${tail}`
+    case 'split':
+      return `맞으면 ${pct} 확률로 분열: 지금 체력을 반씩 나눠 두 마리가 됨 (나온 쪽은 능력 없음)${tail}`
   }
 }
 
@@ -298,7 +326,7 @@ export function stageDefWithHp(n: number, hpBp: number): StageDef {
     if (n < 10) return t === 'boss' ? ['armorUp'] : []
     if (order.indexOf(t) >= withAbility) return []
     // 겹치지 않게 뽑고, 판정 순서(MONSTER_ABILITY_KINDS)대로 정렬
-    const pool = [...abilityPool]
+    const pool = abilityPool.filter((a) => t !== 'boss' || !NOT_FOR_BOSS.includes(a))
     const picked: MonsterAbilityKind[] = []
     for (let k = 0; k < (n >= 70 ? 2 : 1); k++) picked.push(pool.splice(rng.int(pool.length), 1)[0]!)
     return abilityPool.filter((a) => picked.includes(a))

@@ -1,6 +1,10 @@
 import {
   ABILITY_COOLDOWN_MS,
+  AGI_COPY_MS,
   FRENZY_MS,
+  ICE_TILE_MS,
+  LULLABY_MS,
+  LULLABY_WAKE_HITS,
   HYPNOSIS_CELLS,
   RESIST_POWER,
   levelBonus,
@@ -66,6 +70,18 @@ export interface Monster {
   hypnoLeft: number
   /** 최면에 걸린 적 있음 (몬스터당 한 번) */
   hypnotized: boolean
+  /** 빙결로 멈춤 (그림용 — 실제 멈춤은 stunnedUntil) */
+  iceUntil: number
+  /** 자장가: 이 틱까지 잠듦 (못 움직임) / 잠든 뒤 맞은 수 */
+  sleepUntil: number
+  sleepHits: number
+  /** 흡수: 이 틱까지 받는 피해가 체력으로 */
+  absorbUntil: number
+  /** 민첩 빼앗기: 이 틱까지 뺏은 민첩을 더함 */
+  stolenAgi: number
+  stolenUntil: number
+  /** 분열로 나온 쪽 (능력 없음) */
+  isClone: boolean
   /** 능력별 다음 발동 가능 틱 (쿨타임) */
   abilityReadyAt: Partial<Record<MonsterAbilityKind, number>>
   /** 능력별 쓴 횟수 (마리당 횟수 제한) */
@@ -93,6 +109,11 @@ export interface SimUnit {
   sealedUntil: number
   /** 이 틱까지 광폭화 (공속 2배 · 명중률 2배) */
   frenzyUntil: number
+  /** 민첩 복사: 이 틱까지 agiCopy 만큼 민첩 + */
+  agiCopy: number
+  agiCopyUntil: number
+  /** 몬스터 "민첩 빼앗기": 이 틱까지 민첩 1 */
+  agiStolenUntil: number
 }
 
 export interface Obstacle {
@@ -116,6 +137,10 @@ export type SimEvent =
   | { type: 'block'; unitId: string; monsterId: number; dist: number }
   /** 특수능력이 발동했지만 몬스터가 민첩으로 버팀 */
   | { type: 'resist'; unitId: string; monsterId: number; dist: number; kind: AbilityKind }
+  /** 왕이라 안 통함 (즉사) */
+  | { type: 'immune'; unitId: string; monsterId: number; dist: number; kind: AbilityKind }
+  /** 흡수: 피해가 체력으로 */
+  | { type: 'heal'; monsterId: number; dist: number; amount: number }
   /** 몬스터 능력 발동. unitIds = 걸린 캐릭, dodgedIds = 민첩으로 피한 캐릭 */
   | { type: 'mskill'; kind: MonsterAbilityKind; monsterId: number; dist: number; unitIds: string[]; dodgedIds: string[] }
 
@@ -190,7 +215,7 @@ export function createWave(
   const units: SimUnit[] = roster
     .filter((u) => placements[u.id])
     // 게이지가 찬 채로 시작 → 첫 몬스터가 들어오면 바로 공격
-    .map((inst) => ({ inst, cell: { ...placements[inst.id]! }, atkGauge: windowTicks * 2, weakenedUntil: 0, abilityReadyAt: 0, obstacleUsed: false, frozenUntil: -1_000_000, sealedUntil: 0, frenzyUntil: 0 }))
+    .map((inst) => ({ inst, cell: { ...placements[inst.id]! }, atkGauge: windowTicks * 2, weakenedUntil: 0, abilityReadyAt: 0, obstacleUsed: false, frozenUntil: -1_000_000, sealedUntil: 0, frenzyUntil: 0, agiCopy: 0, agiCopyUntil: 0, agiStolenUntil: 0 }))
     .sort((a, b) => a.cell.y - b.cell.y || a.cell.x - b.cell.x)
   return {
     cfg,
@@ -245,7 +270,25 @@ export const agilityChanceBp = (mine: number, theirs: number) => (mine + theirs 
 
 export const isInvincible = (sim: WaveSim, m: Monster) => sim.tick < m.invincibleUntil
 
-/** 피해 주기. crit = 공격력×2 − 방어력. 무적이면 안 들어감 */
+/** 지금 몬스터 민첩 (민첩 빼앗기 반영). 명중·몬스터 기술 피하기·저항 모두 이 값 */
+export const monsterAgility = (sim: WaveSim, m: Monster) => m.spec.agility + (sim.tick < m.stolenUntil ? m.stolenAgi : 0)
+
+/**
+ * 몬스터 체력 깎기 (방어 계산 끝난 값). 흡수 중이면 체력으로 (최대 체력까지).
+ * 반환: 실제로 깎였으면 true
+ */
+function hurt(sim: WaveSim, m: Monster, dmg: number): boolean {
+  if (sim.tick < m.absorbUntil) {
+    const heal = Math.min(dmg, m.maxHp - m.hp)
+    m.hp += heal
+    sim.events.push({ type: 'heal', monsterId: m.id, dist: m.dist, amount: heal })
+    return false
+  }
+  m.hp -= dmg
+  return true
+}
+
+/** 피해 주기. crit = 공격력×2 − 방어력. 무적이면 안 들어감. 잠든 몬스터는 LULLABY_WAKE_HITS 대 맞으면 깸 */
 function damage(sim: WaveSim, u: SimUnit, m: Monster, atk: number, crit: boolean, splash: boolean) {
   if (isInvincible(sim, m)) {
     sim.events.push({ type: 'block', unitId: u.inst.id, monsterId: m.id, dist: m.dist })
@@ -253,8 +296,8 @@ function damage(sim: WaveSim, u: SimUnit, m: Monster, atk: number, crit: boolean
   }
   const armor = monsterArmor(sim, m)
   const dmg = Math.max(1, (crit ? atk * 2 : atk) - armor)
-  m.hp -= dmg
-  sim.events.push({ type: 'hit', unitId: u.inst.id, monsterId: m.id, dist: m.dist, amount: dmg, crit, splash })
+  if (hurt(sim, m, dmg)) sim.events.push({ type: 'hit', unitId: u.inst.id, monsterId: m.id, dist: m.dist, amount: dmg, crit, splash })
+  if (sim.tick < m.sleepUntil && ++m.sleepHits >= LULLABY_WAKE_HITS) m.sleepUntil = 0
 }
 
 /** 캐릭이 몬스터 기술을 민첩으로 피하나 */
@@ -266,10 +309,45 @@ export function unitStatsNow(sim: WaveSim, u: SimUnit) {
     st.attackSpeed = Math.min(sim.windowTicks, st.attackSpeed * 2)
     st.agility = st.agility * 2
   }
+  // 민첩 복사 (2026-11-28): 몬스터 민첩을 더함. 민첩 빼앗기에 걸리면 1 (가장 나중)
+  if (sim.tick < u.agiCopyUntil) st.agility += u.agiCopy
+  if (sim.tick < u.agiStolenUntil) st.agility = 1
   return st
 }
 
-const dodges = (sim: WaveSim, u: SimUnit, m: Monster) => sim.rng.int(BP) < agilityChanceBp(unitStatsNow(sim, u).agility, m.spec.agility)
+const dodges = (sim: WaveSim, u: SimUnit, m: Monster) => sim.rng.int(BP) < agilityChanceBp(unitStatsNow(sim, u).agility, monsterAgility(sim, m))
+
+/** 새 몬스터 (출현·분열) */
+function makeMonster(sim: WaveSim, type: MonsterId, spec: MonsterSpec, hp: number, maxHp: number, speed: number, dist: number): Monster {
+  return {
+    id: sim.nextMonsterId++,
+    type,
+    spec,
+    hp,
+    maxHp,
+    speed,
+    dist,
+    prevDist: dist,
+    stunnedUntil: 0,
+    stunImmuneUntil: 0,
+    armorUpUntil: 0,
+    hasteUntil: 0,
+    invincibleUntil: 0,
+    poisonDmg: 0,
+    thornHit: [],
+    hypnoLeft: 0,
+    hypnotized: false,
+    iceUntil: 0,
+    sleepUntil: 0,
+    sleepHits: 0,
+    absorbUntil: 0,
+    stolenAgi: 0,
+    stolenUntil: 0,
+    isClone: false,
+    abilityReadyAt: {},
+    abilityUsed: {},
+  }
+}
 
 /** 비어 있는 배치 칸 */
 function freeSlots(sim: WaveSim): Cell[] {
@@ -359,6 +437,33 @@ function monsterReact(sim: WaveSim, u: SimUnit, m: Monster) {
           hitIds.push(u.inst.id)
         }
         break
+      case 'agiSteal':
+        if (dodges(sim, u, m)) dodgedIds.push(u.inst.id)
+        else {
+          // 캐릭 민첩을 1로, 뺏은 만큼(지금 민첩 − 1) 몬스터 민첩에 +
+          const until = sim.tick + msToTicks(cfg, d.durationMs)
+          m.stolenAgi = Math.max(0, Math.floor(unitStatsNow(sim, u).agility) - 1)
+          m.stolenUntil = until
+          u.agiStolenUntil = until
+          hitIds.push(u.inst.id)
+        }
+        break
+      case 'absorb':
+        m.absorbUntil = sim.tick + msToTicks(cfg, d.durationMs)
+        break
+      case 'split': {
+        // 지금 체력을 반씩. 나온 쪽은 같은 종류·같은 자리, 능력 없음 (다시 분열 안 함)
+        if (m.hp < 2) {
+          fired = false
+          break
+        }
+        const half = Math.floor(m.hp / 2)
+        m.hp -= half
+        const clone = makeMonster(sim, m.type, { ...m.spec, abilities: [] }, half, m.maxHp, m.speed, m.dist)
+        clone.isClone = true
+        sim.monsters.push(clone)
+        break
+      }
     }
     if (!fired) continue
     if (d.cooldownMs) m.abilityReadyAt[kind] = sim.tick + msToTicks(cfg, d.cooldownMs)
@@ -385,9 +490,9 @@ function applyUnitAbility(sim: WaveSim, u: SimUnit, target: Monster, proc: Abili
   const { cfg, map } = sim
   const blocked = (k: AbilityKind) => target.spec.immunities.includes(k) || isInvincible(sim, target)
   // 저항: 걸릴 수 있는 상태일 때만 굴림 (마지막에 호출). 걸릴 확률 = 20 / (20 + 몬스터 민첩)
-  const lands = () => {
-    if (sim.rng.int(BP) < agilityChanceBp(RESIST_POWER, target.spec.agility)) return true
-    sim.events.push({ type: 'resist', unitId: u.inst.id, monsterId: target.id, dist: target.dist, kind: proc.kind })
+  const lands = (m: Monster = target) => {
+    if (sim.rng.int(BP) < agilityChanceBp(RESIST_POWER, monsterAgility(sim, m))) return true
+    sim.events.push({ type: 'resist', unitId: u.inst.id, monsterId: m.id, dist: m.dist, kind: proc.kind })
     return false
   }
   switch (proc.kind) {
@@ -442,6 +547,34 @@ function applyUnitAbility(sim: WaveSim, u: SimUnit, target: Monster, proc: Abili
       // 빗나가도 걸림 (다른 특수능력과 같음). 이미 걸렸으면 그대로 (중첩 없음)
       if (!blocked('poison') && target.poisonDmg === 0 && target.hp > 0 && lands()) target.poisonDmg = Math.max(1, applyBp(atk, proc.pctBp))
       break
+    case 'instakill':
+      // 왕에겐 안 통함 (2026-11-28)
+      if (target.spec.id === 'boss') sim.events.push({ type: 'immune', unitId: u.inst.id, monsterId: target.id, dist: target.dist, kind: 'instakill' })
+      else if (!blocked('instakill') && target.hp > 0 && lands()) target.hp = 0
+      break
+    case 'iceTile': {
+      // 때린 몬스터가 있는 길 1칸의 몬스터 모두 멈춤. 스턴과 같은 규칙 (스턴 중·면역 중이면 안 걸림)
+      const idx = pathIndexAt(map, target.dist)
+      for (const m of sim.monsters) {
+        if (m.hp <= 0 || pathIndexAt(map, m.dist) !== idx || m.spec.immunities.includes('iceTile') || isInvincible(sim, m)) continue
+        if (sim.tick < m.stunImmuneUntil || sim.tick < m.stunnedUntil || !lands(m)) continue
+        m.stunnedUntil = m.iceUntil = sim.tick + msToTicks(cfg, ICE_TILE_MS)
+        m.stunImmuneUntil = m.stunnedUntil + msToTicks(cfg, STUN_IMMUNE_MS)
+      }
+      break
+    }
+    case 'lullaby':
+      // 판 위 몬스터 모두 잠듦 (왕 포함, 몬스터마다 저항)
+      for (const m of sim.monsters) {
+        if (m.hp <= 0 || m.spec.immunities.includes('lullaby') || isInvincible(sim, m) || !lands(m)) continue
+        m.sleepUntil = sim.tick + msToTicks(cfg, LULLABY_MS)
+        m.sleepHits = 0
+      }
+      break
+    case 'agiCopy':
+      u.agiCopy = Math.floor(monsterAgility(sim, target))
+      u.agiCopyUntil = sim.tick + msToTicks(cfg, AGI_COPY_MS)
+      break
     case 'teamLevel':
       sim.levelBuffs.push({ stat: proc.stat, level: proc.level, until: sim.tick + msToTicks(cfg, TEAM_LEVEL_MS) })
       break
@@ -467,33 +600,13 @@ export function stepWave(sim: WaveSim) {
     const spec = sim.stage.monsters[s.type]!
     const hp = Math.max(1, applyBp(spec.hp, cfg.monsterHpBp))
     const speed = Math.max(1, Math.floor((spec.speed * cfg.monsterSpeedBp) / BP / cfg.tickRate))
-    sim.monsters.push({
-      id: sim.nextMonsterId++,
-      type: s.type,
-      spec,
-      hp,
-      maxHp: hp,
-      speed,
-      dist: 0,
-      prevDist: 0,
-      stunnedUntil: 0,
-      stunImmuneUntil: 0,
-      armorUpUntil: 0,
-      hasteUntil: 0,
-      invincibleUntil: 0,
-      poisonDmg: 0,
-      thornHit: [],
-      hypnoLeft: 0,
-      hypnotized: false,
-      abilityReadyAt: {},
-      abilityUsed: {},
-    })
+    sim.monsters.push(makeMonster(sim, s.type, spec, hp, hp, speed, 0))
   }
 
   // 이동 · 출구
   for (const m of sim.monsters) {
     m.prevDist = m.dist
-    if (sim.tick < m.stunnedUntil) continue
+    if (sim.tick < m.stunnedUntil || sim.tick < m.sleepUntil) continue
     const o = obstacleAt(m)
     const slow = o?.kind === 'slow' ? o.amountBp : 0
     const speed = sim.tick < m.hasteUntil ? m.speed * 2 : m.speed
@@ -527,18 +640,14 @@ export function stepWave(sim: WaveSim) {
     m.thornHit.push(o.index)
     if (isInvincible(sim, m)) continue
     const dmg = Math.max(1, applyBp(m.maxHp, o.amountBp))
-    m.hp -= dmg
-    sim.events.push({ type: 'thorn', monsterId: m.id, dist: m.dist, amount: dmg })
+    if (hurt(sim, m, dmg)) sim.events.push({ type: 'thorn', monsterId: m.id, dist: m.dist, amount: dmg })
   }
 
   // 1초마다: 맹독 (방어 무시, 무적이면 안 들어감)
   if (sim.tick % cfg.tickRate === 0) {
     for (const m of sim.monsters) {
       if (isInvincible(sim, m)) continue
-      if (m.poisonDmg > 0) {
-        m.hp -= m.poisonDmg
-        sim.events.push({ type: 'poison', monsterId: m.id, dist: m.dist, amount: m.poisonDmg })
-      }
+      if (m.poisonDmg > 0 && hurt(sim, m, m.poisonDmg)) sim.events.push({ type: 'poison', monsterId: m.id, dist: m.dist, amount: m.poisonDmg })
     }
   }
 
@@ -570,7 +679,7 @@ export function stepWave(sim: WaveSim) {
     const proc = rollProc(sim, u) ? a : null
     if (proc) sim.events.push({ type: 'proc', unitId: u.inst.id, kind: proc.kind, monsterId: target.id, dist: target.dist })
 
-    const hitBp = agilityChanceBp(st.agility, target.spec.agility)
+    const hitBp = agilityChanceBp(st.agility, monsterAgility(sim, target))
     const hit = sim.rng.int(BP) < (weak ? Math.floor(hitBp / 2) : hitBp)
     if (hit) damage(sim, u, target, st.atk, proc?.kind === 'crit', false)
     else sim.events.push({ type: 'miss', unitId: u.inst.id, monsterId: target.id, dist: target.dist })

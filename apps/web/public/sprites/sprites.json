@@ -471,6 +471,110 @@
         }
       }
     },
+    "tool_instakill": {
+      "name": "낫 — 즉사",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "tool_iceTile": {
+      "name": "눈꽃 지팡이 — 빙결",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "tool_lullaby": {
+      "name": "마이크 — 자장가",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "tool_agiCopy": {
+      "name": "거울 — 민첩 복사",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
     "mon_normal": {
       "name": "보통",
       "kind": "monster",
