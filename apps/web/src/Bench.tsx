@@ -6,7 +6,8 @@ import { drawSprite, loadSprites, motionDuration } from './sprites.ts'
  * 몬스터는 타원 길을 돌며 가끔 맞음·스턴·죽음(→ 다시 나옴), 캐릭은 대기·공격·얼음을 오감.
  */
 const MON_TYPES = ['normal', 'hp', 'armor', 'agi', 'spd', 'hp_armor', 'hp_agi', 'hp_spd', 'armor_agi', 'armor_spd', 'agi_spd', 'boss']
-const UNIT_IDS = ['img1', 'img2', 'img3', 'img4', 'img5', 'img6', 'img7', 'img8']
+const UNIT_IDS = ['unit_t1', 'unit_t2', 'unit_t3', 'unit_t4', 'unit_t5', 'unit_t6']
+const TOOL_IDS = [null, null, 'tool_stun', 'tool_splash', 'tool_crit', 'tool_obstacle', 'tool_recall', 'tool_teamLevel', 'tool_allAttack', 'tool_poison']
 const W = 960
 const H = 620
 
@@ -21,6 +22,7 @@ interface BMon {
 }
 interface BUnit {
   id: string
+  tool: string | null
   x: number
   y: number
   motion: 'idle' | 'attack' | 'frozen'
@@ -56,7 +58,8 @@ export function Bench({ onBack }: { onBack: () => void }) {
     }))
     const cols = Math.ceil(Math.sqrt(count))
     const units: BUnit[] = Array.from({ length: count }, (_, i) => ({
-      id: UNIT_IDS[i % 8]!,
+      id: UNIT_IDS[i % UNIT_IDS.length]!,
+      tool: TOOL_IDS[i % TOOL_IDS.length] ?? null,
       x: 330 + (i % cols) * (300 / cols),
       y: 175 + Math.floor(i / cols) * (300 / cols) + 300 / cols,
       motion: 'idle',
@@ -90,6 +93,7 @@ export function Bench({ onBack }: { onBack: () => void }) {
             u.next = now + (u.motion === 'attack' ? motionDuration(u.id, 'attack') : u.motion === 'frozen' ? 1500 : rnd(300, 1500))
           }
           drawSprite(ctx, u.id, u.motion, now - u.since, u.x, u.y, us)
+          if (u.tool) drawSprite(ctx, u.tool, u.motion, now - u.since, u.x, u.y, us)
         }
 
         // 몬스터: 타원 길

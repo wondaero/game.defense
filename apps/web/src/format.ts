@@ -1,4 +1,4 @@
-import { ABILITY_NAMES, abilityDesc, type UnitInstance } from '@def/defense'
+import { ABILITY_NAMES, abilityDesc, statTier, type DefenseConfig, type UnitInstance } from '@def/defense'
 
 /** 그림 8종 (성능 무관, 임시 그림 = 예전 프로젝트와 같은 이모지) */
 export const IMAGE_INFO: Record<string, { emoji: string; name: string; color: string }> = {
@@ -16,4 +16,19 @@ export const imageOf = (image: string) => IMAGE_INFO[image] ?? { emoji: '❔', n
 export function abilityText(u: UnitInstance): { name: string; desc: string } | null {
   if (!u.ability) return null
   return { name: ABILITY_NAMES[u.ability.kind], desc: abilityDesc(u.ability) }
+}
+
+/**
+ * 캐릭 모습 (2026-11-27): 헬멧 쓴 사람. 헬멧 색 = 능력치 점수 등급(statTier), 손 도구 = 특수능력.
+ * body / tool = 스프라이트 이름 (scripts/sprites/art.mjs)
+ */
+export function unitLook(cfg: DefenseConfig, u: UnitInstance) {
+  const t = statTier(cfg, u)
+  return {
+    body: `unit_t${t.tier}`,
+    tool: u.ability ? `tool_${u.ability.kind}` : null,
+    color: t.color,
+    tierName: t.name,
+    score: t.score,
+  }
 }

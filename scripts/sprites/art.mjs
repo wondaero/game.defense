@@ -78,91 +78,70 @@ function mouth(p, x, y, w = 4) {
   return path(`M${x - w},${y} Q${x},${y + w * 0.9} ${x + w},${y}`, 'none', { 'stroke-width': 2 })
 }
 
-// ── 캐릭터 (동물 8종, 정면) ──
+// ── 캐릭터: 헬멧 쓴 사람 (정면) — 2026-11-27 ──
+// 헬멧 색 = 능력치 점수 등급 6가지 (packages/defense/src/roster.ts STAT_TIERS 와 같은 색)
+// 특수능력 = 손에 든 도구 (따로 그린 겹 그림 tool_*, 게임에서 몸 위에 겹쳐 그림)
 /** 색은 모두 T()를 거침 → 맞음(하양)·얼음(하늘색) 물들이기 */
 const tinter = (p) => (c) => (p.tint ? mix(c, p.tint[0], p.tint[1]) : c)
 
-function animal(a, p) {
+const SKIN = '#ffe0bd'
+/** 오른팔(공격하는 팔)의 회전: 도구도 같은 회전으로 그려서 손에 붙어 다님 */
+const armRot = (p) => `rotate(${-15 - (p.armUp ?? 0) * 120} 67 62)`
+
+function human(h, p) {
   const T = tinter(p)
-  const body = T(a.body)
-  const belly = T(a.belly)
-  const dark = T(a.dark ?? mix(a.body, '#000000', 0.35))
-  const back = []
-  const front = []
-
-  // 꼬리·등 뒤
-  if (a.tail === 'bushy') back.push(path('M66,74 Q90,70 86,48 Q80,62 64,64 Z', body), path('M86,48 Q84,56 80,58 Q84,50 86,48 Z', T(a.tailTip ?? a.belly)))
-  if (a.tail === 'tuft') back.push(path('M66,76 Q84,80 84,64', 'none', { stroke: body, 'stroke-width': 4 }), circ(84, 62, 5, T(a.mane)))
-  if (a.tail === 'puff') back.push(circ(68, 78, 7, belly))
-  if (a.shell) back.push(ell(48, 62, 27, 23, T(a.shell)), path('M30,56 L40,48 L56,48 L66,56 L56,66 L40,66 Z', 'none', { stroke: T(mix(a.shell, '#000000', 0.3)), 'stroke-width': 2 }))
-  if (a.mane) {
-    let m = ''
-    for (let i = 0; i < 14; i++) {
-      const ang = (Math.PI * 2 * i) / 14
-      m += circ(48 + Math.cos(ang) * 25, 40 + Math.sin(ang) * 25, 9, T(a.mane), { 'stroke-width': 0 })
-    }
-    back.push(circ(48, 40, 30, T(a.mane)), m)
-  }
-  if (a.ears === 'pointy') {
-    back.push(path('M29,30 L24,6 L44,20 Z', body), path('M32,26 L29,13 L40,21 Z', T(a.earIn ?? '#f8bbd0'), { 'stroke-width': 0 }))
-    back.push(path('M67,30 L72,6 L52,20 Z', body), path('M64,26 L67,13 L56,21 Z', T(a.earIn ?? '#f8bbd0'), { 'stroke-width': 0 }))
-    if (a.earTip) back.push(path('M24,6 L27,16 L31,12 Z', T(a.earTip), { 'stroke-width': 0 }), path('M72,6 L69,16 L65,12 Z', T(a.earTip), { 'stroke-width': 0 }))
-  }
-  if (a.ears === 'round') back.push(circ(29, 22, 9, body), circ(29, 22, 4.5, T(a.earIn ?? '#d7ccc8'), { 'stroke-width': 0 }), circ(67, 22, 9, body), circ(67, 22, 4.5, T(a.earIn ?? '#d7ccc8'), { 'stroke-width': 0 }))
-  if (a.ears === 'long') {
-    back.push(g('rotate(-12 38 24)', ell(38, 6, 7, 20, body) + ell(38, 8, 3.5, 14, T('#f48fb1'), { 'stroke-width': 0 })))
-    back.push(g('rotate(12 58 24)', ell(58, 6, 7, 20, body) + ell(58, 8, 3.5, 14, T('#f48fb1'), { 'stroke-width': 0 })))
-  }
-
-  // 몸
-  if (a.coil) {
-    front.push(ell(48, 80, 26, 8, body), ell(48, 71, 21, 8, body), ell(48, 62, 15, 7, body))
-    front.push(path('M26,80 Q48,86 70,80', 'none', { stroke: belly, 'stroke-width': 3 }))
-  } else {
-    front.push(ell(38, 83, 7.5, 4.5, a.feet ? T(a.feet) : dark), ell(58, 83, 7.5, 4.5, a.feet ? T(a.feet) : dark))
-    front.push(ell(48, 66, 20, 17, body), ell(48, 70, 12, 10, belly, { 'stroke-width': 0 }))
-    // 팔 (공격 때 오른팔을 듦)
-    const up = p.armUp ?? 0
-    if (a.wings) {
-      front.push(ell(27, 64, 7, 13, dark, { transform: `rotate(${15 - up * 50} 27 56)` }), ell(69, 64, 7, 13, dark, { transform: `rotate(${-15 + up * 60} 69 56)` }))
-    } else {
-      front.push(ell(29, 66, 5.5, 7, body, { transform: 'rotate(15 29 66)' }), ell(67, 66, 5.5, 7, body, { transform: `rotate(${-15 - up * 120} 67 60)` }))
-    }
-  }
-
-  // 머리
-  front.push(circ(48, 40, 23, body))
-  if (a.face) front.push(ell(48, 47, 15, 11, T(a.face), { 'stroke-width': 0 }))
-  if (a.tuft) front.push(path('M44,18 Q46,8 50,16 Q54,8 54,19', body))
-  front.push(eyes(p, 40, 56, 38))
-  front.push(ell(34, 48, 4, 2.5, T('#f48fb1'), { 'stroke-width': 0, opacity: 0.55 }), ell(62, 48, 4, 2.5, T('#f48fb1'), { 'stroke-width': 0, opacity: 0.55 }))
-  if (a.beak) {
-    front.push(path('M42,45 L54,45 L48,55 Z', T('#ffb300')))
-  } else if (a.snout) {
-    front.push(ell(48, 49, 8, 6, T(a.snout), { 'stroke-width': 0 }))
-    front.push(ell(48, 46, 3, 2.2, OUT, { 'stroke-width': 0 }))
-    front.push(mouth(p, 48, 51, 3.5))
-  } else {
-    front.push(mouth(p, 48, 49, 3.5))
-  }
-  if (a.teeth) front.push(`<rect x="45.5" y="51" width="5" height="4" fill="#fff" stroke="${OUT}" stroke-width="1.2"/>`)
-  if (a.tongue && (p.mouth === 'open' || p.armUp)) front.push(path('M48,52 L48,60 M48,60 L45,63 M48,60 L51,63', 'none', { stroke: '#e53935', 'stroke-width': 2 }))
-
-  let out = posed(p, back.join('') + front.join(''))
+  const helmet = T(h.helmet)
+  const dark = T(mix(h.helmet, '#000000', 0.3))
+  const light = T(mix(h.helmet, '#ffffff', 0.5))
+  let s = ''
+  // 발·몸통(흰 옷 + 헬멧 색 옷깃·허리띠)
+  s += ell(39, 85, 7.5, 4.5, T('#5d4037')) + ell(57, 85, 7.5, 4.5, T('#5d4037'))
+  s += path('M31,62 Q48,55 65,62 L67,84 Q48,89 29,84 Z', T('#eceff1'))
+  s += path('M31,76 Q48,80 66,76', 'none', { stroke: T('#6d4c41'), 'stroke-width': 3.5 })
+  s += path('M38,60 L48,69 L58,60', 'none', { stroke: helmet, 'stroke-width': 3.5 })
+  // 왼팔 · 오른팔(공격 때 듦)
+  s += ell(29, 70, 5.5, 8, T(SKIN), { transform: 'rotate(15 29 70)' })
+  s += ell(67, 70, 5.5, 8, T(SKIN), { transform: armRot(p) })
+  // 머리 + 헬멧
+  s += circ(48, 41, 22, T(SKIN))
+  s += path('M25,41 Q24,14 48,13 Q72,14 71,41 Z', helmet)
+  s += `<rect x="22" y="37" width="52" height="7" rx="3.5" fill="${dark}" stroke="${OUT}" stroke-width="${SW}"/>`
+  s += path('M32,27 Q36,19 45,17', 'none', { stroke: '#ffffff', 'stroke-width': 3, opacity: 0.6 })
+  s += star(48, 26, 5, light)
+  if (h.sparkle) s += star(70, 14, 4, '#fffde7') + star(24, 20, 3, '#fffde7')
+  // 얼굴
+  s += eyes(p, 41, 52, 50, 0.9)
+  s += ell(35, 56, 3.5, 2.2, T('#f48fb1'), { 'stroke-width': 0, opacity: 0.55 }) + ell(61, 56, 3.5, 2.2, T('#f48fb1'), { 'stroke-width': 0, opacity: 0.55 })
+  s += mouth(p, 48, 57, 3)
+  let out = posed(p, s)
   if (p.fx) out += p.fx
   return out
 }
 
-const ANIMALS = {
-  img1: { name: '늑대', body: '#90a4ae', belly: '#eceff1', ears: 'pointy', snout: '#eceff1', tail: 'bushy', tailTip: '#eceff1' },
-  img2: { name: '여우', body: '#ff8a65', belly: '#fff3e0', ears: 'pointy', earTip: '#4e342e', face: '#fff3e0', snout: '#fff3e0', tail: 'bushy', tailTip: '#ffffff' },
-  img3: { name: '곰', body: '#a1887f', belly: '#d7ccc8', ears: 'round', snout: '#d7ccc8' },
-  img4: { name: '매', body: '#8d6e63', belly: '#efebe9', face: '#efebe9', beak: true, wings: true, tuft: true, feet: '#ffb300' },
-  img5: { name: '뱀', body: '#81c784', belly: '#e8f5e9', coil: true, tongue: true },
-  img6: { name: '사자', body: '#ffb74d', belly: '#fff3e0', ears: 'round', earIn: '#ffe0b2', mane: '#e65100', snout: '#fff3e0', tail: 'tuft' },
-  img7: { name: '거북', body: '#4db6ac', belly: '#e0f2f1', shell: '#00796b' },
-  img8: { name: '토끼', body: '#f8bbd0', belly: '#ffffff', ears: 'long', snout: '#ffffff', teeth: true, tail: 'puff' },
+/** 헬멧 색 6등급 (roster.ts STAT_TIERS) */
+const TIERS = [
+  { id: 'unit_t1', name: '회색 헬멧 (능력치 하)', helmet: '#9e9e9e' },
+  { id: 'unit_t2', name: '초록 헬멧', helmet: '#43a047' },
+  { id: 'unit_t3', name: '파랑 헬멧', helmet: '#1e88e5' },
+  { id: 'unit_t4', name: '보라 헬멧', helmet: '#8e24aa' },
+  { id: 'unit_t5', name: '주황 헬멧', helmet: '#fb8c00' },
+  { id: 'unit_t6', name: '금 헬멧 (능력치 최상)', helmet: '#fdd835', sparkle: true },
+]
+
+/** 특수능력 도구 (손 기준 좌표: 손 = 0,0 / 위쪽 = 음수). 오른팔과 같이 돌아감 */
+const TOOLS = {
+  stun: { name: '뿅망치 — 스턴', draw: (T) => path('M0,2 L8,-20', 'none', { stroke: T('#ffca28'), 'stroke-width': 4 }) + `<rect x="0" y="-31" width="18" height="11" rx="4" transform="rotate(20 9 -25)" fill="${T('#e53935')}" stroke="${OUT}" stroke-width="${SW}"/>` },
+  splash: { name: '폭탄 — 광역공격', draw: (T) => circ(4, -7, 8, T('#37474f')) + path('M8,-14 Q10,-20 15,-21', 'none', { stroke: T('#8d6e63'), 'stroke-width': 2 }) + star(16, -23, 4, T('#ffeb3b')) + circ(1, -10, 2, '#ffffff', { 'stroke-width': 0, opacity: 0.6 }) },
+  crit: { name: '칼 — 2배 데미지', draw: (T) => path('M1,-5 L9,-33 L12,-31 L5,-4 Z', T('#eceff1')) + path('M-4,-6 L9,-2', 'none', { stroke: T('#ffb300'), 'stroke-width': 4 }) + circ(0, 2, 2.5, T('#ffb300')) },
+  obstacle: { name: '삽 — 장애물 추가', draw: (T) => path('M0,3 L7,-20', 'none', { stroke: T('#8d6e63'), 'stroke-width': 3.5 }) + path('M3,-20 L13,-17 L11,-29 Q8,-34 4,-30 Z', T('#90a4ae')) },
+  recall: { name: '부메랑 — 출발지로 보내기', draw: (T) => path('M-2,-2 Q2,-18 -4,-30 M-2,-2 Q14,-6 22,-16', 'none', { stroke: OUT, 'stroke-width': 7 }) + path('M-2,-2 Q2,-18 -4,-30 M-2,-2 Q14,-6 22,-16', 'none', { stroke: T('#ff8f00'), 'stroke-width': 4 }) },
+  teamLevel: { name: '깃발 — 아군 전체 레벨업', draw: (T) => path('M0,4 L6,-32', 'none', { stroke: T('#6d4c41'), 'stroke-width': 3 }) + path('M6,-32 L26,-26 L4,-19 Z', T('#e53935')) + star(12, -25, 3, T('#ffeb3b')) },
+  allAttack: { name: '마법 지팡이 — 전체 공격', draw: (T) => path('M0,3 L7,-22', 'none', { stroke: T('#5e35b1'), 'stroke-width': 3.5 }) + star(8, -27, 8, T('#ffeb3b')) },
+  poison: { name: '독 병 — 맹독', draw: (T) => `<rect x="1" y="-20" width="6" height="7" rx="1.5" fill="${T('#d7ccc8')}" stroke="${OUT}" stroke-width="2"/>` + circ(4, -6, 8, T('#ab47bc')) + circ(1, -8, 1.8, '#ffffff', { 'stroke-width': 0, opacity: 0.7 }) + circ(7, -4, 1.3, '#f3e5f5', { 'stroke-width': 0 }) },
 }
+
+/** 도구 한 장 (몸과 같은 포즈 → 같은 자리에 겹치면 손에 붙음) */
+const toolLayer = (kind, p) => posed(p, g(armRot(p), g('translate(67 77) scale(1.45)', TOOLS[kind].draw(tinter(p)))))
 
 const burst = (x, y, s = 1) => star(x, y, 9 * s, '#fff59d') + star(x, y, 4.5 * s, '#ffffff')
 const iceBlock = `<rect x="12" y="6" width="72" height="84" rx="12" fill="#b3e5fc" fill-opacity="0.5" stroke="#e1f5fe" stroke-width="3"/><path d="M22,20 L34,12 M24,32 L40,18 M70,70 L78,62" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>`
@@ -458,9 +437,9 @@ export const ALIASES = {}
 /** 모든 개체 목록 */
 export function entities() {
   const list = []
-  for (const [id, a] of Object.entries(ANIMALS)) {
-    list.push({ id, name: a.name, kind: 'unit', motions: UNIT_MOTIONS, draw: (p) => animal(a, p) })
-  }
+  for (const t of TIERS) list.push({ id: t.id, name: t.name, kind: 'unit', motions: UNIT_MOTIONS, draw: (p) => human(t, p) })
+  // 도구 겹 그림: 몸과 같은 모션(대기·공격·얼음) — 얼음 모션에선 게임이 도구를 몸 뒤에 그림
+  for (const [kind, t] of Object.entries(TOOLS)) list.push({ id: `tool_${kind}`, name: t.name, kind: 'unit', motions: UNIT_MOTIONS, draw: (p) => toolLayer(kind, p) })
   for (const [id, m] of [...Object.entries(MONSTERS), ...Object.entries(ACC_SAMPLES)]) {
     list.push({
       id,

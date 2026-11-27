@@ -1,5 +1,5 @@
 import { inRange, MONSTER_ABILITIES, positionAt, type Cell, type DefenseConfig, type GameMap, type Placements, type UnitInstance, type WaveSim } from '@def/defense'
-import { imageOf } from './format.ts'
+import { unitLook } from './format.ts'
 import { drawSprite, motionDuration, spritesReady } from './sprites.ts'
 import { groundImage, type GroundMode } from './ground.ts'
 
@@ -153,7 +153,7 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
     const [x, y] = k.split(',').map(Number) as [number, number]
     const cx = (x + 0.5) * CELL_PX
     const cy = (y + 0.5) * CELL_PX
-    const img = imageOf(u.image)
+    const look = unitLook(cfg, u)
     const su = d.sim?.units.find((s) => s.inst.id === u.id)
     const frozen = !!(su && d.sim && d.sim.tick < su.frozenUntil)
     const weakened = !!(su && d.sim && d.sim.tick < su.weakenedUntil)
@@ -169,17 +169,20 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
     }
     const atkAt = d.anim.unitAttackAt.get(u.id)
     const atkT = atkAt === undefined ? Infinity : d.anim.clock - atkAt
-    const motion = frozen ? 'frozen' : atkT < motionDuration(u.image, 'attack') ? 'attack' : 'idle'
+    const motion = frozen ? 'frozen' : atkT < motionDuration(look.body, 'attack') ? 'attack' : 'idle'
     const t = motion === 'attack' ? atkT : d.anim.clock + idx * 377
     idx++
-    const drawn = sprites && drawSprite(ctx, u.image, motion, t, cx, cy + CELL_PX * 0.42, CELL_PX * 0.98)
+    // 몸(헬멧 색 = 능력치 등급) + 손 도구(특수능력). 얼었을 땐 도구를 얼음 뒤에
+    const foot = cy + CELL_PX * 0.42
+    const size = CELL_PX * 0.98
+    if (frozen && look.tool && sprites) drawSprite(ctx, look.tool, motion, t, cx, foot, size)
+    const drawn = sprites && drawSprite(ctx, look.body, motion, t, cx, foot, size)
+    if (!frozen && look.tool && drawn) drawSprite(ctx, look.tool, motion, t, cx, foot, size)
     if (!drawn) {
-      ctx.fillStyle = img.color
+      ctx.fillStyle = look.color
       ctx.beginPath()
       ctx.arc(cx, cy, CELL_PX * 0.4, 0, Math.PI * 2)
       ctx.fill()
-      ctx.font = `${CELL_PX * 0.5}px serif`
-      ctx.fillText(img.emoji, cx, cy + 2)
       if (frozen) {
         ctx.fillStyle = 'rgba(129,212,250,0.6)'
         ctx.fillRect(x * CELL_PX + 3, y * CELL_PX + 3, CELL_PX - 6, CELL_PX - 6)
@@ -193,16 +196,6 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
       ctx.lineWidth = 3
       ctx.strokeText('↓', cx - CELL_PX * 0.36, cy - CELL_PX * 0.34)
       ctx.fillText('↓', cx - CELL_PX * 0.36, cy - CELL_PX * 0.34)
-      ctx.lineWidth = 1
-    }
-    if (u.ability) {
-      ctx.fillStyle = '#ffeb3b'
-      ctx.strokeStyle = '#2a2230'
-      ctx.lineWidth = 1.5
-      ctx.beginPath()
-      ctx.arc(cx + CELL_PX * 0.36, cy - CELL_PX * 0.36, 5, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.stroke()
       ctx.lineWidth = 1
     }
   }

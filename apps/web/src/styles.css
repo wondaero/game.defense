@@ -106,3 +106,6 @@ button.link.back { font-size: 20px; }
 .stage-map .node .badge { position: absolute; right: -6px; bottom: -4px; width: 18px; height: 18px; border-radius: 50%; background: #fff; color: #2e7d32; font-size: 11px; display: flex; align-items: center; justify-content: center; border: 2px solid #1b5e20; }
 .stage-map .node .badge.lock { background: none; border: none; font-size: 12px; right: -8px; }
 .stage-map .node.boss.current { border-color: #ffd54f; animation: stage-pulse 1.4s infinite; }
+/* 캐릭 얼굴: 스프라이트 첫 프레임 (시트 6×3, 프레임 하나 = 얼굴 칸) */
+.face.sprite { background-color: #3d5a40; background-size: 600% 300%; background-position: 0 0; background-repeat: no-repeat; width: 40px; height: 40px; border-radius: 10px; }
+.tier { text-shadow: 0 1px 0 rgba(0,0,0,0.6); }

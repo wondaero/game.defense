@@ -1,8 +1,8 @@
 {
   "frameSize": 192,
   "entities": {
-    "img1": {
-      "name": "늑대",
+    "unit_t1": {
+      "name": "회색 헬멧 (능력치 하)",
       "kind": "unit",
       "cols": 6,
       "rows": 3,
@@ -27,8 +27,8 @@
         }
       }
     },
-    "img2": {
-      "name": "여우",
+    "unit_t2": {
+      "name": "초록 헬멧",
       "kind": "unit",
       "cols": 6,
       "rows": 3,
@@ -53,8 +53,8 @@
         }
       }
     },
-    "img3": {
-      "name": "곰",
+    "unit_t3": {
+      "name": "파랑 헬멧",
       "kind": "unit",
       "cols": 6,
       "rows": 3,
@@ -79,8 +79,8 @@
         }
       }
     },
-    "img4": {
-      "name": "매",
+    "unit_t4": {
+      "name": "보라 헬멧",
       "kind": "unit",
       "cols": 6,
       "rows": 3,
@@ -105,8 +105,8 @@
         }
       }
     },
-    "img5": {
-      "name": "뱀",
+    "unit_t5": {
+      "name": "주황 헬멧",
       "kind": "unit",
       "cols": 6,
       "rows": 3,
@@ -131,8 +131,8 @@
         }
       }
     },
-    "img6": {
-      "name": "사자",
+    "unit_t6": {
+      "name": "금 헬멧 (능력치 최상)",
       "kind": "unit",
       "cols": 6,
       "rows": 3,
@@ -157,8 +157,8 @@
         }
       }
     },
-    "img7": {
-      "name": "거북",
+    "tool_stun": {
+      "name": "뿅망치 — 스턴",
       "kind": "unit",
       "cols": 6,
       "rows": 3,
@@ -183,8 +183,164 @@
         }
       }
     },
-    "img8": {
-      "name": "토끼",
+    "tool_splash": {
+      "name": "폭탄 — 광역공격",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "tool_crit": {
+      "name": "칼 — 2배 데미지",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "tool_obstacle": {
+      "name": "삽 — 장애물 추가",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "tool_recall": {
+      "name": "부메랑 — 출발지로 보내기",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "tool_teamLevel": {
+      "name": "깃발 — 아군 전체 레벨업",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "tool_allAttack": {
+      "name": "마법 지팡이 — 전체 공격",
+      "kind": "unit",
+      "cols": 6,
+      "rows": 3,
+      "motions": {
+        "idle": {
+          "row": 0,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        "attack": {
+          "row": 1,
+          "frames": 4,
+          "fps": 12,
+          "loop": false
+        },
+        "frozen": {
+          "row": 2,
+          "frames": 1,
+          "fps": 1,
+          "loop": true
+        }
+      }
+    },
+    "tool_poison": {
+      "name": "독 병 — 맹독",
       "kind": "unit",
       "cols": 6,
       "rows": 3,

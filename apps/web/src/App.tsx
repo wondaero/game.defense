@@ -29,7 +29,7 @@ import { CELL_PX, draw, monsterScreenPos, newAnimState, PAD, type Fx } from './d
 import { loadSprites, motionDuration } from './sprites.ts'
 import { Bench } from './Bench.tsx'
 import { StageMap } from './StageMap.tsx'
-import { abilityText, imageOf } from './format.ts'
+import { abilityText, unitLook } from './format.ts'
 
 const MAPS = MAP_DEFS.map(parseMap)
 const mapById = (id: string) => MAPS.find((m) => m.id === id)!
@@ -224,7 +224,7 @@ export function App() {
           fxRef.current.push({ kind: 'text', born: now, life: 600, to, text: '빗나감', color: '#b0bec5' })
           continue
         }
-        if (!ev.splash) fxRef.current.push({ kind: 'shot', born: now, life: 150, from, to, color: imageOf(u.inst.image).color })
+        if (!ev.splash) fxRef.current.push({ kind: 'shot', born: now, life: 150, from, to, color: unitLook(live.current.cfg, u.inst).color })
         fxRef.current.push({ kind: 'text', born: now, life: ev.crit ? 900 : 600, to, text: ev.crit ? `${ev.amount}!!` : `${ev.amount}`, color: ev.crit ? '#ff5252' : ev.splash ? '#ffb74d' : '#fff' })
       } else if (ev.type === 'leak') {
         const e = map.path.at(-1)!
@@ -372,7 +372,7 @@ export function App() {
           <h3>내 캐릭 ({roster.length}명)</h3>
           <ul className="roster">
             {roster.map((u) => (
-              <UnitRow key={u.id} u={u} />
+              <UnitRow key={u.id} u={u} cfg={cfg} />
             ))}
           </ul>
           <div className="row" style={{ marginTop: 8 }}>
@@ -488,6 +488,7 @@ export function App() {
                   <UnitRow
                     key={u.id}
                     u={u}
+                    cfg={cfg}
                     selected={selectedId === u.id}
                     placed={placed}
                     onClick={() => setSelectedId(selectedId === u.id ? null : u.id)}
@@ -536,24 +537,29 @@ function MonsterRow({ spec, count, cfg }: { spec: MonsterSpec; count: number; cf
   )
 }
 
+/** 캐릭 얼굴: 스프라이트 첫 프레임(몸 + 도구)을 작게 */
+function UnitFace({ body, tool }: { body: string; tool: string | null }) {
+  const bg = [tool, body].filter(Boolean).map((id) => `url(sprites/${id}.png)`).join(', ')
+  return <span className="face sprite" style={{ backgroundImage: bg }} />
+}
+
 function UnitRow(props: {
   u: UnitInstance
+  cfg: DefenseConfig
   selected?: boolean
   placed?: boolean
   onClick?: () => void
   children?: React.ReactNode
 }) {
   const { u } = props
-  const img = imageOf(u.image)
+  const look = unitLook(props.cfg, u)
   const ab = abilityText(u)
   return (
     <li className={`${props.selected ? 'sel' : ''} ${props.placed ? 'placed' : ''}`} onClick={props.onClick}>
-      <span className="face" style={{ background: img.color }}>
-        {img.emoji}
-      </span>
+      <UnitFace body={look.body} tool={look.tool} />
       <div className="info">
         <div>
-          <b>{img.name}</b> 공격 {u.atk} · 사거리 {u.range} · 공속 {u.attackSpeed} · 민첩 {u.agility}
+          <b className="tier" style={{ color: look.color }}>{look.tierName} {look.score}</b> 공격 {u.atk} · 사거리 {u.range} · 공속 {u.attackSpeed} · 민첩 {u.agility}
           {props.placed && <span className="tag">출전</span>}
         </div>
         {ab && (
