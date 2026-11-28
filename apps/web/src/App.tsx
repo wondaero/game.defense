@@ -1,3 +1,4 @@
+import { showAlert, showConfirm } from './dialog.tsx'
 import { BackButton, Icon, ICON_NAMES, MonAbIcon, type IconName } from './Icon.tsx'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -681,7 +682,7 @@ export function App() {
                             void api
                               .barracks({ type: 'buy', kind: it.kind })
                               .then(({ account: a }) => setAccount(a))
-                              .catch((e: unknown) => alert(e instanceof Error ? e.message : String(e)))
+                              .catch((e: unknown) => void showAlert(e instanceof Error ? e.message : String(e)))
                           }
                         >
                           <Icon name="coin" /> {price}
@@ -722,7 +723,9 @@ export function App() {
                 <label>
                   <input type="checkbox" checked={save.unlockAll} onChange={(e) => setSave({ ...save, unlockAll: e.target.checked })} /> 모든 탄 열기
                 </label>
-                <button onClick={() => confirm('최고 기록을 0으로 되돌릴까요?') && void api.dev?.setBest(0).then(setAccount)}>기록 지우기</button>
+                <button onClick={() => void showConfirm({ title: '기록 지우기', message: '최고 기록을 0으로 되돌릴까요?', ok: '지우기', danger: true }).then((y) => {
+                  if (y) void api.dev?.setBest(0).then(setAccount)
+                })}>기록 지우기</button>
               </div>
             </section>
             <section>
@@ -733,11 +736,10 @@ export function App() {
                 </button>
                 <button
                   onClick={() =>
-                    confirm('막사 캐릭을 모두 새로 뽑을까요? (배치도 지워짐)') &&
-                    void api.dev?.resetBarracks(`시험판-${Math.floor(Math.random() * 1e6)}`).then((a) => {
+                    void showConfirm({ title: '막사 다시 뽑기', message: '막사 캐릭을 모두 새로 뽑을까요? 배치도 지워져요', ok: '다시 뽑기', danger: true }).then((y) => void (y && api.dev?.resetBarracks(`시험판-${Math.floor(Math.random() * 1e6)}`).then((a) => {
                       setAccount(a)
                       setSave((s) => ({ ...s, placementsByMap: {} }))
-                    })
+                    })))
                   }
                 >
                   <Icon name="dice" /> 막사 전체 다시 뽑기
@@ -832,10 +834,17 @@ export function App() {
               <button
                 className="danger"
                 onClick={() =>
-                  confirm('정말 모든 데이터를 초기화할까요?\n\n캐릭·스테이지 기록·별·골드가 모두 사라지고\n처음 시작할 때 주는 티켓만 새로 받아요.\n되돌릴 수 없어요.') &&
-                  void api.dev?.resetAll().then((a) => {
-                    setAccount(a)
-                    setSave((s) => ({ ...s, placementsByMap: {} }))
+                  void showConfirm({
+                    title: '모든 데이터 초기화',
+                    message: '캐릭·스테이지 기록·별·골드가 모두 사라지고, 처음 시작할 때 주는 티켓만 새로 받아요. 되돌릴 수 없어요.',
+                    ok: '초기화',
+                    danger: true,
+                  }).then((y) => {
+                    if (y)
+                      void api.dev?.resetAll().then((a) => {
+                        setAccount(a)
+                        setSave((s) => ({ ...s, placementsByMap: {} }))
+                      })
                   })
                 }
               >
@@ -1193,12 +1202,12 @@ type Tab = 'barracks' | 'stages' | 'shop' | 'settings' | 'dev'
 /**
  * 개발자 모드 (2026-11-29 이스터에그):
  * - 설정 탭 "정보" 제목을 빠르게 7번 누르면 코드 입력 창
- * - 코드 = <달 영문 첫 글자><시 00~23><분 두 자리를 거꾸로>, 예) 11월 13시 59분 → n1395. 친 시각부터 5분까지 허용
+ * - 코드 = <달 영문 첫 글자><시 00~23><분 두 자리를 거꾸로>, 예) 11월 13시 59분 → n1395. 외운 시각부터 2분까지 허용 (외우는 사이 분이 바뀌어도 통과, 2026-11-29)
  * - 꺼지는 때: 개발자 탭 [개발자 모드 끄기] · 새로고침 · 탭 닫기 · 앱 다시 열기 (기억 안 함, 시간 제한 없음)
  * - 주소(URL)에는 아무것도 안 남김 → 방문 기록으로 다시 못 들어옴, 설치한 앱(주소창 없음)에서도 됨
  * 주의: 숨김일 뿐 보안이 아님(코드에 규칙이 보임) — 서버를 붙이면 개발 기능은 서버 api 에 아예 없어야 함
  */
-const DEV_CODE_GRACE_MIN = 5
+const DEV_CODE_GRACE_MIN = 2
 const DEV_TAPS = 7
 function devCodeOk(given: string): boolean {
   const MONTH = 'jfmamjjasond' // 1~12월 영문 첫 글자
@@ -1235,11 +1244,11 @@ const BARRACKS_ACTIONS = [
 ]
 /** 상점 물건 (값은 엔진 SHOP_PRICES, 2026-11-28 *임시*) */
 const SHOP_ITEMS: { kind: TicketKind; icon: IconName; desc: string }[] = [
-  { kind: 'statNormal', icon: 'reroll', desc: '능력치 4개 모두 다시' },
+  { kind: 'statNormal', icon: 'rerollBronze', desc: '능력치 4개 모두 다시' },
   { kind: 'draw', icon: 'ticket', desc: '캐릭 1명 뽑기' },
-  { kind: 'statHigh', icon: 'reroll', desc: '1개 골라 유지, 나머지 다시' },
+  { kind: 'statHigh', icon: 'rerollSilver', desc: '1개 골라 유지, 나머지 다시' },
   { kind: 'ability', icon: 'sparkle', desc: '특수능력만 다시' },
-  { kind: 'statTop', icon: 'reroll', desc: '2개 골라 유지, 나머지 다시' },
+  { kind: 'statTop', icon: 'rerollGold', desc: '2개 골라 유지, 나머지 다시' },
   { kind: 'abilityGrant', icon: 'gift', desc: '특수능력 없는 캐릭에 하나 붙임' },
 ]
 

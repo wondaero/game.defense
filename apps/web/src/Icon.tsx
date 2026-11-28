@@ -108,6 +108,35 @@ const ICONS = {
       <path d="M7.5 18.5 V15 H11" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </>
   ),
+  /** 능력치 변경 티켓 보통 (2026-11-29: 보통 동 · 상급 은 · 최상급 금) */
+  rerollBronze: () => (
+    <>
+      <rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#8a4b22" stroke={O} strokeWidth={W} />
+      <path d="M7 11 a5 5 0 0 1 9-2.5 M17 13 a5 5 0 0 1-9 2.5" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" />
+      <path d="M16.5 5.5 V9 H13" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7.5 18.5 V15 H11" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  /** 능력치 변경 티켓 상급 (2026-11-29: 보통 동 · 상급 은 · 최상급 금) */
+  rerollSilver: () => (
+    <>
+      <rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#a9b6bf" stroke={O} strokeWidth={W} />
+      <path d="M7 11 a5 5 0 0 1 9-2.5 M17 13 a5 5 0 0 1-9 2.5" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" />
+      <path d="M16.5 5.5 V9 H13" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7.5 18.5 V15 H11" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  /** 능력치 변경 티켓 최상급 (2026-11-29: 보통 동 · 상급 은 · 최상급 금) */
+  rerollGold: () => (
+    <>
+      {/* 금: 밝은 노랑 + 반짝 별 (동과 헷갈리지 않게, 2026-11-29) */}
+      <rect x="2.5" y="2.5" width="19" height="19" rx="5" fill="#ffd21a" stroke={O} strokeWidth={W} />
+      <path d="M7 11 a5 5 0 0 1 9-2.5 M17 13 a5 5 0 0 1-9 2.5" fill="none" stroke="#8a5a00" strokeWidth={2} strokeLinecap="round" />
+      <path d="M16.5 5.5 V9 H13" fill="none" stroke="#8a5a00" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7.5 18.5 V15 H11" fill="none" stroke="#8a5a00" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M21 0.5 l1 2 2 .3-1.5 1.4.4 2-1.9-1-1.9 1 .4-2-1.5-1.4 2-.3 Z" fill="#fff59d" stroke={O} strokeWidth={0.9} strokeLinejoin="round" />
+    </>
+  ),
   /** 특수능력 (반짝이) */
   sparkle: () => (
     <>

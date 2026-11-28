@@ -1,3 +1,4 @@
+import { showAlert } from './dialog.tsx'
 import { Icon, type IconName } from './Icon.tsx'
 import { useState, type ReactNode } from 'react'
 import {
@@ -19,7 +20,7 @@ import {
   type TicketKind,
   type UnitInstance,
 } from '@def/defense'
-import { AbilityDesc, RosterTools, UnitFace, UnitRow, viewRoster, type RosterView } from './UnitList.tsx'
+import { AbBox, AbilityDesc, RosterTools, UnitFace, UnitRow, viewRoster, type RosterView } from './UnitList.tsx'
 import { abilityText, unitLook } from './format.ts'
 import type { GameApi } from './api/api.ts'
 import { AbilityRolls } from './abilityRolls.tsx'
@@ -33,6 +34,7 @@ type Mode = null | { kind: 'merge'; target: TicketKind; ids: string[] }
 type Popup =
   | null
   | { kind: 'drawn'; unit: UnitInstance }
+  | { kind: 'drawnMany'; units: UnitInstance[] }
   /** 캐릭 자세히 + 능력치 변경 · 특수능력 변경 (아래에서 올라오는 창) — 2026-11-28 */
   | { kind: 'unit'; unitId: string }
   /** 능력치 변경: 등급 고르기 (보통 · 상급 · 최상급) */
@@ -52,7 +54,7 @@ const GRADE_SHORT: Record<StatGrade, string> = { statNormal: '보통', statHigh:
 /** 배지 숫자: 9999 까지 그대로, 넘으면 9999+ (2026-11-28) */
 const badgeText = (n: number) => (n > 9999 ? '9999+' : String(n))
 /** 권 아이콘 (합성 결과 창) */
-const TICKET_ICON: Record<TicketKind, IconName> = { draw: 'ticket', statNormal: 'reroll', statHigh: 'reroll', statTop: 'reroll', ability: 'sparkle', abilityGrant: 'gift' }
+const TICKET_ICON: Record<TicketKind, IconName> = { draw: 'ticket', statNormal: 'rerollBronze', statHigh: 'rerollSilver', statTop: 'rerollGold', ability: 'sparkle', abilityGrant: 'gift' }
 
 export function Barracks(props: {
   cfg: DefenseConfig
@@ -79,7 +81,7 @@ export function Barracks(props: {
       props.onAccount(next, action.type === 'merge' ? action.unitIds : undefined)
       return outcome
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e))
+      void showAlert(e instanceof Error ? e.message : String(e))
       return null
     } finally {
       setBusy(false)
@@ -89,6 +91,11 @@ export function Barracks(props: {
   const draw = async () => {
     const o = await send({ type: 'draw' })
     if (o?.type === 'drawn') setPopup({ kind: 'drawn', unit: o.unit })
+  }
+  /** 모두 뽑기: 남은 뽑기 티켓을 한 번에 → 뽑힌 캐릭 목록 (점수 높은 순) */
+  const drawAll = async () => {
+    const o = await send({ type: 'drawAll' })
+    if (o?.type === 'drawnMany') setPopup({ kind: 'drawnMany', units: o.units })
   }
 
   /** 캐릭 누르기: 합성 중이면 고르기, 아니면 자세히 창 */
@@ -145,38 +152,14 @@ export function Barracks(props: {
             <span className="label">합성</span>
           </button>
         </div>
-        {/* 가진 변경권 한 줄 (쓰는 곳은 캐릭 창): 가진 등급만 표시, 전체 내역은 title (2026-11-28) */}
-        {(() => {
-          const grades = STAT_GRADES.filter((g) => tickets[g] > 0)
-          const full = `능력치 변경 티켓: 보통 ${tickets.statNormal} · 상급 ${tickets.statHigh} · 최상급 ${tickets.statTop} / 특수능력 변경 티켓 ${tickets.ability} · 특수능력 부여 티켓 ${tickets.abilityGrant}`
-          return (
-            <div className="ticket-line" title={full}>
-              <span>
-                <Icon name="reroll" />{' '}
-                {grades.length ? (
-                  grades.map((g, i) => (
-                    <span key={g}>
-                      {i > 0 && ' · '}
-                      {GRADE_SHORT[g]} <b>{tickets[g]}</b>
-                    </span>
-                  ))
-                ) : (
-                  <b>0</b>
-                )}
-              </span>
-              {/* 한 줄 유지: 부여 티켓이 있으면 그림만 "✨ n · 🎁 n" (전체 이름은 title) */}
-              {tickets.abilityGrant > 0 ? (
-                <span>
-                  <Icon name="sparkle" /> <b>{tickets.ability}</b> · <Icon name="gift" /> <b>{tickets.abilityGrant}</b>
-                </span>
-              ) : (
-                <span>
-                  <Icon name="sparkle" /> 특수능력 <b>{tickets.ability}</b>
-                </span>
-              )}
-            </div>
-          )
-        })()}
+        {/* 가진 티켓 한 줄 = 아이콘 + 장 수 (2026-11-29): 능력치 변경 보통 동 · 상급 은 · 최상급 금 · 특수능력 변경 · 부여. 0장은 흐리게, 이름은 길게 누르면(title) */}
+        <div className="ticket-line icons">
+          {(['statNormal', 'statHigh', 'statTop', 'ability', 'abilityGrant'] as TicketKind[]).map((k) => (
+            <span key={k} className={tickets[k] ? '' : 'zero'} title={`${TICKET_NAMES[k].replace('\u00a0', ' ')} ${tickets[k]}장`}>
+              <Icon name={TICKET_ICON[k]} /> <b>{tickets[k]}</b>
+            </span>
+          ))}
+        </div>
 
         {mode?.kind === 'merge' && (
           <div className="mode-bar">
@@ -227,7 +210,7 @@ export function Barracks(props: {
         ))}
       </ul>
 
-      {popup && <BarracksPopup popup={popup} cfg={cfg} units={units} tickets={tickets} onClose={() => setPopup(null)} onStat={doStat} onAbility={doAbility} onGrant={doGrant} onMerge={doMerge} onMergeTarget={(target) => {
+      {popup && <BarracksPopup popup={popup} cfg={cfg} units={units} tickets={tickets} onClose={() => setPopup(null)} onStat={doStat} onAbility={doAbility} onGrant={doGrant} onDrawAll={drawAll} onMerge={doMerge} onMergeTarget={(target) => {
             setMode({ kind: 'merge', target, ids: mode?.kind === 'merge' ? mode.ids : [] })
             setPopup(null)
           }} setPopup={setPopup} />}
@@ -320,14 +303,59 @@ function UnitDetail({ u, cfg, keep }: { u: UnitInstance; cfg: DefenseConfig; kee
             특수능력: <span>{ab.name}</span>
           </b>
           {/* 뽑을 수 있는 값 전부 + 이 캐릭이 뽑은 값 강조 (2026-11-28) */}
-          <p className="ab2-box">
+          <AbBox>
             <AbilityRolls ability={u.ability} />
-          </p>
+          </AbBox>
         </div>
       ) : (
         <p className="dim">특수능력 없음 — 부여 티켓으로 붙이거나, 능력치 변경 때 5% 확률로 생겨요</p>
       )}
     </div>
+  )
+}
+
+/** 모두 뽑기 결과 (2026-11-29): 막사와 같은 보기(능력 있음/없음) · 정렬로 목록, 창 안에서만 스크롤 */
+function DrawnMany({ units, cfg, onClose }: { units: UnitInstance[]; cfg: DefenseConfig; onClose: () => void }) {
+  const [view, setView] = useState<RosterView>({ filter: 'all', sort: 'score' })
+  // 목록에서 누른 캐릭 → 캐릭 자세히 모양(등급 사다리·막대)으로, "‹ 목록" 으로 돌아옴 (2026-11-29)
+  const [pick, setPick] = useState<UnitInstance | null>(null)
+  const list = viewRoster(cfg, units, view)
+  if (pick)
+    return (
+      <Modal title="" onClose={onClose}>
+        <div className="drawn-back">
+          <button className="back-btn" onClick={() => setPick(null)}>
+            <Icon name="back" size="1em" />
+            목록
+          </button>
+        </div>
+        <div className="drawn-detail">
+          <UnitDetail u={pick} cfg={cfg} />
+        </div>
+        <div className="row end">
+          <button className="primary inline" onClick={onClose}>
+            확인
+          </button>
+        </div>
+      </Modal>
+    )
+  return (
+    <Modal title={`${units.length}명이 왔어요!`} onClose={onClose}>
+      <div className="drawn-tools">
+        <RosterTools view={view} onChange={setView} roster={units} />
+      </div>
+      <ul className="roster drawn-list">
+        {list.map((u) => (
+          <UnitRow key={u.id} u={u} cfg={cfg} stacked onClick={() => setPick(u)} />
+        ))}
+        {list.length === 0 && <p className="dim">해당하는 캐릭이 없어요</p>}
+      </ul>
+      <div className="row end">
+        <button className="primary inline" onClick={onClose}>
+          확인
+        </button>
+      </div>
+    </Modal>
   )
 }
 
@@ -340,6 +368,7 @@ function BarracksPopup(props: {
   onStat: (g: StatGrade, u: UnitInstance, keep: StatKey[]) => Promise<void>
   onAbility: (u: UnitInstance) => Promise<void>
   onGrant: (u: UnitInstance) => Promise<void>
+  onDrawAll: () => Promise<void>
   onMerge: (target: TicketKind, ids: string[]) => Promise<void>
   onMergeTarget: (target: TicketKind) => void
   setPopup: (p: Popup) => void
@@ -347,7 +376,8 @@ function BarracksPopup(props: {
   const { popup: pp, cfg, onClose } = props
   const one = (u: UnitInstance) => (
     <ul className="roster">
-      <UnitRow u={u} cfg={cfg} />
+      {/* 창이 좁아 능력치를 얼굴 아래 줄 폭 전체로 (2026-11-29) */}
+      <UnitRow u={u} cfg={cfg} stacked />
     </ul>
   )
   switch (pp.kind) {
@@ -363,9 +393,9 @@ function BarracksPopup(props: {
           {/* 바로 쓰기 4개 (2026-11-28): 능력치 변경 보통·상급·최상급 · 특수능력 변경 — 등급 고르는 단계 없이 바로 */}
           <div className="ud-actions four">
             {STAT_GRADES.map((g) => (
-              <button key={g} className="act stat" disabled={props.tickets[g] < 1} onClick={() => props.setPopup({ kind: 'statPick', grade: g, unit: u, keep: [] })}>
+              <button key={g} className={`act stat grade-${g}`} disabled={props.tickets[g] < 1} onClick={() => props.setPopup({ kind: 'statPick', grade: g, unit: u, keep: [] })}>
                 <span className="a-main">
-                  <Icon name="reroll" /> 능력치 변경
+                  <Icon name={TICKET_ICON[g]} /> 능력치 변경
                 </span>
                 <span className="a-sub">
                   {GRADE_SHORT[g]}
@@ -428,14 +458,29 @@ function BarracksPopup(props: {
     case 'drawn':
       return (
         <Modal title="새 캐릭이 왔어요!" onClose={onClose}>
-          {one(pp.unit)}
+          {/* 캐릭 자세히와 같은 모양: 등급 사다리 · 능력치 막대 · 특수능력 (2026-11-29) */}
+          <div className="drawn-detail">
+            <UnitDetail u={pp.unit} cfg={cfg} />
+          </div>
           <div className="row end">
+            {/* 뽑기 티켓이 더 있으면 남은 것 한 번에 (2026-11-29) */}
+            {/* 한 번에 뽑을 수 = 남은 티켓과 막사 빈자리 중 작은 것 (2026-11-29) */}
+            {(() => {
+              const n = Math.min(props.tickets.draw, cfg.rosterSize - props.units.length)
+              return n > 0 ? (
+                <button onClick={() => void props.onDrawAll()}>
+                  <Icon name="ticket" /> {n}명 한 번에 뽑기
+                </button>
+              ) : null
+            })()}
             <button className="primary inline" onClick={onClose}>
               확인
             </button>
           </div>
         </Modal>
       )
+    case 'drawnMany':
+      return <DrawnMany units={pp.units} cfg={cfg} onClose={onClose} />
     case 'statPick': {
       const need = STAT_TICKET_KEEP[pp.grade]
       const toggle = (k: StatKey) => props.setPopup({ ...pp, keep: pp.keep.includes(k) ? pp.keep.filter((x) => x !== k) : pp.keep.length < need ? [...pp.keep, k] : pp.keep })
@@ -671,9 +716,9 @@ function ChangeDiff({ before, after, cfg }: { before: UnitInstance; after: UnitI
             특수능력: <span>{abB ? abB.name : '없음'}</span> → <span>{abA ? abA.name : '없음'}</span>
           </b>
           {abA && (
-            <p className="ab2-box">
+            <AbBox>
               <AbilityDesc name={abA.name} desc={abA.desc} />
-            </p>
+            </AbBox>
           )}
         </div>
       )}

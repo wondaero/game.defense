@@ -1,5 +1,5 @@
 import { Icon } from './Icon.tsx'
-import type { ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { baseStats, statScore, type DefenseConfig, type UnitInstance } from '@def/defense'
 import { abilityText, unitLook } from './format.ts'
 import { sheetGrid, sheetUrl } from './sprites.ts'
@@ -172,9 +172,9 @@ export function UnitRow(props: {
       <b className="ab2-title">
         특수능력: <span>{ab.name}</span>
       </b>
-      <p className="ab2-box">
+      <AbBox>
         <AbilityDesc name={ab.name} desc={ab.desc} />
-      </p>
+      </AbBox>
     </div>
   )
   if (props.stacked)
@@ -213,3 +213,26 @@ export function UnitRow(props: {
   )
 }
 
+
+/**
+ * 특수능력 설명 상자 (2026-11-29): 3줄까지는 넘침 숨김(스크롤 없음) → 화면 전체 스크롤이 상자에 걸리지 않음.
+ * 내용이 실제로 3줄을 넘을 때만 상자 안 스크롤을 켬 (크기가 바뀌면 다시 잼)
+ */
+export function AbBox({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLParagraphElement>(null)
+  const [scroll, setScroll] = useState(false)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const check = () => setScroll(el.scrollHeight > el.clientHeight + 2)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [children])
+  return (
+    <p ref={ref} className={`ab2-box ${scroll ? 'scrolls' : ''}`}>
+      {children}
+    </p>
+  )
+}

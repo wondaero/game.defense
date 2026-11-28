@@ -50,6 +50,8 @@ export type StatGrade = 'statNormal' | 'statHigh' | 'statTop'
 /** 막사 요청 — 캐릭은 id 로만 가리킴 (화면이 보낸 캐릭 내용은 믿지 않음) */
 export type BarracksAction =
   | { type: 'draw' }
+  /** 모두 뽑기 (2026-11-29): 뽑기 티켓을 막사 자리가 허락하는 만큼 한 번에 */
+  | { type: 'drawAll' }
   | { type: 'rerollStats'; unitId: string; grade: StatGrade; keep: StatKey[] }
   | { type: 'rerollAbility'; unitId: string }
   /** 특수능력 부여: 특수능력 없는 캐릭에 하나 붙임 (2026-11-28) */
@@ -74,6 +76,7 @@ export const SHOP_PRICES: Readonly<Record<TicketKind, number>> = {
 
 export type BarracksOutcome =
   | { type: 'drawn'; unit: UnitInstance }
+  | { type: 'drawnMany'; units: UnitInstance[] }
   | { type: 'changed'; before: UnitInstance; after: UnitInstance; used: TicketKind; gainedAbility: boolean }
   | { type: 'merged'; count: number; target: TicketKind; rewards: TicketKind[] }
   | { type: 'bought'; kind: TicketKind; price: number }
@@ -92,6 +95,18 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
       if (barracksFull(cfg, acc.units)) return fail(`막사가 꽉 찼어요 (${cfg.rosterSize}명). 합성으로 자리를 비워 주세요`)
       const u = drawUnit(cfg, rng, `u${acc.nextUnitId}`)
       return { ok: true, account: { ...acc, units: [...acc.units, u], tickets: spend('draw'), nextUnitId: acc.nextUnitId + 1 }, value: { type: 'drawn', unit: u } }
+    }
+    case 'drawAll': {
+      const room = cfg.rosterSize - acc.units.length
+      const n = Math.min(acc.tickets.draw, room)
+      if (acc.tickets.draw < 1) return fail('뽑기 티켓이 없어요')
+      if (n < 1) return fail(`막사가 꽉 찼어요 (${cfg.rosterSize}명). 합성으로 자리를 비워 주세요`)
+      const units = Array.from({ length: n }, (_, i) => drawUnit(cfg, rng, `u${acc.nextUnitId + i}`))
+      return {
+        ok: true,
+        account: { ...acc, units: [...acc.units, ...units], tickets: { ...acc.tickets, draw: acc.tickets.draw - n }, nextUnitId: acc.nextUnitId + n },
+        value: { type: 'drawnMany', units },
+      }
     }
     case 'rerollStats': {
       const u = unit(action.unitId)

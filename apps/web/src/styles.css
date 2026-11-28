@@ -1066,7 +1066,7 @@ svg.icon { display: inline-block; vertical-align: -0.2em; flex: none; overflow: 
 @media (max-width: 520px) { .roster li { gap: 12px; } }
 
 /* 능력치 꼬리표: 원래 값이 최고값이면 테두리만 진한 금색 (2026-11-29, 바탕·글자색은 그대로) */
-.stat-tags span.max { border: 1.5px solid #e0a800; box-shadow: 0 0 0 1px rgba(255,193,7,0.35); }
+.stat-tags span.max { border-color: #e0a800; box-shadow: inset 0 0 0 0.5px #e0a800, 0 0 0 1px rgba(255,193,7,0.35); } /* 테두리 굵기는 그대로(1px) → 꼬리표 폭이 안 늘어남 */
 /* 능력치 꼬리표 글자 키움 (2026-11-29): 11.5 → 12px, 숫자 13px — 280px 에서도 4개가 한 줄 */
 .stat-tags span { font-size: 12px; padding: 0 5px; }
 .stat-tags span b { font-size: 13px; }
@@ -1090,3 +1090,68 @@ svg.icon { display: inline-block; vertical-align: -0.2em; flex: none; overflow: 
 .dev-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; background: #fff3e0 !important; border-color: #ffb74d !important; }
 .dev-status b { font-variant-numeric: tabular-nums; color: #e65100; }
 .dev-status button { padding: 5px 10px; font-size: 13px; font-weight: 700; }
+/* 가운데 정렬 창 안의 캐릭 줄(새 캐릭 등): 특수능력 제목·설명은 왼쪽 정렬, 아래 여백 줄임 (2026-11-29) */
+.modal .roster { text-align: left; margin: 0; }
+.modal .roster > li, .modal .roster > li.split { padding-bottom: 0; margin-bottom: 0; border-bottom: none; }
+.modal .roster > li > .ab2 { margin-bottom: 0; }
+.modal .roster + .row, .modal .roster + .row.end { margin-top: 8px; }
+/* 가운데 창 안 캐릭 줄: 창 안쪽 여백을 조금 줄여 능력치 꼬리표 4개가 한 줄에 */
+.modal .roster > li .row-top { gap: 10px; }
+@media (max-width: 340px) { .modal:has(.roster) { padding-left: 14px; padding-right: 14px; } }
+.modal .roster > li.stacked { padding: 0; gap: 8px; padding-top: 10px; } /* 구분선 ↔ 캐릭 여백 (2026-11-29 사용자 지정) */
+.modal .roster > li.stacked .stat-tags { flex-wrap: wrap; }
+.modal .row.end { margin-top: 12px; }
+.modal .roster + .row.end { margin-top: 12px; }
+.modal .ab2-box { margin: 0; } /* 창 안 p 기본 여백(14px) 때문에 확인 버튼과 멀었던 것 */
+/* 새 캐릭 창 = 캐릭 자세히 모양 (2026-11-29): 가운데 창 안이라 왼쪽 정렬, 닫기 자리 여백 없앰 */
+.drawn-detail { text-align: left; }
+.drawn-detail .unit-detail .ud-head { padding-right: 0; }
+.drawn-detail .unit-detail .tier-ladder { margin-right: 0; }
+.drawn-detail + .row.end { margin-top: 12px; }
+.modal:has(.drawn-detail) { max-width: 360px; }
+@media (max-width: 340px) { .modal:has(.drawn-detail) { padding: 16px 12px; } }
+
+/* 모두 뽑기 결과 (2026-11-29): 창 안에서 목록만 스크롤 */
+.drawn-list { max-height: min(56vh, 460px); overflow-y: auto; overscroll-behavior: contain; text-align: left; display: flex; flex-direction: column; gap: 10px; padding-right: 2px; }
+.drawn-list > li + li { border-top: 1px solid var(--line); padding-top: 10px; }
+.drawn-sum { margin: -4px 0 8px; font-size: 12.5px; }
+.modal:has(.drawn-list) { max-width: 360px; }
+.modal .row.end:has(> button + button) { justify-content: space-between; }
+.drawn-tools { margin: 0 0 8px; }
+.drawn-tools .roster-tools { margin: 0; flex-wrap: nowrap; }
+.drawn-tools select { font-size: 12.5px; }
+/* 능력치 꼬리표 여백 (2026-11-29): 위아래 1px 더 · 좌우는 넓은 화면 7px, 좁은 화면(≤340)은 5.5px — 280px 에서 최고값 4개(공격 30·사거리 2·공속 5·민첩 10)도 한 줄 (측정: 6px 면 213/214 로 아슬아슬) */
+.stat-tags span { padding: 1px 7px; }
+.stat-tags { gap: 4px; }
+@media (max-width: 340px) {
+  .stat-tags span { padding: 1px 5.5px; }
+  .stat-tags { gap: 3px; }
+}
+.barracks-page .roster > li.split { padding-top: 10px; padding-bottom: 10px; }
+.barracks-page .roster > li.split { padding-top: 14px; padding-bottom: 14px; }
+
+/* 특수능력 설명 상자: 기본은 넘침 숨김, 3줄 넘을 때만 스크롤 (AbBox 가 .scrolls 를 붙임, 2026-11-29) */
+.ab2-box { overflow-y: hidden; overscroll-behavior: auto; }
+.ab2-box.scrolls { overflow-y: auto; overscroll-behavior: contain; }
+
+/* 모두 뽑기 목록: 얼굴 왼쪽 아래 반짝이 표시가 스크롤 상자 가장자리에 잘리지 않게 안쪽 여백 (2026-11-29) */
+.drawn-list { padding-left: 6px; padding-top: 4px; }
+.drawn-list > li { cursor: pointer; }
+.drawn-back { text-align: left; margin: -4px 0 8px; }
+
+/* 디자인된 알림·확인 창 (2026-11-29, 브라우저 alert/confirm 대신) */
+.dialog-back { z-index: 90; }
+.dialog-msg { margin: 4px 0 4px; line-height: 1.55; white-space: pre-line; }
+
+/* 가진 티켓 한 줄 = 아이콘 + 장 수 (2026-11-29) — 280px 에서도 안 잘림 */
+.ticket-line.icons { display: flex; flex-wrap: nowrap; gap: 10px; overflow: visible; }
+.ticket-line.icons span { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.ticket-line.icons b { font-size: 13px; }
+.ticket-line.icons .zero { opacity: 0.4; }
+@media (max-width: 320px) { .ticket-line.icons { gap: 7px; } }
+/* 능력치 변경 버튼 3개 (2026-11-29 사용자): 바탕을 동·은·금 (파랑 대신) */
+.ud-actions button.stat.grade-statNormal { background: linear-gradient(#c98552, #9a5a2c); border-color: #6e3d1a; box-shadow: 0 3px 0 #6e3d1a; color: #fff; }
+.ud-actions button.stat.grade-statHigh { background: linear-gradient(#e6ebee, #a9b6bf); border-color: #78909c; box-shadow: 0 3px 0 #78909c; color: #263238; text-shadow: 0 1px 0 rgba(255,255,255,0.6); }
+.ud-actions button.stat.grade-statTop { background: linear-gradient(#ffe066, #f0b400); border-color: #b07d00; box-shadow: 0 3px 0 #b07d00; color: #4a3200; text-shadow: 0 1px 0 rgba(255,255,255,0.5); }
+/* 특수능력 변경 버튼 = 에메랄드 (2026-11-29, 보라 대신 — 동·은·금 옆에서 보석 느낌) */
+.ud-actions button.ability { background: linear-gradient(#34d399, #059669); border-color: #047857; box-shadow: 0 3px 0 #047857; color: #fff; }
