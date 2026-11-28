@@ -66,8 +66,9 @@ export function baseStats(cfg: DefenseConfig, u: Pick<UnitInstance, 'atk' | 'ran
 }
 
 export function statScore(cfg: DefenseConfig, unit: Pick<UnitInstance, 'atk' | 'range' | 'attackSpeed' | 'agility'> & { ability?: UnitInstance['ability'] }): number {
-  // 강화된 능력치로 계산 (최대를 넘는 건 최대로)
-  const u = baseStats(cfg, { ability: null, ...unit })
+  // 원래 뽑은 능력치로 계산 (2026-11-28 사용자 결정): 특수능력(전체 강화·호크아이)이 올린 값은 넣지 않음
+  // → 헬멧 색 · 이름(○○ n호 · 총사령관)은 특수능력을 바꿔도 그대로
+  const u = baseStats(cfg, { ...unit, ability: null })
   const part = (v: number, r: { min: number; max: number }) => (r.max > r.min ? (Math.min(Math.max(v, r.min), r.max) - r.min) / (r.max - r.min) : 1) * 25
   return Math.round(part(u.atk, cfg.atk) + part(u.range, cfg.range) + part(u.attackSpeed, cfg.attackSpeed) + part(u.agility, cfg.agility))
 }

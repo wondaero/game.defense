@@ -345,14 +345,15 @@ describe('진행', () => {
     expect(stageHpBp(150)).toBeGreaterThan(stageHpBp(100))
   })
 
-  it('전체 강화: 공격력·공속·민첩 모두 × 1.1/1.2/1.3 (최대를 넘을 수 있음, 사거리 그대로, 봉인 중엔 원래 값), 헬멧 점수도 올라감', () => {
+  it('전체 강화: 공격력·공속·민첩 모두 × 1.1/1.2/1.3 (최대를 넘을 수 있음, 사거리 그대로, 봉인 중엔 원래 값), 헬멧 점수는 그대로', () => {
     const base = unit(0, 17, 1, 3, 7)
     const b = (mulBp: number) => ({ ...base, ability: { kind: 'boostAll', chanceBp: 0, mulBp } as Ability })
     expect(baseStats(cfg, b(11_000))).toEqual({ atk: 18, range: 1, attackSpeed: 3.3, agility: 7.7 }) // 17 × 1.1 = 18.7 → 내림
     expect(baseStats(cfg, b(12_000))).toEqual({ atk: 20, range: 1, attackSpeed: 3.6, agility: 8.4 })
     expect(baseStats(cfg, { ...unit(0, 30, 2, 5, 10), ability: { kind: 'boostAll', chanceBp: 0, mulBp: 13_000 } })).toEqual({ atk: 39, range: 2, attackSpeed: 6.5, agility: 13 }) // 최대 초과
     expect(baseStats(cfg, b(13_000), true)).toEqual({ atk: 17, range: 1, attackSpeed: 3, agility: 7 }) // 봉인
-    expect(statScore(cfg, b(13_000))).toBeGreaterThan(statScore(cfg, base))
+    // 헬멧 점수(이름)는 원래 뽑은 능력치 기준 — 강화해도 그대로 (2026-11-28)
+    expect(statScore(cfg, b(13_000))).toBe(statScore(cfg, base))
   })
 
   it('몬스터 봉인: 걸린 캐릭은 3초 동안 특수능력이 발동 안 함', () => {

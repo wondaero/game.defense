@@ -607,3 +607,19 @@ html, body { overflow-x: clip; overscroll-behavior-x: none; }
 .roll-pick { background: linear-gradient(to bottom, transparent 55%, #2fd4e8 55%, #2fd4e8 96%, transparent 96%); padding: 0 2px; }
 /* 진한 형광펜이 숫자 아랫부분을 덮지 않게 칠 높이를 낮춤 (글자 아래 35%) */
 .roll-pick { background: linear-gradient(to bottom, transparent 64%, #2fd4e8 64%, #2fd4e8 98%, transparent 98%); }
+
+/* 배치 화면 (2026-11-28): 제목 줄 없음 · 판 작게 가운데 · 출연 몬스터 그림 가로 · 아래 떠 있는 버튼 2개 */
+.app.prepare-view { padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
+.app.prepare-view .board { width: 100%; display: flex; justify-content: center; }
+.app.prepare-view .board canvas { margin: 0 auto; }
+.prep-monsters h3 { font-size: 14px; margin-bottom: 6px; }
+.monster-chips { list-style: none; margin: 0; padding: 2px 0 4px; display: flex; gap: 8px; overflow-x: auto; }
+.monster-chips button { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 8px 4px; border-radius: 12px; min-width: 64px; }
+.monster-chips button b { font-size: 13px; }
+.monster-chips .chip-ab { position: absolute; top: 2px; right: 4px; font-style: normal; font-size: 11px; }
+.monster-chips .face.sprite { background-color: #e8f3dc; }
+.prep-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; gap: 8px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); background: rgba(255,253,245,0.9); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-top: 1.5px solid var(--line); box-shadow: 0 -2px 10px rgba(63,49,35,0.12); }
+.prep-bar button { padding: 10px 12px; font-weight: 700; white-space: nowrap; }
+.prep-bar button.primary { flex: 1; margin-top: 0; width: auto; font-size: 15px; }
+.monster-info .mi-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 17px; }
+.monster-info { text-align: left; }

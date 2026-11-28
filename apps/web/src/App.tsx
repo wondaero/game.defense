@@ -40,7 +40,7 @@ import { Codex } from './Codex.tsx'
 import { ResultOverlay } from './ResultOverlay.tsx'
 import { StageMap } from './StageMap.tsx'
 import { unitLook, stageName, stageTheme } from './format.ts'
-import { RosterTools, UnitRow, viewRoster, type RosterView } from './UnitList.tsx'
+import { RosterTools, UnitFace, UnitRow, viewRoster, type RosterView } from './UnitList.tsx'
 import { Barracks } from './Barracks.tsx'
 import type { GameApi } from './api/api.ts'
 import { createLocalApi } from './api/localApi.ts'
@@ -124,6 +124,8 @@ export function App() {
   const [paused, setPaused] = useState(false)
   /** 진행 중 뒤로 가기를 눌렀을 때 묻는 창 (wasPaused = 창을 띄우기 전 일시정지였나) */
   const [askLeave, setAskLeave] = useState<{ wasPaused: boolean } | null>(null)
+  /** 배치 화면: 눌러 본 출연 몬스터 (2026-11-28) */
+  const [monsterInfo, setMonsterInfo] = useState<{ spec: MonsterSpec; count: number } | null>(null)
   /** 화면 버튼으로 탄 고르기에 돌아가는 중 (history.back 뒤 popstate 에서 묻지 않고 이동) */
   const leavingRef = useRef(false)
   const [, setUiTick] = useState(0)
@@ -190,7 +192,9 @@ export function App() {
       const dpr = window.devicePixelRatio || 1
       const W = L.map.width * CELL_PX + PAD * 2
       const H = L.map.height * CELL_PX + PAD * 2
-      if (canvas.style.width !== `${W}px`) canvas.style.width = `${W}px`
+      // 배치 화면은 판을 작게(화면 높이의 약 42%) → 아래 캐릭 목록이 더 보이게 (2026-11-28)
+      const want = L.screen === 'prepare' ? `min(${W}px, calc(42dvh * ${(W / H).toFixed(4)}))` : `${W}px`
+      if (canvas.style.width !== want) canvas.style.width = want
       const scale = (canvas.clientWidth || W) / W
       const bw = Math.round(W * scale * dpr)
       const bh = Math.round(H * scale * dpr)
@@ -642,7 +646,9 @@ export function App() {
   // ── 탄 준비 · 진행 · 결과 (판이 보이는 화면) ──
   const summary = stageSummary(stage)
   return (
-    <div className="app">
+    <div className={`app ${screen === 'prepare' ? 'prepare-view' : ''}`}>
+      {/* 배치 화면은 제목 줄 없이 판부터 (2026-11-28) — 돌아가기·시작은 아래 떠 있는 버튼 */}
+      {screen !== 'prepare' && (
       <header className={stageTheme(stageNo)}>
         <h1>
           <button className="link back" onClick={() => (screen === 'play' ? askToLeave() : goSelect())} title="탄 고르기로">
@@ -651,8 +657,8 @@ export function App() {
           {stageName(stageNo)} {stage.isBoss && <span className="boss-tag">우두머리</span>}
         </h1>
         <div className="stats">
-          <span>🚪 통과 {sim && screen !== 'prepare' ? sim.leaked : 0}/{cfg.startLives - 1}</span>
-          {sim && screen !== 'prepare' && (
+          <span>🚪 통과 {sim ? sim.leaked : 0}/{cfg.startLives - 1}</span>
+          {sim && (
             <span>
               ⏱ {(sim.tick / cfg.tickRate).toFixed(1)}초 · 남은 몬스터 {sim.spawns.length - sim.spawnIdx + sim.monsters.length}
             </span>
@@ -674,6 +680,7 @@ export function App() {
           })()}
         </div>
       </header>
+      )}
 
       {askLeave && (
         <div className="modal-backdrop">
@@ -740,6 +747,26 @@ export function App() {
         </div>
 
         <aside>
+          {screen === 'prepare' && (
+            <section className="prep-monsters">
+              <h3>
+                {stageName(stageNo)} {stage.isBoss && <span className="boss-tag">우두머리</span>} 출연 몬스터 <span className="dim">· 눌러서 보기</span>
+              </h3>
+              {/* 그림 + 마릿수를 가로로, 누르면 능력치·특수능력 (2026-11-28) */}
+              <ul className="monster-chips">
+                {summary.map(({ spec, count }) => (
+                  <li key={spec.id}>
+                    <button onClick={() => setMonsterInfo({ spec, count })} title={spec.name}>
+                      <UnitFace body={monsterSprite(spec)} tool={null} />
+                      <b>×{count}</b>
+                      {spec.abilities.length > 0 && <i className="chip-ab">{spec.abilities.map((a) => MONSTER_ABILITIES[a].icon).join('')}</i>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {screen !== 'prepare' && (
           <section>
             <h3>
               출연 몬스터 <span className="dim">· 맵 {map.name} · 길 {map.path.length}칸</span>
@@ -754,15 +781,8 @@ export function App() {
                 <MonsterRow key={spec.id} spec={spec} count={count} cfg={cfg} />
               ))}
             </ul>
-            {screen === 'prepare' && (
-              <>
-                <button className="primary" disabled={placedCount === 0} onClick={startStage}>
-                  ▶ 게임 시작
-                </button>
-                <p className="hint">캐릭을 고른 뒤 초록 칸을 누르면 배치 · 판 위 캐릭을 고르고 다른 칸을 누르면 이동·자리 바꾸기. 시간 제한 없음. 배치는 맵마다 기억됨.</p>
-              </>
-            )}
           </section>
+          )}
 
           <section>
             <h3>
@@ -795,10 +815,42 @@ export function App() {
                 )
               })}
             </ul>
-            {selectedId && screen === 'prepare' && <p className="hint">노란 칸 = 사거리 (마우스를 올린 칸 기준)</p>}
+            {screen === 'prepare' && <p className="hint">캐릭을 고른 뒤 초록 칸을 누르면 배치 · 판 위 캐릭을 고르고 다른 칸을 누르면 이동·자리 바꾸기. 배치는 맵마다 기억됨</p>}
           </section>
         </aside>
       </main>
+
+      {/* 배치 화면 아래 떠 있는 버튼 2개 (2026-11-28) */}
+      {screen === 'prepare' && (
+        <div className="prep-bar">
+          <button onClick={goSelect}>← 스테이지</button>
+          <button className="primary" disabled={placedCount === 0} onClick={startStage}>
+            ▶ {stageName(stageNo)} 게임 시작
+          </button>
+        </div>
+      )}
+
+      {/* 출연 몬스터 자세히 — 확인만 하는 창이라 가운데 */}
+      {monsterInfo && (
+        <div className="modal-back" onClick={() => setMonsterInfo(null)}>
+          <div className="modal monster-info" onClick={(e) => e.stopPropagation()}>
+            <div className="mi-head">
+              <UnitFace body={monsterSprite(monsterInfo.spec)} tool={null} big />
+              <div>
+                <b>{monsterInfo.spec.name}</b> ×{monsterInfo.count}
+              </div>
+            </div>
+            <ul className="monsters">
+              <MonsterRow spec={monsterInfo.spec} count={monsterInfo.count} cfg={cfg} />
+            </ul>
+            <div className="row end">
+              <button className="primary inline" onClick={() => setMonsterInfo(null)}>
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

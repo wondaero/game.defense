@@ -204,7 +204,8 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
     ctx.fillStyle = '#fff'
     ctx.fillText(text, px, ty)
   }
-  portal(map.path[0]!, '입구')
+  // 글자는 배치 중에만 (2026-11-28: 진행 중엔 빼서 판을 깔끔하게), 이름은 출발 · 도착
+  if (mode === 'prepare') portal(map.path[0]!, '출발')
   // 출구 = 레이스 결승선 (2026-11-27): 칸에 검정·흰색 체크무늬 + 체크 깃발
   {
     const e = map.path.at(-1)!
@@ -227,7 +228,8 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
     ctx.roundRect(x0, y0, w, w, 6)
     ctx.stroke()
     // 깃발은 판 밖으로 나갈 수 있어 draw.ts 에서 그림 (drawFinishFlag)
-    // "출구" 글자
+    // "도착" 글자 (배치 중에만)
+    if (mode === 'prepare') {
     ctx.font = `bold ${Math.round(cell * 0.2)}px sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -239,7 +241,8 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
     ctx.roundRect(cxm - cell * 0.27, cym - cell * 0.13, cell * 0.54, cell * 0.26, 5)
     ctx.fill()
     ctx.fillStyle = '#fff'
-    ctx.fillText('출구', cxm, cym + 1)
+    ctx.fillText('도착', cxm, cym + 1)
+    }
   }
 
   cache.set(key, cv)
@@ -301,7 +304,8 @@ export function drawFinishFlag(ctx: CanvasRenderingContext2D, map: GameMap, cell
   const x0 = e.x * cell + 4
   const y0 = e.y * cell + 4
   const w = cell - 8
-  const px = x0 + w - 8
+  // 깃대는 칸 왼쪽, 깃발은 오른쪽으로 (2026-11-28 좌우 반대로)
+  const px = x0 + 8
   const top = y0 - cell * 0.28
   ctx.strokeStyle = '#5d4037'
   ctx.lineWidth = 3
@@ -318,7 +322,7 @@ export function drawFinishFlag(ctx: CanvasRenderingContext2D, map: GameMap, cell
   ctx.lineWidth = 1.5
   ctx.beginPath()
   ctx.moveTo(px, top)
-  ctx.lineTo(px - fw, top + fh / 2 + wave)
+  ctx.lineTo(px + fw, top + fh / 2 + wave)
   ctx.lineTo(px, top + fh)
   ctx.closePath()
   ctx.fill()
