@@ -291,3 +291,8 @@ button.link.back { font-size: 20px; }
 /* 얼음 판의 제목 줄은 하늘색 (2026-11-28) */
 header.ice { background: linear-gradient(180deg, #92cdee, #6fb3dd); box-shadow: 0 2px 0 #4a8fbd; }
 header.ice .stats > span { box-shadow: 0 1px 0 #4a8fbd; }
+
+/* 개발자 탭 초기화 (2026-11-28) */
+.danger-zone { border-color: #f5b5b5; box-shadow: 0 3px 0 #f5b5b5; background: #fff6f5; }
+button.danger { background: #e53935; color: #fff; border-color: #b71c1c; box-shadow: 0 3px 0 #b71c1c; font-weight: 700; }
+button.danger:hover:not(:disabled) { background: #ef5350; }

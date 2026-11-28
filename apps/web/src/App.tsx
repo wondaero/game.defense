@@ -583,6 +583,24 @@ export function App() {
               </p>
               <Settings cfg={cfg} onChange={(p) => setCfg({ ...cfg, ...p })} />
             </section>
+            <section className="danger-zone">
+              <h3>초기화</h3>
+              <p className="dim" style={{ margin: '0 0 8px' }}>
+                캐릭·스테이지 기록·별·골드·배치를 모두 지우고, 처음 시작할 때 주는 권(뽑기권 · 능력치 변경권 · 특수능력 변경권)을 새로 받아요
+              </p>
+              <button
+                className="danger"
+                onClick={() =>
+                  confirm('정말 모든 데이터를 초기화할까요?\n\n캐릭·스테이지 기록·별·골드가 모두 사라지고\n처음 시작할 때 주는 권만 새로 받아요.\n되돌릴 수 없어요.') &&
+                  void api.dev?.resetAll().then((a) => {
+                    setAccount(a)
+                    setSave((s) => ({ ...s, placementsByMap: {} }))
+                  })
+                }
+              >
+                🧹 모든 데이터 초기화
+              </button>
+            </section>
           </>
         )}
 

@@ -94,6 +94,12 @@ export function createLocalApi(getCfg: () => DefenseConfig, getUnlockAll: () => 
         write(next)
         return next
       },
+      async resetAll() {
+        const next = newAccount()
+        write(next)
+        runs.clear()
+        return next
+      },
       async setBest(best) {
         const next = { ...read(), best }
         write(next)

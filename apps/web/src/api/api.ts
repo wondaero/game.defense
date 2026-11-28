@@ -21,6 +21,8 @@ export interface GameApi {
     grantTickets(n: number): Promise<Account>
     resetBarracks(seed: string): Promise<Account>
     setBest(best: number): Promise<Account>
+    /** 모든 데이터 초기화: 캐릭·기록·별·골드를 비우고 첫 시작 권을 새로 받음 (= 새 계정) */
+    resetAll(): Promise<Account>
     /** "모든 탄 열기" — 열리지 않은 탄도 판정 */
     unlockAll: boolean
   }
