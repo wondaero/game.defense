@@ -138,14 +138,14 @@ export function Barracks(props: {
       <div className="barracks-sticky">
         {/* 메인 버튼 2개 (2026-11-28): 캐릭 뽑기 · 합성. 능력치·특수능력 변경은 캐릭을 누르면 */}
         <div className="barracks-actions two">
-          <button title="캐릭 뽑기" className={`act draw ${tickets.draw ? '' : 'empty'}`} onClick={() => void draw()} disabled={!!mode || busy}>
+          <button title="병사 뽑기" className={`act draw ${tickets.draw ? '' : 'empty'}`} onClick={() => void draw()} disabled={!!mode || busy}>
             <span className="big">
               <Icon name="ticket" />
             </span>
-            <span className="label">캐릭 뽑기</span>
+            <span className="label">병사 뽑기</span>
             {tickets.draw > 0 && <b className="badge">{badgeText(tickets.draw)}</b>}
           </button>
-          <button title="캐릭 합성" className={`act merge ${mode?.kind === 'merge' ? 'on' : ''}`} onClick={() => (mode?.kind === 'merge' ? setMode(null) : setPopup({ kind: 'mergePick' }))}>
+          <button title="병사 합성" className={`act merge ${mode?.kind === 'merge' ? 'on' : ''}`} onClick={() => (mode?.kind === 'merge' ? setMode(null) : setPopup({ kind: 'mergePick' }))}>
             <span className="big">
               <Icon name="flask" />
             </span>
@@ -188,7 +188,7 @@ export function Barracks(props: {
                       {mergeCost - rem}명 더 고르면 {full + 1}장{full > 0 ? ` · 또는 ${rem}명 빼면 ${full}장` : ''} — 딱 맞아야 합성돼요
                     </div>
                   )}
-                  {n === 0 && <div className="mc-hint">합성할 캐릭을 누르세요</div>}
+                  {n === 0 && <div className="mc-hint">합성할 병사를 누르세요</div>}
                 </div>
               )
             })()}
@@ -203,7 +203,10 @@ export function Barracks(props: {
         {/* 인원 · 보기 · 정렬 한 줄 (2026-11-28, "막사 (n/100명)" 제목 줄 대신) */}
         <RosterTools view={props.view} onChange={props.onView} roster={units} lead={<><b>{units.length}</b> / {cfg.rosterSize}</>} />
       </div>
-      {units.length === 0 && <p className="empty-note">아직 캐릭이 없어요. 위 <b>캐릭 뽑기</b>로 첫 캐릭을 뽑아 보세요!</p>}
+      {units.length === 0 && <p className="empty-note">
+          아직 병사가 없어요.
+          <br />위 <b>병사 뽑기</b>로 첫 병사를 뽑아 보세요!
+        </p>}
       <ul className="roster picking">
         {shown.map((u) => (
           <UnitRow key={u.id} u={u} cfg={cfg} selected={mergeIds.includes(u.id)} onClick={() => onUnitClick(u)} />
@@ -348,7 +351,7 @@ function DrawnMany({ units, cfg, onClose }: { units: UnitInstance[]; cfg: Defens
         {list.map((u) => (
           <UnitRow key={u.id} u={u} cfg={cfg} stacked onClick={() => setPick(u)} />
         ))}
-        {list.length === 0 && <p className="dim">해당하는 캐릭이 없어요</p>}
+        {list.length === 0 && <p className="dim">해당하는 병사가 없어요.</p>}
       </ul>
       <div className="row end">
         <button className="primary inline" onClick={onClose}>
@@ -457,7 +460,7 @@ function BarracksPopup(props: {
     }
     case 'drawn':
       return (
-        <Modal title="새 캐릭이 왔어요!" onClose={onClose}>
+        <Modal title="새 병사가 왔어요!" onClose={onClose}>
           {/* 캐릭 자세히와 같은 모양: 등급 사다리 · 능력치 막대 · 특수능력 (2026-11-29) */}
           <div className="drawn-detail">
             <UnitDetail u={pp.unit} cfg={cfg} />
@@ -527,7 +530,7 @@ function BarracksPopup(props: {
             <>
               <h4 className="sheet-step">특수능력 부여 티켓 쓰기</h4>
               <p className="dim">
-                이 캐릭에 특수능력을 하나 붙여요
+                이 병사에 특수능력을 하나 붙여요
                 <br />
                 종류·수치는 무작위 (능력치는 그대로)
               </p>
@@ -583,7 +586,7 @@ function BarracksPopup(props: {
           </button>
           <h4 className="sheet-title">무엇을 만들까요?</h4>
           <p className="dim" style={{ margin: '0 0 8px' }}>
-            고른 티켓의 인원 단위로 캐릭을 넣어요. 예) 보통 3명 단위 → 12명이면 4장
+            고른 티켓의 인원 단위로 병사를 넣어요. 예) 보통 3명 단위 → 12명이면 4장
           </p>
           <div className="grade-pick merge-pick">
             {(['statNormal', 'draw', 'statHigh', 'ability', 'statTop', 'abilityGrant'] as TicketKind[]).map((k) => (
@@ -615,7 +618,7 @@ function BarracksPopup(props: {
             {pp.target === 'statNormal' && <span className="dim"> (장마다 1% 최상급 · 5% 상급)</span>}
           </p>
           {precious.length > 0 && <p className="warn">
-              <Icon name="warn" /> 좋은 캐릭 {precious.length}명이 들어 있어요 (파랑 이상이거나 특수능력 있음). 합성하면 사라져요</p>}
+              <Icon name="warn" /> 좋은 병사 {precious.length}명이 들어 있어요 (파랑 이상이거나 특수능력 있음). 합성하면 사라져요</p>}
           <ul className="roster small">
             {list.map((u) => (
               <UnitRow key={u.id} u={u} cfg={cfg} />

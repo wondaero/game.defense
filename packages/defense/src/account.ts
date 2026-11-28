@@ -91,16 +91,16 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
   const spend = (k: TicketKind): Tickets => ({ ...acc.tickets, [k]: acc.tickets[k] - 1 })
   switch (action.type) {
     case 'draw': {
-      if (acc.tickets.draw < 1) return fail('뽑기 티켓이 없어요')
-      if (barracksFull(cfg, acc.units)) return fail(`막사가 꽉 찼어요 (${cfg.rosterSize}명). 합성으로 자리를 비워 주세요`)
+      if (acc.tickets.draw < 1) return fail('뽑기 티켓이 없어요.')
+      if (barracksFull(cfg, acc.units)) return fail(`막사가 꽉 찼어요 (${cfg.rosterSize}명). 합성으로 자리를 비워 주세요.`)
       const u = drawUnit(cfg, rng, `u${acc.nextUnitId}`)
       return { ok: true, account: { ...acc, units: [...acc.units, u], tickets: spend('draw'), nextUnitId: acc.nextUnitId + 1 }, value: { type: 'drawn', unit: u } }
     }
     case 'drawAll': {
       const room = cfg.rosterSize - acc.units.length
       const n = Math.min(acc.tickets.draw, room)
-      if (acc.tickets.draw < 1) return fail('뽑기 티켓이 없어요')
-      if (n < 1) return fail(`막사가 꽉 찼어요 (${cfg.rosterSize}명). 합성으로 자리를 비워 주세요`)
+      if (acc.tickets.draw < 1) return fail('뽑기 티켓이 없어요.')
+      if (n < 1) return fail(`막사가 꽉 찼어요 (${cfg.rosterSize}명). 합성으로 자리를 비워 주세요.`)
       const units = Array.from({ length: n }, (_, i) => drawUnit(cfg, rng, `u${acc.nextUnitId + i}`))
       return {
         ok: true,
@@ -110,11 +110,11 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
     }
     case 'rerollStats': {
       const u = unit(action.unitId)
-      if (!u) return fail('없는 캐릭이에요')
-      if (!(action.grade in STAT_TICKET_KEEP)) return fail('잘못된 변경 티켓')
-      if (acc.tickets[action.grade] < 1) return fail(`${TICKET_NAMES[action.grade]}이 없어요`)
+      if (!u) return fail('없는 병사예요.')
+      if (!(action.grade in STAT_TICKET_KEEP)) return fail('잘못된 변경 티켓이에요.')
+      if (acc.tickets[action.grade] < 1) return fail(`${TICKET_NAMES[action.grade]}이 없어요.`)
       const keep = [...new Set(action.keep)]
-      if (keep.length !== STAT_TICKET_KEEP[action.grade]) return fail(`유지할 능력치를 ${STAT_TICKET_KEEP[action.grade]}개 골라 주세요`)
+      if (keep.length !== STAT_TICKET_KEEP[action.grade]) return fail(`유지할 능력치를 ${STAT_TICKET_KEEP[action.grade]}개 골라 주세요.`)
       const after = rerollStats(cfg, rng, u, keep)
       return {
         ok: true,
@@ -124,10 +124,10 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
     }
     case 'rerollAbility': {
       const u = unit(action.unitId)
-      if (!u) return fail('없는 캐릭이에요')
-      if (acc.tickets.ability < 1) return fail('특수능력 변경 티켓이 없어요')
+      if (!u) return fail('없는 병사예요.')
+      if (acc.tickets.ability < 1) return fail('특수능력 변경 티켓이 없어요.')
       const after = rerollAbility(rng, u)
-      if (!after) return fail('특수능력이 없는 캐릭엔 못 써요')
+      if (!after) return fail('특수능력이 없는 병사엔 못 써요.')
       return {
         ok: true,
         account: { ...acc, units: acc.units.map((x) => (x.id === u.id ? after : x)), tickets: spend('ability') },
@@ -136,9 +136,9 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
     }
     case 'grantAbility': {
       const u = unit(action.unitId)
-      if (!u) return fail('없는 캐릭이에요')
-      if (u.ability) return fail('이미 특수능력이 있는 캐릭이에요')
-      if ((acc.tickets.abilityGrant ?? 0) < 1) return fail('특수능력 부여 티켓이 없어요')
+      if (!u) return fail('없는 병사예요.')
+      if (u.ability) return fail('이미 특수능력이 있는 병사예요.')
+      if ((acc.tickets.abilityGrant ?? 0) < 1) return fail('특수능력 부여 티켓이 없어요.')
       const after = { ...u, ability: rollAbility(rng) }
       return {
         ok: true,
@@ -148,8 +148,8 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
     }
     case 'buy': {
       const price = SHOP_PRICES[action.kind]
-      if (price === undefined) return fail('파는 물건이 아니에요')
-      if ((acc.gold ?? 0) < price) return fail(`골드가 모자라요 (${price} 골드 필요)`)
+      if (price === undefined) return fail('파는 물건이 아니에요.')
+      if ((acc.gold ?? 0) < price) return fail(`골드가 모자라요 (${price} 골드 필요).`)
       return {
         ok: true,
         account: { ...acc, gold: acc.gold - price, tickets: { ...acc.tickets, [action.kind]: acc.tickets[action.kind] + 1 } },
@@ -158,9 +158,9 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
     }
     case 'merge': {
       const ids = [...new Set(action.unitIds)]
-      if (ids.some((id) => !unit(id))) return fail('없는 캐릭이 섞여 있어요')
+      if (ids.some((id) => !unit(id))) return fail('없는 병사가 섞여 있어요.')
       const rewards = mergeRewards(rng, action.target, ids.length)
-      if (!rewards) return fail(`${TICKET_NAMES[action.target] ?? '티켓'}은 ${MERGE_COST[action.target] ?? '?'}명 단위로 합성해요`)
+      if (!rewards) return fail(`${TICKET_NAMES[action.target] ?? '티켓'}은 ${MERGE_COST[action.target] ?? '?'}명 단위로 합성해요.`)
       const tickets = { ...acc.tickets }
       for (const k of rewards) tickets[k]++
       return {
@@ -252,16 +252,16 @@ export type StageJudgement = WaveResult & { bossLeaked: boolean; newBest: boolea
  * rng = 보상 난수 (서버가 굴림). skipOpenCheck = 시험판 "모든 탄 열기" 용 (서버엔 없음)
  */
 export function judgeStage(cfg: DefenseConfig, acc: Account, rep: StageReport, rng: Rng, skipOpenCheck = false): Answer<StageJudgement> {
-  if (!skipOpenCheck && !stageOpen(acc, rep.stageNo)) return fail('아직 열리지 않은 탄이에요')
+  if (!skipOpenCheck && !stageOpen(acc, rep.stageNo)) return fail('아직 열리지 않은 탄이에요.')
   const ids = Object.keys(rep.placements)
-  if (ids.length === 0) return fail('캐릭을 한 명 이상 배치해 주세요')
-  if (ids.length > cfg.maxDeploy) return fail(`최대 ${cfg.maxDeploy}명까지 출전할 수 있어요`)
-  if (ids.some((id) => !acc.units.some((u) => u.id === id))) return fail('없는 캐릭이 배치돼 있어요')
+  if (ids.length === 0) return fail('병사를 한 명 이상 배치해 주세요.')
+  if (ids.length > cfg.maxDeploy) return fail(`최대 ${cfg.maxDeploy}명까지 출전할 수 있어요.`)
+  if (ids.some((id) => !acc.units.some((u) => u.id === id))) return fail('없는 병사가 배치돼 있어요.')
   const stage = stageDef(rep.stageNo)
   const map = parseMap(MAP_DEFS.find((m) => m.id === stage.mapId)!)
   const cells = Object.values(rep.placements)
-  if (cells.some((c) => map.tiles[c.y]?.[c.x] !== 'slot')) return fail('배치할 수 없는 칸이에요')
-  if (new Set(cells.map((c) => `${c.x},${c.y}`)).size !== cells.length) return fail('한 칸에 한 명만 놓을 수 있어요')
+  if (cells.some((c) => map.tiles[c.y]?.[c.x] !== 'slot')) return fail('배치할 수 없는 칸이에요.')
+  if (new Set(cells.map((c) => `${c.x},${c.y}`)).size !== cells.length) return fail('한 칸에 한 명만 놓을 수 있어요.')
   const sim = createWave(cfg, map, stage, acc.units, rep.placements, cfg.startLives, rep.seed)
   const r = runWave(sim)
   const n = rep.stageNo

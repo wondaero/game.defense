@@ -1164,3 +1164,25 @@ svg.icon { display: inline-block; vertical-align: -0.2em; flex: none; overflow: 
 /* 능력치 꼬리표 2×2 (4개가 한 줄에 안 들어갈 때, StatTagRow 가 정함) */
 .stat-tags.two { display: grid; grid-template-columns: max-content max-content; justify-content: start; }
 .stat-tags.two > span { justify-self: start; }
+
+/* 첫 방문 소리 질문 창 (2026-11-29) */
+.sound-ask .sa-icon { display: flex; justify-content: center; margin: 2px 0 6px; }
+.sound-ask .row button { white-space: nowrap; }
+/* 탄 지도 길 = 점선만 (2026-11-29, 굵은 흙길 대신): 동그란 점이 이어지는 발자국 느낌. 얼음 구간에서도 보이게 흰 테두리 */
+.stage-road .road-fill { display: none; }
+.stage-road .road-edge { stroke: rgba(255,255,255,0.85); stroke-width: 9px; stroke-linecap: round; stroke-dasharray: 0.1 16; }
+.stage-road .road-dash { stroke: #7a5a38; stroke-width: 5.5px; stroke-linecap: round; stroke-dasharray: 0.1 16; }
+
+/* 탄 지도 점선: 점 더 작게 (2026-11-29) */
+.stage-road .road-edge { stroke-width: 6.5px; stroke-dasharray: 0.1 13; }
+.stage-road .road-dash { stroke-width: 3.5px; stroke-dasharray: 0.1 13; }
+/* 핀치 줌 막기 보조 (두 번 탭 확대 없이 바로 반응) */
+html, body { touch-action: manipulation; }
+.setting-note { margin: 4px 0 0; font-size: 12px; }
+.app.with-tabbar > section.sound-settings + section.sound-settings { margin-top: 12px; }
+/* 탄 지도 길 = 절취선 (2026-11-29, 점 대신 짧은 선): 흰 테두리 + 갈색 선, 끝은 살짝 둥글게 */
+.stage-road .road-edge { stroke-width: 6px; stroke-linecap: round; stroke-dasharray: 9 9; }
+.stage-road .road-dash { stroke-width: 3px; stroke-linecap: round; stroke-dasharray: 9 9; }
+/* 절취선 더 가늘고 촘촘하게 (2026-11-29) */
+.stage-road .road-edge { stroke-width: 4px; stroke-dasharray: 5 5; }
+.stage-road .road-dash { stroke-width: 2px; stroke-dasharray: 5 5; }

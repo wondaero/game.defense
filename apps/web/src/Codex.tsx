@@ -13,7 +13,7 @@ export function Codex() {
   return (
     <>
       <section>
-        <h3>캐릭 특수능력 도감 ({ABILITY_KINDS.length}종)</h3>
+        <h3>병사 특수능력 도감 ({ABILITY_KINDS.length}종)</h3>
         <p className="dim" style={{ margin: '0 0 8px' }}>
           특수능력은 모두 같은 확률로 붙고, 굵은 숫자 중 하나가 뽑혀요
         </p>
@@ -32,7 +32,7 @@ export function Codex() {
       <section>
         <h3>슬라임 능력 도감 ({MONSTER_ABILITY_KINDS.length}종)</h3>
         <p className="dim" style={{ margin: '0 0 8px' }}>
-          캐릭에게 맞을 때마다 확률로 터져요. 10탄부터 붙기 시작
+          병사에게 맞을 때마다 확률로 터져요. 10탄부터 붙기 시작
         </p>
         <ul className="codex">
           {MONSTER_ABILITY_KINDS.map((k) => {

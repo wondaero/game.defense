@@ -235,7 +235,7 @@ export function monsterAbilityDesc(kind: MonsterAbilityKind, spec: MonsterSpec):
   const dodge = ' — 민첩으로 피할 수 있음'
   switch (kind) {
     case 'freeze':
-      return `맞으면 ${pct} 확률로 주변 3×3 캐릭을 ${sec(d.durationMs)} 얼림${tail}, 풀린 캐릭은 ${FREEZE_IMMUNE_MS / 1000}초간 안 얼음${dodge}`
+      return `맞으면 ${pct} 확률로 주변 3×3 병사를 ${sec(d.durationMs)} 얼림${tail}, 풀린 병사는 ${FREEZE_IMMUNE_MS / 1000}초간 안 얼음${dodge}`
     case 'fullHeal':
       return `맞으면 ${pct} 확률로 체력을 전부 회복${tail}`
     case 'groupHeal':
@@ -247,15 +247,15 @@ export function monsterAbilityDesc(kind: MonsterAbilityKind, spec: MonsterSpec):
     case 'invincible':
       return `맞으면 ${pct} 확률로 ${sec(d.durationMs)} 동안 무적 (피해·스턴·출발지로 보내기 안 통함)${tail}`
     case 'scatter':
-      return `맞으면 ${pct} 확률로 때린 캐릭을 무작위 빈 배치 칸으로 날려 보냄${tail}${dodge}`
+      return `맞으면 ${pct} 확률로 때린 병사를 무작위 빈 배치 칸으로 날려 보냄${tail}${dodge}`
     case 'weaken':
-      return `맞으면 ${pct} 확률로 때린 캐릭의 공속·명중률을 ${sec(d.durationMs)} 동안 절반으로${tail}${dodge}`
+      return `맞으면 ${pct} 확률로 때린 병사의 공속·명중률을 ${sec(d.durationMs)} 동안 절반으로${tail}${dodge}`
     case 'armorUp':
       return `맞으면 ${sec(d.durationMs)} 동안 방어력 +${spec.armorUpAmount}${tail}`
     case 'seal':
-      return `맞으면 ${pct} 확률로 때린 캐릭의 특수능력을 ${sec(d.durationMs)} 동안 봉인 (강화 효과도 꺼짐)${tail}${dodge}`
+      return `맞으면 ${pct} 확률로 때린 병사의 특수능력을 ${sec(d.durationMs)} 동안 봉인 (강화 효과도 꺼짐)${tail}${dodge}`
     case 'agiSteal':
-      return `맞으면 ${pct} 확률로 때린 캐릭의 민첩을 ${sec(d.durationMs)} 동안 1로 만들고 뺏은 만큼 자기 민첩에 더함${tail}${dodge}`
+      return `맞으면 ${pct} 확률로 때린 병사의 민첩을 ${sec(d.durationMs)} 동안 1로 만들고 뺏은 만큼 자기 민첩에 더함${tail}${dodge}`
     case 'absorb':
       return `맞으면 ${pct} 확률로 ${sec(d.durationMs)} 동안 받는 피해를 모두 체력으로 회복 (최대 체력까지)${tail}`
     case 'split':

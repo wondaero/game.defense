@@ -82,7 +82,7 @@ export function createLocalApi(getCfg: () => DefenseConfig, getUnlockAll: () => 
     },
     async finishStage({ runId, stageNo, placements }) {
       const run = runs.get(runId)
-      if (!run || run.stageNo !== stageNo) throw new ApiError('시작하지 않은 탄이에요')
+      if (!run || run.stageNo !== stageNo) throw new ApiError('시작하지 않은 탄이에요.')
       runs.delete(runId)
       const { account, value } = take(judgeStage(getCfg(), read(), { stageNo, placements, seed: run.seed }, freshRng(), getUnlockAll()))
       return { account, result: value }
@@ -129,7 +129,7 @@ export function createLocalApi(getCfg: () => DefenseConfig, getUnlockAll: () => 
       },
       loadSnapshot(id) {
         const s = readSnaps().find((x) => x.id === id)
-        if (!s) throw new ApiError('없는 저장이에요')
+        if (!s) throw new ApiError('없는 저장이에요.')
         if (s.data.account) localStorage.setItem(ACCOUNT_KEY, s.data.account)
         else localStorage.removeItem(ACCOUNT_KEY)
         if (s.data.save) localStorage.setItem(SAVE_KEY, s.data.save)

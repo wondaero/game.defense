@@ -14,14 +14,31 @@ export interface SoundPrefs {
   /** 크기 0~100. 기본은 배경음이 효과음보다 작게 (배경음 40 · 효과음 80) */
   bgmVol: number
   sfxVol: number
+  /** 결정적 순간 다시 보기(확대·슬로우) — 소리는 아니지만 기기 설정이라 같이 저장 (2026-11-29) */
+  replay: boolean
 }
-export const DEFAULT_SOUND: SoundPrefs = { bgm: true, sfx: true, bgmVol: 40, sfxVol: 80 }
+export const DEFAULT_SOUND: SoundPrefs = { bgm: true, sfx: true, bgmVol: 40, sfxVol: 80, replay: true }
+/** 처음 들어온 기기 = 소리 설정 저장값이 없음 (2026-11-29) → 소리 꺼 두고 "소리 켤까요?" 창 */
+let firstVisit = false
 function loadPrefs(): SoundPrefs {
   try {
-    return { ...DEFAULT_SOUND, ...(JSON.parse(localStorage.getItem(PREF_KEY) ?? '{}') as Partial<SoundPrefs>) }
+    const raw = localStorage.getItem(PREF_KEY)
+    if (raw == null) {
+      firstVisit = true
+      return { ...DEFAULT_SOUND, bgm: false, sfx: false }
+    }
+    return { ...DEFAULT_SOUND, ...(JSON.parse(raw) as Partial<SoundPrefs>) }
   } catch {
     return { ...DEFAULT_SOUND }
   }
+}
+/** 첫 방문이라 소리를 물어봐야 하는지 */
+export const needSoundAsk = () => firstVisit
+/** 첫 방문 질문에 답함: 켜기면 배경음·효과음 켜고 바로 시작 (이 버튼 누름이 브라우저의 첫 터치) */
+export function answerSoundAsk(on: boolean) {
+  firstVisit = false
+  setSoundPrefs({ bgm: on, sfx: on })
+  if (on) unlockAudio()
 }
 /** 크기(0~100) → 실제 소리 세기. 100 일 때 배경음 0.8 · 효과음 0.875 (40 · 80 이 예전 기본 세기와 같음) */
 const BGM_MAX = 0.8

@@ -179,6 +179,17 @@ export function App() {
   const accRef = useRef(0)
   /** 우두머리가 판에 있는지 (곡 바꾸기용) */
   const bossOnRef = useRef(false)
+  /**
+   * 결정적 순간 연출 (2026-11-29): 우두머리 처치 · 마지막 슬라임 처치(클리어) · 3번째 통과(실패) 때
+   * 그 자리로 확대 + 슬로우 (배속과 상관없이 기본 속도 기준). 화면을 누르면 바로 넘김. 결과(엔진)는 이미 정해진 뒤라 판정엔 영향 없음
+   */
+  const finaleRef = useRef<{ start: number; endTick: number; x: number; y: number; tailFrom: number | null } | null>(null)
+  /** 판을 다시 만들 재료 (엔진이 결정적 → 같은 재료·씨앗이면 같은 판). 연출 때 1초 앞으로 되감는 데 씀 */
+  const replayRef = useRef<Parameters<typeof createWave> | null>(null)
+  /** 화면 시간(효과·애니메이션용): 연출 중엔 느리게 흐름 */
+  const vNowRef = useRef(performance.now())
+  /** 연출 중 느리게 흐른 시간만큼 애니메이션 시계에 더함 */
+  const clockOffRef = useRef(0)
   const live = useRef({ cfg, map, roster, placements, selectedId, hover, speed, paused, screen, stageNo })
   live.current = { cfg, map, roster, placements, selectedId, hover, speed, paused, screen, stageNo }
 
@@ -191,18 +202,64 @@ export function App() {
     let raf = 0
     let last = performance.now()
     let lastUi = 0
-    const loop = (now: number) => {
+    const loop = (realNow: number) => {
       const L = live.current
-      const dt = Math.min(250, now - last)
-      last = now
+      const dt = Math.min(250, realNow - last)
+      last = realNow
       const sim = simRef.current
       const tickMs = 1000 / L.cfg.tickRate
-      if (sim && !sim.done && !L.paused && L.screen === 'play') {
+      // 연출 (2026-11-29): 결정적 순간 1초 전으로 되감아 그 1초를 FINALE_SLOW 배(기본 속도 기준, 1초 → 3초)로 다시 보여 줌
+      //   + 끝난 뒤 FINALE_TAIL_MS 동안 쓰러지는 모습을 느리게, 그다음 원래 크기로 돌아오며 결과
+      const fin = finaleRef.current
+      const finAge = fin ? realNow - fin.start : 0
+      const total = FINALE_REPLAY_MS / FINALE_SLOW + FINALE_TAIL_MS
+      const finT = fin ? Math.min(1, finAge / total) : 0
+      const zin = 600 / total
+      const zout = 1 - 450 / total
+      const env = !fin ? 0 : finT < zin ? finT / zin : finT < zout ? 1 : Math.max(0, 1 - (finT - zout) / (1 - zout))
+      const ease = env * env * (3 - 2 * env)
+      const rate = fin ? FINALE_SLOW : 1
+      vNowRef.current += dt * rate
+      const now = vNowRef.current
+      if (fin && sim) {
+        if (sim.tick < fin.endTick) {
+          // 되감은 1초를 느리게 진행
+          accRef.current += dt * FINALE_SLOW
+          while (accRef.current >= tickMs && sim.tick < fin.endTick) {
+            accRef.current -= tickMs
+            stepWave(sim)
+            collectFx(sim, now)
+          }
+        } else {
+          if (fin.tailFrom == null) fin.tailFrom = realNow
+          clockOffRef.current += dt * FINALE_SLOW
+        }
+        if (finT >= 1) {
+          finaleRef.current = null
+          accRef.current = 0
+          if (sim.done) finishStage(sim)
+        }
+      } else if (sim && !sim.done && !L.paused && L.screen === 'play') {
         accRef.current += dt * L.speed
         while (accRef.current >= tickMs && !sim.done) {
           accRef.current -= tickMs
           stepWave(sim)
           collectFx(sim, now)
+          // 결정적 순간이면: 같은 재료로 판을 새로 만들어 1초 전까지 돌려 둠 → 그 1초를 느리게 다시
+          const f = getSoundPrefs().replay ? finaleSpot(sim) : null
+          if (f && replayRef.current) {
+            const endTick = sim.tick
+            const fresh = createWave(...replayRef.current)
+            const from = Math.max(0, endTick - Math.round((FINALE_REPLAY_MS / 1000) * L.cfg.tickRate))
+            while (fresh.tick < from && !fresh.done) stepWave(fresh)
+            simRef.current = fresh
+            animRef.current = newAnimState()
+            fxRef.current = []
+            clockOffRef.current = 0
+            accRef.current = 0
+            finaleRef.current = { start: realNow, endTick, ...f, tailFrom: null }
+            break
+          }
         }
         // 우두머리 곡 (2026-11-28): 우두머리가 판에 나오면 우두머리 곡 + 등장음, 죽거나 통과해서 판에서 사라지면 평소 곡
         const bossOn = sim.monsters.some((m) => m.spec.id === 'boss')
@@ -211,13 +268,14 @@ export function App() {
           if (bossOn) sfx.bossAppear()
           bgm.setTrack(bossOn ? 'boss' : 'peace')
         }
-        if (sim.done) finishStage(sim)
+        if (sim.done && !finaleRef.current) finishStage(sim)
       }
       if (now - lastUi > 100) {
         lastUi = now
         setUiTick((t) => t + 1)
       }
       fxRef.current = fxRef.current.filter((f) => now - f.born < f.life)
+      // (now = 화면 시간: 연출 중엔 느리게)
       // 판은 논리 크기(W×H)로 그리고, 화면이 좁으면 CSS(max-width:100%)로 줄어든다.
       // 실제 표시 폭 × dpr 로 비트맵을 다시 잡아서 줄어들어도 흐려지지 않게.
       const dpr = window.devicePixelRatio || 1
@@ -235,11 +293,22 @@ export function App() {
         canvas.width = bw
         canvas.height = bh
       }
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
       ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0)
+      // 연출 확대: 그 자리를 중심으로 최대 FINALE_ZOOM 배 (판 좌표 + 여백 PAD)
+      if (fin && ease > 0) {
+        const z = 1 + (FINALE_ZOOM - 1) * ease
+        const fx = fin.x + PAD
+        const fy = fin.y + PAD
+        ctx.translate(fx, fy)
+        ctx.scale(z, z)
+        ctx.translate(-fx, -fy)
+      }
       const s = L.screen === 'prepare' ? null : simRef.current
       const anim = animRef.current
       // 애니메이션 시계: 진행 중엔 게임 시간(일시정지·배속 따라감), 준비 화면은 실제 시간
-      anim.clock = s ? (s.tick - 1 + (s.done ? 1 : Math.min(1, accRef.current / tickMs))) * tickMs : now
+      anim.clock = s ? (s.tick - 1 + (s.done ? 1 : Math.min(1, accRef.current / tickMs))) * tickMs + clockOffRef.current : now
       anim.corpses = anim.corpses.filter((c) => anim.clock - c.at < motionDuration(c.sprite, 'die') + 100)
       draw(ctx, {
         anim,
@@ -255,12 +324,43 @@ export function App() {
         now,
         theme: stageTheme(L.stageNo),
       })
+      // 연출 중 가장자리를 살짝 어둡게
+      if (fin && ease > 0) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0)
+        const cw = canvas.width
+        const ch = canvas.height
+        const g = ctx.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.25, cw / 2, ch / 2, Math.max(cw, ch) * 0.7)
+        g.addColorStop(0, 'rgba(0,0,0,0)')
+        g.addColorStop(1, `rgba(0,0,0,${0.45 * ease})`)
+        ctx.fillStyle = g
+        ctx.fillRect(0, 0, cw, ch)
+      }
       raf = requestAnimationFrame(loop)
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showBoard])
+
+  /** 이번 틱이 결정적 순간인지: 판 좌표 자리 or null. 우두머리 처치는 판마다 한 번 */
+  function finaleSpot(sim: WaveSim): { x: number; y: number } | null {
+    const { map } = live.current
+    const exit = () => {
+      const e = map.path.at(-1)!
+      return { x: (e.x + 0.5) * CELL_PX, y: (e.y + 0.5) * CELL_PX }
+    }
+    const kills = sim.events.filter((e) => e.type === 'kill') as Extract<WaveSim['events'][number], { type: 'kill' }>[]
+    const at = (k: (typeof kills)[number]) => monsterScreenPos(map, k.dist, k.monsterId)
+    if (sim.done) {
+      if (sim.lives > 0) {
+        const k = kills.at(-1)
+        return k ? at(k) : exit()
+      }
+      return exit()
+    }
+    const boss = kills.find((k) => sim.stage.monsters[k.monsterType]?.id === 'boss')
+    return boss ? at(boss) : null
+  }
 
   function collectFx(sim: WaveSim, now: number) {
     const { map, cfg } = live.current
@@ -480,9 +580,12 @@ export function App() {
     // 판마다 새 씨앗 (api 가 정함 — 서버라면 서버가 정해서 조작 불가) → 다시 해도 장애물 자리·명중·특수능력 발동이 달라짐
     const { runId, seed } = await api.startStage(stageNo)
     runRef.current = { runId, stageNo, placements: { ...placements } }
-    simRef.current = createWave(cfg, map, stage, roster, placements, cfg.startLives, seed)
+    replayRef.current = [cfg, map, stage, roster, placements, cfg.startLives, seed]
+    simRef.current = createWave(...replayRef.current)
     animRef.current = newAnimState()
     accRef.current = 0
+    finaleRef.current = null
+    clockOffRef.current = 0
     fxRef.current = []
     setSelectedId(null)
     setPaused(false)
@@ -555,6 +658,11 @@ export function App() {
   }
 
   const onCellClick = (c: Cell) => {
+    // 연출 중 누르면 바로 넘김
+    if (finaleRef.current) {
+      finaleRef.current.start = -1e9
+      return
+    }
     if (screen !== 'prepare') {
       // 진행 중엔 지금 서 있는 자리 기준 (날려 보내기로 옮겨졌을 수 있음)
       const su = simRef.current?.units.find((u) => u.cell.x === c.x && u.cell.y === c.y)
@@ -673,7 +781,7 @@ export function App() {
                         <div>
                           <b>{TICKET_NAMES[it.kind]}</b>
                           <div className="dim">{it.desc}</div>
-                          <div className="have">가진 것 {have}장</div>
+                          <div className="have">{have}장 보유</div>
                         </div>
                         <button
                           className="buy"
@@ -693,7 +801,7 @@ export function App() {
                 </ul>
               </>
             ) : (
-              <p className="dim">다른 사람과 캐릭을 주고받는 곳 (서버를 붙인 뒤 만듦, 준비 중)</p>
+              <p className="dim">다른 사람과 병사를 주고받는 곳 (서버를 붙인 뒤 만듦, 준비 중)</p>
             )}
           </section>
         )}
@@ -736,7 +844,7 @@ export function App() {
                 </button>
                 <button
                   onClick={() =>
-                    void showConfirm({ title: '막사 다시 뽑기', message: '막사 캐릭을 모두 새로 뽑을까요? 배치도 지워져요', ok: '다시 뽑기', danger: true }).then((y) => void (y && api.dev?.resetBarracks(`시험판-${Math.floor(Math.random() * 1e6)}`).then((a) => {
+                    void showConfirm({ title: '막사 다시 뽑기', message: '막사 병사를 모두 새로 뽑을까요? 배치도 지워져요.', ok: '다시 뽑기', danger: true }).then((y) => void (y && api.dev?.resetBarracks(`시험판-${Math.floor(Math.random() * 1e6)}`).then((a) => {
                       setAccount(a)
                       setSave((s) => ({ ...s, placementsByMap: {} }))
                     })))
@@ -829,14 +937,14 @@ export function App() {
             <section className="danger-zone">
               <h3>초기화</h3>
               <p className="dim" style={{ margin: '0 0 8px' }}>
-                캐릭·스테이지 기록·별·골드·배치를 모두 지우고, 처음 시작할 때 주는 티켓(뽑기 티켓 · 능력치 변경 티켓 · 특수능력 변경 티켓)을 새로 받아요
+                병사·스테이지 기록·별·골드·배치를 모두 지우고, 처음 시작할 때 주는 티켓(뽑기 티켓 · 능력치 변경 티켓 · 특수능력 변경 티켓)을 새로 받아요
               </p>
               <button
                 className="danger"
                 onClick={() =>
                   void showConfirm({
                     title: '모든 데이터 초기화',
-                    message: '캐릭·스테이지 기록·별·골드가 모두 사라지고, 처음 시작할 때 주는 티켓만 새로 받아요. 되돌릴 수 없어요.',
+                    message: '병사·스테이지 기록·별·골드가 모두 사라지고, 처음 시작할 때 주는 티켓만 새로 받아요. 되돌릴 수 없어요.',
                     ok: '초기화',
                     danger: true,
                   }).then((y) => {
@@ -930,7 +1038,7 @@ export function App() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-title">자동 배치할까요?</div>
             <ul className="auto-explain">
-              <li>능력치 점수가 높은 캐릭 {cfg.maxDeploy}명을 골라요 (특수능력은 안 봐요)</li>
+              <li>능력치 점수가 높은 병사 {cfg.maxDeploy}명을 골라요 (특수능력은 안 봐요)</li>
               <li>길이 꺾이는 코너 자리부터 먼저 채우고, 그다음 공격 칸이 많은 자리에 놓아요</li>
             </ul>
             {placedCount > 0 && <p className="warn-line">지금 배치({placedCount}명)는 지워지고 새로 배치돼요</p>}
@@ -956,7 +1064,7 @@ export function App() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-title">모두 뺄까요?</div>
             <p>
-              출전한 캐릭 {placedCount}명을 판에서 모두 빼요
+              출전한 병사 {placedCount}명을 판에서 모두 빼요
               <br />
               <span className="dim">이 맵의 배치가 지워져요</span>
             </p>
@@ -1026,7 +1134,7 @@ export function App() {
               </button>
               {[1, 2, 4].map((s) => (
                 <button key={s} className={speed === s ? 'on' : ''} onClick={() => setSpeed(s)}>
-                  {s}×
+                  ×{s}
                 </button>
               ))}
             </div>
@@ -1051,7 +1159,7 @@ export function App() {
               </h3>
               <MonsterChips summary={summary} onPick={(spec, count) => setMonsterInfo({ spec, count })} />
               <h3>
-                출전 캐릭 {placedCount}명 <span className="dim">· 눌러서 사거리 보기</span>
+                출전 병사 {placedCount}명 <span className="dim">· 눌러서 사거리 보기</span>
               </h3>
               <ul className="unit-chips">
                 {roster
@@ -1096,7 +1204,9 @@ export function App() {
             </div>
             {roster.length === 0 && (
               <p className="empty-note">
-                캐릭이 없어요. <button className="link" onClick={() => { setTab('barracks'); goSelect() }}>막사</button>에서 뽑기 티켓으로 캐릭을 뽑아 오세요
+                병사가 없어요.
+                <br />
+                <button className="link" onClick={() => { setTab('barracks'); goSelect() }}>막사</button>에서 뽑기 티켓으로 병사를 뽑아 오세요.
               </p>
             )}
             <ul className="roster">
@@ -1128,7 +1238,7 @@ export function App() {
                 )
               })}
             </ul>
-            <p className="hint">캐릭을 고른 뒤 초록 칸을 누르면 배치 · 판 위 캐릭을 고르고 다른 칸을 누르면 이동·자리 바꾸기. 배치는 맵마다 기억됨</p>
+            <p className="hint">병사를 고른 뒤 초록 칸을 누르면 배치 · 판 위 병사를 고르고 다른 칸을 누르면 이동·자리 바꾸기. 배치는 맵마다 기억됨</p>
           </section>
           )}
         </aside>
@@ -1207,6 +1317,11 @@ type Tab = 'barracks' | 'stages' | 'shop' | 'settings' | 'dev'
  * - 주소(URL)에는 아무것도 안 남김 → 방문 기록으로 다시 못 들어옴, 설치한 앱(주소창 없음)에서도 됨
  * 주의: 숨김일 뿐 보안이 아님(코드에 규칙이 보임) — 서버를 붙이면 개발 기능은 서버 api 에 아예 없어야 함
  */
+/** 결정적 순간 연출: 길이(실제 시간) · 최대 확대 · 느린 배율 (*임시*) */
+const FINALE_REPLAY_MS = 1000
+const FINALE_TAIL_MS = 900
+const FINALE_ZOOM = 2
+const FINALE_SLOW = 1 / 3
 const DEV_CODE_GRACE_MIN = 2
 const DEV_TAPS = 7
 function devCodeOk(given: string): boolean {
@@ -1237,7 +1352,7 @@ const TABS: { id: Tab; icon: IconName; label: string }[] = [
 const TAB_TITLES: Record<Tab, string> = { barracks: '막사', stages: '스테이지', shop: '상점', settings: '설정', dev: '개발자' }
 /** 막사에서 할 일 (아직 준비 중) */
 const BARRACKS_ACTIONS = [
-  { icon: '🎟️', label: '캐릭 뽑기' },
+  { icon: '🎟️', label: '병사 뽑기' },
   { icon: '🔄', label: '능력치 변경' },
   { icon: '✨', label: '특수능력 변경' },
   { icon: '🧪', label: '합성' },
@@ -1245,11 +1360,11 @@ const BARRACKS_ACTIONS = [
 /** 상점 물건 (값은 엔진 SHOP_PRICES, 2026-11-28 *임시*) */
 const SHOP_ITEMS: { kind: TicketKind; icon: IconName; desc: string }[] = [
   { kind: 'statNormal', icon: 'rerollBronze', desc: '능력치 4개 모두 다시' },
-  { kind: 'draw', icon: 'ticket', desc: '캐릭 1명 뽑기' },
+  { kind: 'draw', icon: 'ticket', desc: '병사 1명 뽑기' },
   { kind: 'statHigh', icon: 'rerollSilver', desc: '1개 골라 유지, 나머지 다시' },
   { kind: 'ability', icon: 'sparkle', desc: '특수능력만 다시' },
   { kind: 'statTop', icon: 'rerollGold', desc: '2개 골라 유지, 나머지 다시' },
-  { kind: 'abilityGrant', icon: 'gift', desc: '특수능력 없는 캐릭에 하나 붙임' },
+  { kind: 'abilityGrant', icon: 'gift', desc: '특수능력 없는 병사에 하나 붙임' },
 ]
 
 /**
@@ -1269,7 +1384,7 @@ function DevSnapshots({ api }: { api: GameApi }) {
     <section className="dev-snaps">
       <h3>상태 저장</h3>
       <p className="dim" style={{ margin: '0 0 8px' }}>
-        캐릭 · 티켓 · 스테이지 기록 · 별 · 골드 · 배치를 통째로 저장해요 (이 기기, 최대 10개)
+        병사 · 티켓 · 스테이지 기록 · 별 · 골드 · 배치를 통째로 저장해요 (이 기기, 최대 10개)
       </p>
       <button className="primary inline" onClick={() => setList(api.dev!.saveSnapshot(`저장 ${list.length + 1}`))}>
         지금 상태 저장
@@ -1285,7 +1400,7 @@ function DevSnapshots({ api }: { api: GameApi }) {
               <div className="snap-info">
                 <b>{fmt(s.at)}</b>
                 <small className="dim">
-                  캐릭 {s.summary.units} · {s.summary.best}탄 · 골드 {s.summary.gold} · 티켓 {s.summary.tickets}
+                  병사 {s.summary.units} · {s.summary.best}탄 · 골드 {s.summary.gold} · 티켓 {s.summary.tickets}
                 </small>
               </div>
               <button onClick={() => setAsk(s)}>불러오기</button>
@@ -1358,7 +1473,7 @@ function DevCodeModal({ onClose, onOk }: { onClose: () => void; onOk: () => void
               setBad(false)
             }}
           />
-          {bad && <p className="dev-bad">맞지 않아요</p>}
+          {bad && <p className="dev-bad">맞지 않아요.</p>}
           <div className="row pause-row">
             <button type="button" onClick={onClose}>
               취소
@@ -1415,6 +1530,7 @@ function SettingsPage({ cfg, onSecret }: { cfg: DefenseConfig; onSecret: () => v
   return (
     <>
       <SoundSettings />
+      <ReplaySetting />
       <InstallSection />
       <section className="settings-menu">
         <h3 className="secret-tap" onClick={tapInfo}>
@@ -1424,7 +1540,7 @@ function SettingsPage({ cfg, onSecret }: { cfg: DefenseConfig; onSecret: () => v
           <span>
             <Icon name="book" /> 도감
           </span>
-          <small className="dim">캐릭 특수능력 · 슬라임 능력</small>
+          <small className="dim">병사 특수능력 · 슬라임 능력</small>
           <i>›</i>
         </button>
         <button onClick={() => setView('guide')}>
@@ -1503,6 +1619,34 @@ function AbilityGuide({ cfg }: { cfg: DefenseConfig }) {
         </ul>
       </section>
     </>
+  )
+}
+
+/** 화면 설정: 결정적 순간 다시 보기 켜기/끄기 (기본 켜짐) */
+function ReplaySetting() {
+  const [on, setOn] = useState(() => getSoundPrefs().replay)
+  return (
+    <section className="sound-settings">
+      <h3>화면</h3>
+      <div className="sound-row">
+        <div className="sound-line">
+          <span className="sound-name">명장면 다시 보기</span>
+          <button
+            role="switch"
+            aria-checked={on}
+            className={`switch ${on ? 'on' : ''}`}
+            onClick={() => {
+              setSoundPrefs({ replay: !on })
+              setOn(!on)
+            }}
+          >
+            <i />
+            <span className="sr">{on ? '켜짐' : '꺼짐'}</span>
+          </button>
+        </div>
+        <p className="dim setting-note">우두머리 처치 · 마지막 처치 · 마지막 통과를 확대해서 천천히 보여 줘요</p>
+      </div>
+    </section>
   )
 }
 
@@ -1653,7 +1797,7 @@ function Settings({ cfg, onChange }: { cfg: DefenseConfig; onChange: (p: Partial
       {num('특수능력 확률 (%)', cfg.abilityChanceBp / 100, (v) => ({ abilityChanceBp: Math.min(100, v) * 100 }), 10)}
       <button onClick={() => onChange({ ...DEFAULT_CONFIG })}>기본값으로</button>
       <p className="dim" style={{ gridColumn: '1 / -1', margin: 0 }}>
-        능력치 범위를 바꾸면 캐릭이 다시 뽑힙니다 (같은 씨앗이라도 숫자가 달라짐).
+        능력치 범위를 바꾸면 병사가 다시 뽑힙니다 (같은 씨앗이라도 숫자가 달라짐).
       </p>
     </div>
   )

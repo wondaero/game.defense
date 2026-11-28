@@ -179,7 +179,7 @@ export function validatePlacements(cfg: DefenseConfig, map: GameMap, roster: rea
   const used = new Set<string>()
   for (const id of ids) {
     const u = roster.find((r) => r.id === id)
-    if (!u) return `없는 캐릭: ${id}`
+    if (!u) return `없는 병사: ${id}`
     const c = p[id]!
     if (map.tiles[c.y]?.[c.x] !== 'slot') return '배치 칸이 아님'
     const k = `${c.x},${c.y}`

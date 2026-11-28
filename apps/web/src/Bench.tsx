@@ -147,7 +147,7 @@ export function Bench({ onBack }: { onBack: () => void }) {
           <span className="fps">
             초당 <b>{fps}</b> 프레임
           </span>
-          <span>총 {count * 2}개 (슬라임 {count} + 캐릭 {count})</span>
+          <span>총 {count * 2}개 (슬라임 {count} + 병사 {count})</span>
         </div>
       </header>
       <div className="row" style={{ marginBottom: 8 }}>
