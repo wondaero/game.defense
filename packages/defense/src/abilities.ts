@@ -211,7 +211,7 @@ export function abilityDesc(a: Ability): string {
     case 'splash':
       return `${pct(a.chanceBp)} 확률로 맞힌 자리 중심 ${SPLASH_RADIUS * 2 + 1}×${SPLASH_RADIUS * 2 + 1} 광역공격`
     case 'crit':
-      return `${pct(a.chanceBp)} 확률로 2배 데미지 (공격력×2 − 방어력)`
+      return `${pct(a.chanceBp)} 확률로 2배 데미지 (피해 = 공격력×2 − 방어력)`
     case 'obstacle':
       return `${pct(a.chanceBp)} 확률로 길 무작위 칸에 ${
         a.obstacle === 'damage' ? `가시 장애물 (몬스터가 처음 밟을 때 최대 체력의 ${pct(a.amountBp)}, 마리마다 한 번)` : `늪 장애물 (밟으면 속도 −${pct(a.amountBp)})`
@@ -219,9 +219,9 @@ export function abilityDesc(a: Ability): string {
     case 'recall':
       return `${pct(a.chanceBp)} 확률로 때린 몬스터를 출발지로${tail}`
     case 'teamLevel':
-      return `${pct(a.chanceBp)} 확률로 아군 전체 레벨 +${a.level}: ${levelText(a.stat, a.level)} (${sec(TEAM_LEVEL_MS)})${tail}`
+      return `${pct(a.chanceBp)} 확률로 아군 전체 레벨 +${a.level}: ${levelText(a.stat, a.level)} (${sec(TEAM_LEVEL_MS)} 동안)${tail}`
     case 'allAttack':
-      return `${pct(a.chanceBp)} 확률로 맵에 있는 몬스터 전체 공격 (공격력 − 방어력)${tail}`
+      return `${pct(a.chanceBp)} 확률로 맵에 있는 몬스터 전체 공격 (피해 = 공격력 − 방어력)${tail}`
     case 'poison':
       return `${pct(a.chanceBp)} 확률로 맹독: 죽을 때까지 1초마다 공격력의 ${pct(a.pctBp)} (방어 무시, 몬스터당 한 번)`
     case 'boostAll':

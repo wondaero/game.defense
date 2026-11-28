@@ -45,6 +45,12 @@ async function rasterize(file: string): Promise<void> {
   rasters.set(file, cv)
 }
 
+/** 시트 칸 수 (HTML 배경으로 첫 프레임만 보일 때 크기 계산용) */
+export function sheetGrid(id: string): { cols: number; rows: number } | null {
+  const e = meta.entities[fileOf(id)]
+  return e ? { cols: e.cols, rows: e.rows } : null
+}
+
 /** 모든 시트를 미리 픽셀로 (한 번만). 끝나기 전엔 drawSprite 가 false → 동그라미로 대신 그림 */
 export function loadSprites(): Promise<void> {
   if (loading) return loading

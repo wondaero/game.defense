@@ -101,7 +101,7 @@ export function StageMap(props: { count: number; best: number; stars: Record<num
           const cleared = n <= best
           const locked = n > maxOpen
           const inf = n > LAST_NORMAL_STAGE
-          const cls = ['node', inf && 'inf', boss && 'boss', cleared && 'cleared', n === current && !cleared && 'current', locked && 'locked'].filter(Boolean).join(' ')
+          const cls = ['node', inf && 'inf', cleared && `g${Math.max(1, Math.min(3, stars[n] ?? 1))}`, boss && 'boss', cleared && 'cleared', n === current && !cleared && 'current', locked && 'locked'].filter(Boolean).join(' ')
           return (
             <button
               key={n}

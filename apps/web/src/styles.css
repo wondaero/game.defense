@@ -296,3 +296,278 @@ header.ice .stats > span { box-shadow: 0 1px 0 #4a8fbd; }
 .danger-zone { border-color: #f5b5b5; box-shadow: 0 3px 0 #f5b5b5; background: #fff6f5; }
 button.danger { background: #e53935; color: #fff; border-color: #b71c1c; box-shadow: 0 3px 0 #b71c1c; font-weight: 700; }
 button.danger:hover:not(:disabled) { background: #ef5350; }
+
+/* 막사 버튼 아래 권 개수 · 능력치 변경 등급 고르기 (2026-11-28) */
+.barracks-actions small.count { font-size: 13px; font-weight: 800; opacity: 1; color: var(--gold-text); }
+.grade-pick { display: flex; flex-direction: column; gap: 8px; }
+.grade-pick button { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 8px; padding: 10px 12px; text-align: left; }
+.grade-pick button b { font-size: 16px; }
+.grade-pick button span { font-size: 12px; color: var(--dim); }
+.grade-pick button em { font-style: normal; font-weight: 800; color: var(--gold-text); }
+
+/* 막사 버튼 2×2, 한 줄짜리 [아이콘 이름 · 개수] (2026-11-28) */
+.barracks-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.barracks-actions button { min-width: 0; }
+.barracks-actions button { flex-direction: row; justify-content: flex-start; gap: 6px; padding: 7px 10px; font-size: 14px; font-weight: 700; text-align: left; }
+.barracks-actions button .big { font-size: 18px; line-height: 1; }
+.barracks-actions button .label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.barracks-actions button small.count { font-size: 13px; }
+/* 캐릭 목록 보기·정렬 = 선택 상자 (2026-11-28) */
+.roster-tools { flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap; }
+.roster-tools .pick { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--dim); }
+.roster-tools select { padding: 4px 6px; font-size: 13px; border-radius: 10px; }
+.roster-tools .count { margin-left: auto; }
+@media (max-width: 320px) {
+  .barracks-actions button { padding: 6px 7px; gap: 4px; font-size: 12.5px; }
+  .barracks-actions button .big { font-size: 15px; }
+  .barracks-actions button small.count { font-size: 12px; }
+}
+@media (max-width: 300px) {
+  .barracks-actions button .big { display: none; }
+}
+
+/* 막사 버튼: 색으로 구분 + 카톡식 개수 배지 (2026-11-28) */
+.barracks-actions { padding-top: 6px; }
+.barracks-actions button.act { position: relative; justify-content: center; color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,0.28); padding: 9px 8px; }
+.barracks-actions button.act .label { flex: 0 1 auto; }
+.barracks-actions button.draw { background: linear-gradient(#ffd54f, #ffb300); border-color: #c78a00; box-shadow: 0 3px 0 #c78a00; color: #4a3300; text-shadow: 0 1px 0 rgba(255,255,255,0.5); }
+.barracks-actions button.stat { background: linear-gradient(#64b5f6, #1e88e5); border-color: #1565c0; box-shadow: 0 3px 0 #1565c0; }
+.barracks-actions button.ability { background: linear-gradient(#ba68c8, #8e24aa); border-color: #6a1b9a; box-shadow: 0 3px 0 #6a1b9a; }
+.barracks-actions button.merge { background: linear-gradient(#81c784, #43a047); border-color: #2e7d32; box-shadow: 0 3px 0 #2e7d32; }
+.barracks-actions button.act:hover:not(:disabled) { filter: brightness(1.07); }
+.barracks-actions button.act.on { outline: 3px solid var(--gold); outline-offset: 1px; }
+.barracks-actions button.act.empty { filter: saturate(0.35) brightness(1.05); opacity: 0.75; }
+.barracks-actions .badge { position: absolute; top: -7px; right: -5px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #ff3b30; color: #fff; font-size: 12px; font-weight: 800; line-height: 1; display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; text-shadow: none; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+/* 보기(왼쪽) · 정렬(오른쪽) 한 줄 */
+.roster-tools { flex-wrap: nowrap; justify-content: space-between; }
+.roster-tools select { min-width: 0; flex: 0 1 auto; max-width: 49%; }
+
+/* 상점: [상점 | 거래소] 오른쪽에 골드 (제목 줄 대신, 2026-11-28) */
+.shop-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.shop-top .seg { margin-bottom: 0; }
+.gold-pill { background: #fff7e0; border: 1.5px solid var(--line); border-radius: 14px; padding: 3px 10px; font-weight: 800; color: var(--gold-text); }
+/* 막사 위쪽 고정: 버튼 · 안내 띠 · 제목 · 보기/정렬 */
+.barracks-sticky { position: sticky; top: 0; z-index: 6; background: var(--card); margin: -10px -12px 4px; padding: 12px 12px 8px; border-radius: 14px 14px 0 0; box-shadow: 0 6px 8px -6px rgba(63,49,35,0.25); }
+.barracks-sticky h3 { margin: 10px 0 6px; }
+.barracks-sticky .roster-tools { position: static; margin-bottom: 0; padding-bottom: 0; }
+.barracks-sticky .mode-bar { margin: 8px 0 0; }
+
+/* 막사 버튼 4×1 한 줄 (2026-11-28): 짧은 이름, 좁으면 아이콘 숨김 */
+.barracks-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.barracks-actions button.act { padding: 9px 2px; gap: 3px; font-size: 13.5px; }
+.barracks-actions button.act .label { white-space: nowrap; overflow: visible; }
+@media (max-width: 420px) { .barracks-actions button.act .big { display: none; } }
+@media (max-width: 300px) { .barracks-actions button.act { font-size: 12.5px; } .barracks-actions { gap: 6px; } }
+
+/* 막사 버튼: 340px 이상 4×1(짧은 이름) · 미만 2×2(원래 이름) — 2026-11-28 */
+.barracks-actions .label .long { display: none; }
+@media (max-width: 339px) {
+  .barracks-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 7px; }
+  .barracks-actions .label .long { display: inline; }
+  .barracks-actions button.act { font-size: 13px; padding: 8px 4px; }
+}
+/* 고정 영역과 목록 사이 선 (그림자와 함께) */
+.barracks-sticky { border-bottom: 1px solid var(--line-dark); }
+
+/* 무지개 캐릭 (2026-11-28): 줄은 평범하게, 얼굴 칸만 흐르는 무지개 틀 + 흰 테두리 + 빛무리 */
+/* 가로 무지개(빨강 → … → 보라 → 빨강)를 정확히 한 무늬 길이(200%)만큼 흘려 이음매 없이 돎 */
+.face-rainbow { display: inline-flex; flex: none; border-radius: 10px; background: linear-gradient(90deg, #ff1744, #ff9100, #ffea00, #00e676, #2979ff, #d500f9, #ff1744) 0 0 / 200% 100% repeat-x; animation: face-rainbow-flow 3s linear infinite; box-shadow: 0 0 0 2px #fff, 0 0 9px 2px rgba(224,64,251,0.55); }
+.face-rainbow .face.sprite { background-color: transparent; box-shadow: none; }
+@keyframes face-rainbow-flow { from { background-position: 0% 0; } to { background-position: 200% 0; } }
+
+/* 캐릭 설명 (2026-11-28): 이름 / 능력치 꼬리표 / 특수능력 — 꼬리표 단위로 줄바꿈 */
+.unit-name { display: flex; align-items: center; gap: 4px; }
+.stat-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.stat-tags span { font-size: 11.5px; line-height: 1.5; padding: 0 6px; border-radius: 8px; background: #f3ecd8; border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
+.stat-tags span b { color: var(--text); font-weight: 800; }
+.stat-tags span.up { background: #fff3c4; border-color: #f0c94a; color: var(--gold-text); }
+.stat-tags span.up b { color: var(--gold-text); }
+.roster li .ab { margin-top: 3px; line-height: 1.4; }
+.roster li .ab b { color: #8a4f00; }
+@media (max-width: 340px) {
+  .stat-tags { gap: 2px; }
+  .stat-tags span { font-size: 10.5px; padding: 0 4px; letter-spacing: -0.3px; }
+}
+@media (max-width: 340px) {
+  .roster li { gap: 6px; padding: 5px 3px; }
+  .roster li .face.sprite { width: 34px; height: 34px; background-position: -5.7px -5.7px; }
+  .stat-tags span { padding: 0 3.5px; }
+}
+
+/* 특수능력 박스 + 캐릭 사이 은은한 선 (2026-11-28) */
+.roster li .ab { margin-top: 5px; padding: 4px 8px; border-radius: 8px; background: #fff6dc; border: 1px solid #f3d98a; line-height: 1.4; }
+.roster > li:not(:last-child) { border-bottom: 1px solid rgba(205,187,148,0.38); border-radius: 0; }
+.roster > li.sel { border-radius: 6px; }
+
+/* 특수능력 박스: 이름 한 줄 + 설명 (2026-11-28) */
+.roster li .ab { display: flex; flex-direction: column; gap: 1px; }
+.roster li .ab .ab-name { font-size: 13px; color: #8a4f00; }
+.roster li .ab .ab-desc { font-size: 11.5px; color: #9a6a00; }
+/* 캐릭 줄: 구분선 위아래 여백을 같게 (줄 사이 간격 없이 위아래 안쪽 여백만, 2026-11-28) */
+.roster { gap: 0; }
+.roster > li { padding-top: 8px; padding-bottom: 8px; }
+/* 한글 줄바꿈: 단어(띄어쓰기) 단위로 끊고, 아주 긴 단어만 칸 안에서 끊음 (2026-11-28, 화면 전체) */
+body { word-break: keep-all; overflow-wrap: anywhere; }
+/* 특수능력 설명 양쪽 정렬 (2026-11-28) */
+.roster li .ab .ab-desc { text-align: justify; }
+
+/* 막사는 카드 박스 없이 화면 폭 그대로 (2026-11-28): 겹친 좌우 여백을 없애 내용을 더 넣음 */
+section.barracks-page { background: none; border: none; box-shadow: none; padding: 0; border-radius: 0; }
+.barracks-page .barracks-sticky { margin: -12px -12px 4px; padding: 12px 12px 8px; border-radius: 0; background: rgba(240,246,226,0.94); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+@media (max-width: 520px) { .barracks-page .barracks-sticky { margin: -8px -8px 4px; padding: 10px 8px 8px; } }
+/* 배지: 한 자리 = 정원(최소 너비 = 높이), 두 자리부터 내용만큼 늘어남 (2026-11-28) */
+.barracks-actions .badge { min-width: 20px; height: 20px; padding: 0 3px; }
+/* 배지를 버튼 위로 조금 더 올림: 네 자리여도 버튼 글자와 안 겹치게 (2026-11-28) */
+.barracks-actions .badge { top: -12px; right: -6px; }
+.barracks-actions { padding-top: 10px; }
+@media (max-width: 339px) { .barracks-actions { row-gap: 14px; } }
+
+/* 캐릭 얼굴: 칸은 그대로, 그림 층은 프레임 여백(그림 96 둘레 16씩)까지 포함해 크게 → 칸 밖으로 넘쳐도 보임 (2026-11-28) */
+.face.sprite { position: relative; overflow: visible; }
+.face-art { position: absolute; left: -16.667%; top: -16.667%; width: 133.333%; height: 133.333%; background-position: 0 0; background-repeat: no-repeat; pointer-events: none; }
+/* 무지개 얼굴 (2026-11-28 다시): 줄무늬가 지나가는 대신 칸 전체 색이 은은하게 바뀜
+   — 무지개를 칸의 6배로 깔아 한 번에 한두 색만 보이고, 대각선으로 천천히 왕복 */
+.face-rainbow { background: linear-gradient(135deg, #ff6b8a, #ffb35c, #ffe066, #7be495, #6ab8ff, #b78bff, #ff6b8a); background-size: 600% 600%; animation: face-rainbow-shift 9s ease-in-out infinite alternate; }
+@keyframes face-rainbow-shift { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
+
+/* 막사 메인 버튼 2개 + 권 현황 한 줄 (2026-11-28) */
+.barracks-actions.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.barracks-actions.two button.act .big { display: inline; }
+.ticket-line { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 8px; font-size: 12px; color: var(--dim); }
+.ticket-line b { color: var(--gold-text); }
+.ticket-line small { font-size: 11px; }
+/* 캐릭 창: 아래에서 올라오는 창 */
+.modal-back.sheet { align-items: flex-end; padding: 0; }
+.modal.sheet { width: min(560px, 100%); max-height: 88vh; border-radius: 18px 18px 0 0; padding: 16px 14px calc(14px + env(safe-area-inset-bottom)); animation: sheet-up .22s ease-out; }
+@keyframes sheet-up { from { transform: translateY(40px); opacity: .4; } to { transform: none; opacity: 1; } }
+.face.sprite.big { width: 72px; height: 72px; border-radius: 16px; }
+.unit-detail .ud-head { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.unit-detail .ud-head .tier-pill { font-size: 16px; }
+.unit-detail .ud-head .dim { margin-top: 4px; }
+.ud-stats { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ud-stats li { display: grid; grid-template-columns: 52px 56px 1fr; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 10px; background: #f6efdc; }
+.ud-stats .k { font-weight: 700; color: var(--dim); font-size: 13px; }
+.ud-stats .v { font-size: 16px; }
+.ud-stats .v s { color: var(--dim); font-size: 12px; }
+.ud-stats .v .up { color: var(--gold-text); }
+.ud-stats .h { font-size: 11.5px; color: var(--dim); line-height: 1.35; }
+.unit-detail .ab.big { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; background: #fff6dc; border: 1px solid #f3d98a; }
+.unit-detail .ab.big .ab-name { font-size: 15px; color: #8a4f00; }
+.unit-detail .ab.big .ab-desc { font-size: 13px; color: #9a6a00; text-align: justify; }
+.ud-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.ud-actions button.act { position: relative; color: #fff; font-weight: 700; padding: 10px 6px; text-shadow: 0 1px 0 rgba(0,0,0,0.28); }
+.ud-actions button.stat { background: linear-gradient(#64b5f6, #1e88e5); border-color: #1565c0; box-shadow: 0 3px 0 #1565c0; }
+.ud-actions button.ability { background: linear-gradient(#ba68c8, #8e24aa); border-color: #6a1b9a; box-shadow: 0 3px 0 #6a1b9a; }
+.ud-actions button:disabled { filter: saturate(0.3); opacity: 0.55; }
+.ud-actions .badge { position: absolute; top: -10px; right: -6px; min-width: 20px; height: 20px; padding: 0 3px; border-radius: 10px; background: #ff3b30; color: #fff; font-size: 12px; font-weight: 800; line-height: 1; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff; text-shadow: none; }
+.ud-why { margin: 8px 0 0; }
+.modal.sheet { text-align: left; }
+
+/* 막사 위쪽 여백 줄임 + 권 현황 한 줄 (2026-11-28) */
+.barracks-page .barracks-sticky { padding-top: 2px; }
+.barracks-actions.two { padding-top: 12px; }
+.ticket-line { flex-wrap: nowrap; white-space: nowrap; overflow: hidden; gap: 12px; margin-top: 7px; }
+
+/* 캐릭 창: 오른쪽 위 닫기 ✕, 등급·점수 두 줄 (2026-11-28) */
+.modal.sheet { position: relative; }
+.sheet-close { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; padding: 0; border-radius: 50%; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; z-index: 1; }
+.unit-detail .ud-head { padding-right: 34px; }
+.unit-detail .ud-head .dim { margin-top: 2px; }
+.unit-detail .ud-head .tier-pill + .dim { margin-top: 6px; }
+
+/* 변경 결과: 바뀐 것만, 주식처럼 ▲빨강 ▼파랑 (2026-11-28) */
+.change-diff { text-align: left; }
+.cd-name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.cd-name .arrow { color: var(--dim); font-weight: 700; }
+.cd-stats { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.cd-stats li { display: grid; grid-template-columns: 1fr auto 52px; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 9px; background: #f6efdc; }
+.cd-stats li:first-child { background: #efe5c8; }
+.cd-stats .k { font-size: 13px; font-weight: 700; color: var(--dim); }
+.cd-stats .v { font-size: 14px; color: var(--dim); white-space: nowrap; }
+.cd-stats .v b { color: var(--text); font-size: 15px; }
+.cd-stats em { font-style: normal; font-weight: 800; text-align: right; }
+.cd-stats em.up { color: #e53935; }
+.cd-stats em.down { color: #1e88e5; }
+.cd-stats em.same { color: #b0a48a; }
+.cd-same { margin: 4px 0 0; }
+.change-diff .ab.big { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; background: #fff6dc; border: 1px solid #f3d98a; }
+.change-diff .ab.big .ab-name { color: #8a4f00; }
+.change-diff .ab.big .ab-desc { font-size: 12.5px; color: #9a6a00; text-align: justify; }
+.cd-same + .ab.big { margin-top: 8px; }
+
+/* 변경 결과: 전 → 후 이름 + 캐릭 그림, 양쪽 가운데 정렬 (2026-11-28) */
+.cd-name { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; margin-bottom: 12px; }
+.cd-side { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.cd-name .arrow { font-size: 20px; }
+.cd-side .face.sprite.big { width: 64px; height: 64px; }
+
+/* 막사: 인원 · 보기 · 정렬 한 줄 (2026-11-28) */
+.barracks-sticky .roster-tools { margin-top: 10px; gap: 6px; justify-content: flex-start; }
+.roster-tools .rt-lead { font-size: 14px; white-space: nowrap; margin-right: 2px; }
+.barracks-sticky .roster-tools select:last-child { margin-left: auto; }
+@media (max-width: 340px) { .roster-tools select { font-size: 12px; padding: 4px 3px; } .roster-tools .rt-lead { font-size: 13px; } }
+/* 첫 화면 탭의 카드(section)끼리 간격 (개발자 탭 등, 2026-11-28) */
+.app.with-tabbar > section + section { margin-top: 12px; }
+
+/* 결과 창: 다시 바꾸기 (배지) + 확인 (2026-11-28) */
+.redo-row { display: flex; align-items: stretch; gap: 8px; margin-top: 12px; }
+.redo-row button.act { flex: 1; position: relative; color: #fff; font-weight: 700; padding: 9px 6px; text-shadow: 0 1px 0 rgba(0,0,0,0.28); font-size: 13.5px; }
+.redo-row button.stat { background: linear-gradient(#64b5f6, #1e88e5); border-color: #1565c0; box-shadow: 0 3px 0 #1565c0; }
+.redo-row button.ability { background: linear-gradient(#ba68c8, #8e24aa); border-color: #6a1b9a; box-shadow: 0 3px 0 #6a1b9a; }
+.redo-row button:disabled { filter: saturate(0.3); opacity: 0.55; }
+.redo-row button.primary.inline { flex: none; }
+.redo-row .badge { position: absolute; top: -10px; right: -6px; min-width: 20px; height: 20px; padding: 0 3px; border-radius: 10px; background: #ff3b30; color: #fff; font-size: 12px; font-weight: 800; line-height: 1; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff; text-shadow: none; }
+.redo-row button.act { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.redo-row .redo-keep { font-size: 11px; font-weight: 600; opacity: 0.9; }
+
+/* 인원(왼쪽) · [보기 정렬](오른쪽 묶음, 사이 여백) (2026-11-28) */
+.roster-tools .rt-picks { display: flex; gap: 6px; margin-left: auto; min-width: 0; }
+.roster-tools .rt-picks select { max-width: none; margin-left: 0 !important; }
+.roster-tools:not(:has(.rt-lead)) .rt-picks { margin-left: 0; width: 100%; justify-content: space-between; }
+/* 인원: 지금 수만 굵게, "/ 100" 은 보통 (2026-11-28) */
+.roster-tools .rt-lead { font-weight: 400; color: var(--dim); }
+.roster-tools .rt-lead b { font-weight: 800; color: var(--text); }
+
+/* 특수능력 보충 설명: 괄호 대신 다음 줄에 작게 (2026-11-28) */
+.ab .ab-note { display: block; font-size: 11px; color: #a8875a; line-height: 1.35; margin-top: 1px; }
+.unit-detail .ab.big .ab-note, .change-diff .ab.big .ab-note { font-size: 12px; }
+
+/* 변경 확인 창도 캐릭 창과 같은 배치: 그림·이름 / 능력치 / 특수능력 / 안내 / 버튼 (2026-11-28) */
+.sheet-step { margin: 14px 0 4px; font-size: 15px; }
+.modal.sheet .chips.keep { margin-top: 4px; }
+.sheet-title { margin: 2px 40px 12px 0; font-size: 16px; }
+
+/* 탄 화면 제목 줄: 이 탄에서 딴 별 (2026-11-28) */
+.stats > span.stage-stars { letter-spacing: 1px; font-size: 15px; }
+.stage-stars i { font-style: normal; color: #d8ccb0; }
+.stage-stars i.on { color: #ffb300; text-shadow: 0 1px 0 #8d6e00; }
+
+/* 탄 동그라미 색 = 그 탄 최고 별 (2026-11-28): ★★★ 금 · ★★ 은 · ★ 동 · 안 깸/잠김 회색. 별 자체는 늘 금색 */
+.stage-map .node.cleared.g3 { background: radial-gradient(circle at 35% 30%, #fff8d6, #ffd54f 55%, #e0a100); color: #5a3d00; border-color: #a86f00; box-shadow: 0 4px 0 #8a5a00, 0 6px 10px rgba(0,0,0,0.25); text-shadow: 0 1px 0 rgba(255,255,255,0.6); }
+.stage-map .node.cleared.g2 { background: radial-gradient(circle at 35% 28%, #ffffff, #e6ecf0 45%, #9fb0bc); color: #37474f; border-color: #607d8b; box-shadow: 0 4px 0 #4f6370, 0 6px 10px rgba(0,0,0,0.25); text-shadow: 0 1px 0 rgba(255,255,255,0.8); }
+.stage-map .node.cleared.g1 { background: radial-gradient(circle at 35% 30%, #ffe0c2, #d8894a 55%, #a0582a); color: #fff; border-color: #6e3b17; box-shadow: 0 4px 0 #5e3212, 0 6px 10px rgba(0,0,0,0.25); text-shadow: 0 1px 0 rgba(0,0,0,0.35); }
+/* 안 깬 탄 · 잠긴 탄: 탁한 회색 (은색처럼 빛나지 않게) */
+.stage-map .node.locked { background: #9a9a96; color: #5f5f5b; border-color: #6d6d69; box-shadow: 0 3px 0 #555551; opacity: 0.9; }
+/* 지금 할 탄: 흰 바탕 + 초록 테두리 + 반짝임 (★★★ 금색과 안 헷갈리게) */
+.stage-map .node.current, .stage-map .node.boss.current { background: radial-gradient(circle at 35% 30%, #ffffff, #f1f8e9 60%, #c5e1a5); color: #2e7d32; border-color: #43a047; box-shadow: 0 4px 0 #2e7d32; animation: stage-pulse-g 1.4s infinite; text-shadow: none; }
+@keyframes stage-pulse-g { 0% { box-shadow: 0 4px 0 #2e7d32, 0 0 0 0 rgba(102,187,106,0.8); } 70% { box-shadow: 0 4px 0 #2e7d32, 0 0 0 14px rgba(102,187,106,0); } 100% { box-shadow: 0 4px 0 #2e7d32, 0 0 0 0 rgba(102,187,106,0); } }
+
+/* 상점 사기 버튼 (2026-11-28) */
+.shop-list button.buy { min-width: 76px; font-weight: 800; color: var(--gold-text); background: #fff7e0; border-color: #e0b84a; box-shadow: 0 2px 0 #e0b84a; white-space: nowrap; }
+.shop-list button.buy:disabled { color: var(--dim); background: #f3efe4; border-color: var(--line-dark); box-shadow: 0 2px 0 var(--line-dark); }
+.grade-pick button span { text-align: left; }
+
+/* 합성 계산 띠 (2026-11-28) */
+.mode-bar .merge-calc { flex: 1 1 100%; display: flex; flex-direction: column; gap: 2px; }
+.merge-calc .mc-what { font-size: 13px; }
+.merge-calc .mc-count { font-size: 17px; font-weight: 700; }
+.merge-calc .mc-count b { color: #2e7d32; font-size: 19px; }
+.merge-calc .mc-rem { color: #e65100; font-weight: 800; }
+.merge-calc .mc-ok { color: #2e7d32; font-weight: 900; }
+.merge-calc .mc-hint { font-size: 12px; color: var(--dim); }
+/* 고른 캐릭: 진한 초록 테두리 + 연두 바탕 + 얼굴에 ✓ */
+.face-wrap { position: relative; display: inline-flex; flex: none; }
+.sel-check { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; background: #43a047; color: #fff; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); z-index: 2; }
+.roster > li.sel { border: 2.5px solid #43a047 !important; background: #e3f4d7 !important; border-radius: 12px; box-shadow: 0 0 0 3px rgba(67,160,71,0.18); }
+/* 고른 캐릭끼리 붙지 않게 위아래 여백 (2026-11-28) */
+.roster > li.sel { margin: 4px 0; }

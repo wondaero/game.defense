@@ -10,6 +10,8 @@ import {
   type StatKey,
   type TicketKind,
   type Tickets,
+  MERGE_COST,
+  mergeRewards,
 } from './barracks.ts'
 import type { DefenseConfig } from './config.ts'
 import { parseMap } from './map.ts'
@@ -49,12 +51,28 @@ export type BarracksAction =
   | { type: 'draw' }
   | { type: 'rerollStats'; unitId: string; grade: StatGrade; keep: StatKey[] }
   | { type: 'rerollAbility'; unitId: string }
-  | { type: 'merge'; unitIds: string[] }
+  /** 합성: 만들 권(target)을 고르고 그 필요 인원의 배수만큼 (2026-11-28) */
+  | { type: 'merge'; unitIds: string[]; target: TicketKind }
+  /** 상점에서 골드로 권 사기 (2026-11-28) */
+  | { type: 'buy'; kind: TicketKind }
+
+/**
+ * 상점 값 (골드, 2026-11-28 *임시*). 합성 비율(능력치 보통 3명 · 뽑기 5명 · 상급 8명 · 특수능력 10명 · 최상급 12명)에 맞춰
+ * "캐릭 1명 몫 = 100 골드" 로 매김 → 50탄 처음 ★★★(120) 약 4번 = 뽑기권 1장
+ */
+export const SHOP_PRICES: Readonly<Record<TicketKind, number>> = {
+  statNormal: MERGE_COST.statNormal * 100,
+  draw: MERGE_COST.draw * 100,
+  statHigh: MERGE_COST.statHigh * 100,
+  ability: MERGE_COST.ability * 100,
+  statTop: MERGE_COST.statTop * 100,
+}
 
 export type BarracksOutcome =
   | { type: 'drawn'; unit: UnitInstance }
   | { type: 'changed'; before: UnitInstance; after: UnitInstance; used: TicketKind; gainedAbility: boolean }
-  | { type: 'merged'; count: number; reward: TicketKind }
+  | { type: 'merged'; count: number; target: TicketKind; rewards: TicketKind[] }
+  | { type: 'bought'; kind: TicketKind; price: number }
 
 export type Answer<T> = { ok: true; account: Account; value: T } | { ok: false; error: string }
 
@@ -97,15 +115,27 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
         value: { type: 'changed', before: u, after, used: 'ability', gainedAbility: false },
       }
     }
+    case 'buy': {
+      const price = SHOP_PRICES[action.kind]
+      if (price === undefined) return fail('파는 물건이 아니에요')
+      if ((acc.gold ?? 0) < price) return fail(`골드가 모자라요 (${price} 골드 필요)`)
+      return {
+        ok: true,
+        account: { ...acc, gold: acc.gold - price, tickets: { ...acc.tickets, [action.kind]: acc.tickets[action.kind] + 1 } },
+        value: { type: 'bought', kind: action.kind, price },
+      }
+    }
     case 'merge': {
       const ids = [...new Set(action.unitIds)]
       if (ids.some((id) => !unit(id))) return fail('없는 캐릭이 섞여 있어요')
-      const reward = mergeReward(rng, ids.length)
-      if (!reward) return fail('3·5·8·10·12명만 합성할 수 있어요')
+      const rewards = mergeRewards(rng, action.target, ids.length)
+      if (!rewards) return fail(`${TICKET_NAMES[action.target] ?? '권'}은 ${MERGE_COST[action.target] ?? '?'}명 단위로 합성해요`)
+      const tickets = { ...acc.tickets }
+      for (const k of rewards) tickets[k]++
       return {
         ok: true,
-        account: { ...acc, units: acc.units.filter((u) => !ids.includes(u.id)), tickets: { ...acc.tickets, [reward]: acc.tickets[reward] + 1 } },
-        value: { type: 'merged', count: ids.length, reward },
+        account: { ...acc, units: acc.units.filter((u) => !ids.includes(u.id)), tickets },
+        value: { type: 'merged', count: ids.length, target: action.target, rewards },
       }
     }
   }
@@ -126,16 +156,26 @@ export interface StageReport {
 }
 
 /**
- * 탄 보상 (2026-11-27, 수치 *임시*):
- * - 깨면 화폐. 처음 깬 탄은 화폐 2배 + 낮은 확률로 권 1장 (어느 탄이든 같은 확률)
- * - 이미 깼던 탄을 또 깨면 화폐만. 실패하면 없음
+ * 탄 보상 (2026-11-28 사용자 결정):
+ * - 골드 = 기본 × 별 배율(★★★ 100% · ★★ 80% · ★ 50% · 실패 5%)
+ * - 이미 깬 탄이면 그 1/10 (★★★ 다시 깸 10% · 실패 0.5%)
+ * - 기본 = 2 × (10 + 탄 번호) (*임시*, 예전 "처음 깸" 금액과 같게) → 50탄 처음 ★★★ 120
+ * - 처음 깬 탄은 + 낮은 확률로 권 1장 (어느 탄이든 같은 확률). 내림 (작은 탄의 실패는 0 일 수 있음)
  */
 export const CURRENCY_NAME = '골드'
-/** 다시 깰 때 화폐 */
-export const stageGold = (n: number) => 10 + n
-export const FIRST_CLEAR_GOLD_MUL = 2
-/** 처음 깬 탄에서 권이 나올 확률 (10%) */
-export const FIRST_CLEAR_TICKET_BP = 1000
+/** 기본 골드 = 처음 ★★★ 로 깼을 때 */
+export const stageBaseGold = (n: number) => 2 * (10 + n)
+/** 별 개수별 골드 배율 (basis point): [실패, ★, ★★, ★★★] */
+export const STAR_GOLD_BP: readonly number[] = [500, 5000, 8000, 10_000]
+/** 이미 깬 탄을 다시 할 때 나누는 수 */
+export const REPLAY_GOLD_DIV = 10
+/** 별 · 처음 여부에 따른 골드 (내림) */
+export const stageGold = (n: number, stars = 3, replay = false) =>
+  Math.floor((stageBaseGold(n) * STAR_GOLD_BP[Math.max(0, Math.min(3, stars))]!) / 10_000 / (replay ? REPLAY_GOLD_DIV : 1))
+/** 처음 깬 탄에서 권이 나올 확률 — 별 개수별 (basis point): [실패, ★ 5%, ★★ 10%, ★★★ 15%] (2026-11-28) */
+export const STAR_TICKET_BP: readonly number[] = [0, 500, 1000, 1500]
+/** 다시 깬 탄의 권 확률 = 처음의 1/이만큼 (2026-11-28) */
+export const REPLAY_TICKET_DIV = 10
 /** 권이 나오면 어떤 권인지 (합 10000) */
 export const FIRST_CLEAR_TICKET_TABLE: readonly (readonly [TicketKind, number])[] = [
   ['draw', 5000],
@@ -150,12 +190,13 @@ export interface StageReward {
   firstClear: boolean
 }
 
-function rollStageReward(acc: Account, n: number, cleared: boolean, rng: Rng): StageReward {
-  if (!cleared) return { gold: 0, ticket: null, firstClear: false }
-  const firstClear = !(acc.stars[n]! > 0)
-  if (!firstClear) return { gold: stageGold(n), ticket: null, firstClear }
+function rollStageReward(acc: Account, n: number, cleared: boolean, stars: number, rng: Rng): StageReward {
+  const replay = acc.stars[n]! > 0
+  if (!cleared) return { gold: stageGold(n, 0, replay), ticket: null, firstClear: false }
+  const firstClear = !replay
+  // 권: 별에 따라 처음 ★ 5% · ★★ 10% · ★★★ 15%, 다시 깬 탄은 1/10 — 어떤 권인지 비율은 같음 (2026-11-28)
   let ticket: TicketKind | null = null
-  if (rng.int(10_000) < FIRST_CLEAR_TICKET_BP) {
+  if (rng.int(firstClear ? 10_000 : 10_000 * REPLAY_TICKET_DIV) < STAR_TICKET_BP[Math.max(0, Math.min(3, stars))]!) {
     let r = rng.int(10_000)
     for (const [k, w] of FIRST_CLEAR_TICKET_TABLE) {
       if (r < w) {
@@ -165,7 +206,7 @@ function rollStageReward(acc: Account, n: number, cleared: boolean, rng: Rng): S
       r -= w
     }
   }
-  return { gold: stageGold(n) * FIRST_CLEAR_GOLD_MUL, ticket, firstClear }
+  return { gold: stageGold(n, stars, replay), ticket, firstClear }
 }
 
 export type StageJudgement = WaveResult & { bossLeaked: boolean; newBest: boolean; reward: StageReward }
@@ -188,7 +229,7 @@ export function judgeStage(cfg: DefenseConfig, acc: Account, rep: StageReport, r
   const sim = createWave(cfg, map, stage, acc.units, rep.placements, cfg.startLives, rep.seed)
   const r = runWave(sim)
   const n = rep.stageNo
-  const reward = rollStageReward(acc, n, r.cleared, rng)
+  const reward = rollStageReward(acc, n, r.cleared, r.stars, rng)
   const next: Account = r.cleared
     ? {
         ...acc,
@@ -197,6 +238,6 @@ export function judgeStage(cfg: DefenseConfig, acc: Account, rep: StageReport, r
         gold: (acc.gold ?? 0) + reward.gold,
         tickets: reward.ticket ? { ...acc.tickets, [reward.ticket]: acc.tickets[reward.ticket] + 1 } : acc.tickets,
       }
-    : acc
+    : { ...acc, gold: (acc.gold ?? 0) + reward.gold } // 실패도 조금 (위로금)
   return { ok: true, account: next, value: { ...r, bossLeaked: sim.bossLeaked, newBest: r.cleared && n > acc.best, reward } }
 }

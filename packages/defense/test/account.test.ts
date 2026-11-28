@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyBarracks,
+  SHOP_PRICES,
   createRngState,
   createWave,
   autoPlace,
@@ -26,8 +27,8 @@ describe('계정 (서버가 돌릴 규칙)', () => {
     const acc = { ...newAccount(units.slice(0, 5)), tickets: { draw: 0, statNormal: 0, statHigh: 0, statTop: 0, ability: 0 } }
     expect(applyBarracks(cfg, acc, { type: 'draw' }, rng()).ok).toBe(false)
     expect(applyBarracks(cfg, acc, { type: 'rerollAbility', unitId: 'u1' }, rng()).ok).toBe(false)
-    expect(applyBarracks(cfg, acc, { type: 'merge', unitIds: ['u1', 'u2'] }, rng()).ok).toBe(false)
-    expect(applyBarracks(cfg, acc, { type: 'merge', unitIds: ['u1', 'u2', 'nope'] }, rng()).ok).toBe(false)
+    expect(applyBarracks(cfg, acc, { type: 'merge', unitIds: ['u1', 'u2'], target: 'statNormal' }, rng()).ok).toBe(false)
+    expect(applyBarracks(cfg, acc, { type: 'merge', unitIds: ['u1', 'u2', 'nope'], target: 'statNormal' }, rng()).ok).toBe(false)
     const rich = { ...acc, tickets: { ...acc.tickets, statHigh: 1 } }
     expect(applyBarracks(cfg, rich, { type: 'rerollStats', unitId: 'u1', grade: 'statHigh', keep: [] }, rng()).ok).toBe(false) // 1개 골라야 함
     const ok = applyBarracks(cfg, rich, { type: 'rerollStats', unitId: 'u1', grade: 'statHigh', keep: ['atk'] }, rng())
@@ -38,13 +39,22 @@ describe('계정 (서버가 돌릴 규칙)', () => {
     const acc = newAccount(units.slice(0, 3))
     const d = applyBarracks(cfg, acc, { type: 'draw' }, rng())
     expect(d.ok && [d.account.units.length, d.account.tickets.draw, d.account.nextUnitId]).toEqual([4, 4, 5])
-    const m = applyBarracks(cfg, acc, { type: 'merge', unitIds: ['u1', 'u2', 'u3'] }, rng())
+    const m = applyBarracks(cfg, acc, { type: 'merge', unitIds: ['u1', 'u2', 'u3'], target: 'statNormal' }, rng())
     expect(m.ok && m.account.units.length).toBe(0)
+    // 만들 권을 고르고 배수만큼: 보통(3명) × 4 = 12명 → 4장, 배수가 아니면 거절
+    const twelve = newAccount(units.slice(0, 12))
+    const ids = twelve.units.map((u) => u.id)
+    const m4 = applyBarracks(cfg, twelve, { type: 'merge', unitIds: ids, target: 'statNormal' }, rng())
+    expect(m4.ok && m4.value.type === 'merged' && m4.value.rewards.length).toBe(4)
+    expect(m4.ok && m4.account.units.length).toBe(0)
+    expect(applyBarracks(cfg, twelve, { type: 'merge', unitIds: ids.slice(0, 7), target: 'statNormal' }, rng()).ok).toBe(false)
+    const d2 = applyBarracks(cfg, twelve, { type: 'merge', unitIds: ids.slice(0, 10), target: 'draw' }, rng())
+    expect(d2.ok && [d2.account.tickets.draw, d2.account.units.length]).toEqual([twelve.tickets.draw + 2, 2])
     const full = newAccount(units) // 100명
     expect(applyBarracks(cfg, full, { type: 'draw' }, rng()).ok).toBe(false)
   })
 
-  it('탄 보상: 처음 깨면 화폐 2배 + 가끔 권, 다시 깨면 화폐만, 실패면 없음', () => {
+  it('탄 보상: 권 확률은 별(★★★ 15% · ★★ 10% · ★ 5%), 다시 깨면 1/10', () => {
     const st = stageDef(1)
     const map = parseMap(MAP_DEFS.find((m) => m.id === st.mapId)!)
     const placements = autoPlace(cfg, map, units.slice(0, cfg.maxDeploy))
@@ -58,14 +68,26 @@ describe('계정 (서버가 돌릴 규칙)', () => {
       firstGold = j.value.reward.gold
       if (j.value.reward.ticket) tickets++
     }
-    expect(firstGold).toBe(stageGold(1) * 2)
-    expect(tickets).toBeGreaterThan(10) // 약 10%
-    expect(tickets).toBeLessThan(60)
+    expect(firstGold).toBe(stageGold(1, 3))
+    // 1탄은 ★★★ → 15% (300번 중 약 45)
+    expect(tickets).toBeGreaterThan(25)
+    expect(tickets).toBeLessThan(70)
     const again = { ...acc, best: 1, stars: { 1: 3 } }
-    for (let i = 0; i < 50; i++) {
+    let againTickets = 0
+    for (let i = 0; i < 3000; i++) {
       const j = judgeStage(cfg, again, { stageNo: 1, placements, seed: 7 }, new Rng(createRngState(i)))
-      expect(j.ok && [j.value.reward.gold, j.value.reward.ticket, j.account.gold]).toEqual([stageGold(1), null, stageGold(1)])
+      if (!j.ok) throw new Error()
+      expect(j.value.reward.gold).toBe(stageGold(1, 3, true))
+      if (j.value.reward.ticket) againTickets++
     }
+    // 다시 깬 탄 ★★★: 1.5% (3000번 중 약 45)
+    expect(againTickets).toBeGreaterThan(20)
+    expect(againTickets).toBeLessThan(75)
+  })
+
+  it('탄 보상 골드: 별 3·2·1·실패 = 100·80·50·5%, 이미 깬 탄은 1/10', () => {
+    expect([3, 2, 1, 0].map((k) => stageGold(50, k))).toEqual([120, 96, 60, 6])
+    expect([3, 2, 1, 0].map((k) => stageGold(50, k, true))).toEqual([12, 9, 6, 0])
   })
 
   it('탄 판정: 화면에서 한 칸씩 돌린 결과와 다시 돌린 결과가 같음, 열리지 않은 탄은 거절', () => {
@@ -86,5 +108,15 @@ describe('계정 (서버가 돌릴 규칙)', () => {
     expect(stageOpen(acc, 2)).toBe(false)
     expect(judgeStage(cfg, acc, { stageNo: 5, placements, seed }, rng()).ok).toBe(false)
     expect(judgeStage(cfg, acc, { stageNo: 1, placements: { nope: { x: 0, y: 0 } }, seed }, rng()).ok).toBe(false)
+  })
+})
+
+describe('상점 (2026-11-28)', () => {
+  it('골드로 권을 사고, 모자라면 거절', () => {
+    const acc = { ...newAccount([]), gold: 600 }
+    const r = applyBarracks(makeConfig(), acc, { type: 'buy', kind: 'draw' }, new Rng(createRngState(1)))
+    expect(r.ok && [r.account.gold, r.account.tickets.draw]).toEqual([600 - SHOP_PRICES.draw, acc.tickets.draw + 1])
+    const no = applyBarracks(makeConfig(), { ...acc, gold: 10 }, { type: 'buy', kind: 'statTop' }, new Rng(createRngState(1)))
+    expect(no.ok).toBe(false)
   })
 })

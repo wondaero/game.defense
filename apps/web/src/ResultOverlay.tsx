@@ -75,7 +75,7 @@ export function ResultOverlay(props: {
         {props.reward && props.reward.gold > 0 && (
           <div className="result-reward">
             <span>
-              💰 +{props.reward.gold} 골드{props.reward.firstClear ? ' (처음 깬 탄 2배)' : ''}
+              💰 +{props.reward.gold} 골드{props.reward.firstClear ? ' (처음 깬 탄)' : !cleared ? ' (도전 보상)' : ' (다시 깬 탄 1/10)'}
             </span>
             {props.reward.ticket && <span className="reward-ticket">🎉 {props.reward.ticket} +1!</span>}
           </div>

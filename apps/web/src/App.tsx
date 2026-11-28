@@ -9,6 +9,8 @@ import {
   MONSTER_ABILITIES,
   monsterAbilityDesc,
   parseMap,
+  SHOP_PRICES,
+  type TicketKind,
   baseStats,
   starsFor,
   REFERENCE_MAX_STAGE,
@@ -462,19 +464,7 @@ export function App() {
     const shown = viewRoster(cfg, roster, view)
     return (
       <div className={`app with-tabbar ${tab === 'stages' ? 'stages-view' : ''}`}>
-        {/* 스테이지 탭은 제목 줄 없이 지도만 (진행 상황 = 지도의 깬 탄·별). 최고 기록은 지도와 겹쳐서 빼고,
-            골드는 쓰는 곳(상점 제목 줄 · 막사 권 줄)에서만 보여 줌 (2026-11-28) */}
-        {tab !== 'stages' && (
-          <header>
-            <h1>{TAB_TITLES[tab]}</h1>
-            {tab === 'shop' && (
-              <div className="stats">
-                <span>💰 {account?.gold ?? 0} 골드</span>
-              </div>
-            )}
-          </header>
-        )}
-
+        {/* 제목 줄 없음 (2026-11-28): 지금 탭은 아래 메뉴가 알려 줌. 골드는 쓰는 곳(상점 탭 줄 · 막사)에서만 */}
         {/* 스테이지 (2026-11-28): 풀밭 지도가 화면을 가득 채움 (아래 메뉴·정보 알약은 그 위에 떠 있음).
             무한 버튼 대신 100탄 위로 지도가 이어짐: 무한 1, 무한 2 … (깬 탄 + 몇 개 미리 보기) */}
         {tab === 'stages' && <StageMap count={Math.max(LAST_NORMAL_STAGE, best + INFINITE_PREVIEW)} best={best} stars={account?.stars ?? {}} maxOpen={maxOpen} onOpen={openStage} bottomSpace={TABBAR_SPACE} />}
@@ -500,28 +490,49 @@ export function App() {
 
         {tab === 'shop' && (
           <section>
-            <div className="seg">
-              <button className={shopTab === 'shop' ? 'on' : ''} onClick={() => setShopTab('shop')}>
-                상점
-              </button>
-              <button className={shopTab === 'trade' ? 'on' : ''} onClick={() => setShopTab('trade')}>
-                거래소
-              </button>
+            <div className="shop-top">
+              <div className="seg">
+                <button className={shopTab === 'shop' ? 'on' : ''} onClick={() => setShopTab('shop')}>
+                  상점
+                </button>
+                <button className={shopTab === 'trade' ? 'on' : ''} onClick={() => setShopTab('trade')}>
+                  거래소
+                </button>
+              </div>
+              <span className="gold-pill">💰 {account?.gold ?? 0}</span>
             </div>
             {shopTab === 'shop' ? (
               <>
-                <p className="dim">게임과 거래 — 권·화폐를 사는 곳 (준비 중)</p>
+                <p className="dim">탄을 깨서 모은 골드로 권을 사요</p>
                 <ul className="shop-list">
-                  {SHOP_ITEMS.map((it) => (
-                    <li key={it.name}>
-                      <span className="big">{it.icon}</span>
-                      <div>
-                        <b>{it.name}</b>
-                        <div className="dim">{it.desc}</div>
-                      </div>
-                      <button disabled>준비 중</button>
-                    </li>
-                  ))}
+                  {SHOP_ITEMS.map((it) => {
+                    const price = SHOP_PRICES[it.kind]
+                    const gold = account?.gold ?? 0
+                    const have = account?.tickets[it.kind] ?? 0
+                    return (
+                      <li key={it.kind}>
+                        <span className="big">{it.icon}</span>
+                        <div>
+                          <b>{TICKET_NAMES[it.kind]}</b>
+                          <div className="dim">
+                            {it.desc} · 가진 것 {have}장
+                          </div>
+                        </div>
+                        <button
+                          className="buy"
+                          disabled={gold < price}
+                          onClick={() =>
+                            void api
+                              .barracks({ type: 'buy', kind: it.kind })
+                              .then(({ account: a }) => setAccount(a))
+                              .catch((e: unknown) => alert(e instanceof Error ? e.message : String(e)))
+                          }
+                        >
+                          💰 {price}
+                        </button>
+                      </li>
+                    )
+                  })}
                 </ul>
               </>
             ) : (
@@ -634,7 +645,21 @@ export function App() {
               ⏱ {(sim.tick / cfg.tickRate).toFixed(1)}초 · 남은 몬스터 {sim.spawns.length - sim.spawnIdx + sim.monsters.length}
             </span>
           )}
-          <span>🏆 {best ? stageName(best) : '없음'}</span>
+          {/* 이 탄에서 딴 별 (2026-11-28, 전체 최고 기록 대신) */}
+          {(() => {
+            const got = account?.stars?.[stageNo] ?? 0
+            return got > 0 ? (
+              <span className="stage-stars" title={`이 탄 최고 별 ${got}개`}>
+                {[1, 2, 3].map((k) => (
+                  <i key={k} className={k <= got ? 'on' : ''}>
+                    ★
+                  </i>
+                ))}
+              </span>
+            ) : (
+              <span>처음 도전</span>
+            )
+          })()}
         </div>
       </header>
 
@@ -731,7 +756,7 @@ export function App() {
             <h3>
               막사 ({roster.length}명) · 출전 {placedCount} / {cfg.maxDeploy}
             </h3>
-            <RosterTools view={view} onChange={setView} shown={viewRoster(cfg, roster, view).length} total={roster.length} />
+            <RosterTools view={view} onChange={setView} roster={roster} />
             <ul className="roster">
               {viewRoster(cfg, roster, view).map((u) => {
                 const placed = !!placements[u.id]
@@ -792,12 +817,13 @@ const BARRACKS_ACTIONS = [
   { icon: '✨', label: '특수능력 변경' },
   { icon: '🧪', label: '합성' },
 ]
-/** 상점 물건 (아직 준비 중, 값 미정) */
-const SHOP_ITEMS = [
-  { icon: '🎟️', name: '뽑기권', desc: '캐릭 1명 뽑기' },
-  { icon: '🔄', name: '능력치 변경권', desc: '보통 · 상급(1개 유지) · 최상급(2개 유지)' },
-  { icon: '✨', name: '특수능력 변경권', desc: '특수능력만 다시 (특수능력 있는 캐릭만)' },
-  { icon: '⏩', name: '4배속', desc: '나중에 유료가 될 수도 있음 (지금은 무료)' },
+/** 상점 물건 (값은 엔진 SHOP_PRICES, 2026-11-28 *임시*) */
+const SHOP_ITEMS: { kind: TicketKind; icon: string; desc: string }[] = [
+  { kind: 'statNormal', icon: '🔄', desc: '능력치 4개 모두 다시' },
+  { kind: 'draw', icon: '🎟️', desc: '캐릭 1명 뽑기' },
+  { kind: 'statHigh', icon: '🔄', desc: '1개 골라 유지, 나머지 다시' },
+  { kind: 'ability', icon: '✨', desc: '특수능력만 다시' },
+  { kind: 'statTop', icon: '🔄', desc: '2개 골라 유지, 나머지 다시' },
 ]
 
 function MonsterRow({ spec, count, cfg }: { spec: MonsterSpec; count: number; cfg: DefenseConfig }) {

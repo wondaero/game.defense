@@ -152,7 +152,8 @@ const TOOLS = {
   allAttack: { name: '수정구 지팡이 — 전체 공격', draw: (T) => path('M0,6 L7,-24', 'none', { stroke: T('#5d4037'), 'stroke-width': 3.5 }) + path('M3,-22 L11,-22', 'none', { stroke: T('#ffc107'), 'stroke-width': 3 }) + circ(8, -30, 7, T('#4fc3f7')) + circ(6, -32, 2.2, '#ffffff', { 'stroke-width': 0, opacity: 0.8 }) }, // 2026-11-27 마법봉과 헷갈리지 않게
   hawkeye: { name: '활 — 호크아이', draw: (T) => path('M-2,4 Q16,-14 -2,-34', 'none', { stroke: T('#8d6e63'), 'stroke-width': 3.5 }) + path('M-2,4 L-2,-34', 'none', { stroke: T('#eceff1'), 'stroke-width': 1.2 }) + path('M-6,-15 L20,-15 M16,-19 L21,-15 L16,-11', 'none', { stroke: T('#455a64'), 'stroke-width': 2 }) },
   hypnosis: { name: '최면 추 — 최면', draw: (T) => path('M2,4 L2,-30', 'none', { stroke: T('#8d6e63'), 'stroke-width': 2.5 }) + path('M2,-30 L14,-8', 'none', { stroke: T('#eceff1'), 'stroke-width': 1.5 }) + circ(15, -6, 6.5, T('#ab47bc')) + path('M15,-6 m-3.5,0 a3.5,3.5 0 1,1 3.5,3.5 a2,2 0 1,1 -2,-2', 'none', { stroke: T('#f3e5f5'), 'stroke-width': 1.5 }) },
-  frenzy: { name: '불꽃 — 광폭화', draw: (T) => path('M5,2 Q-6,-8 0,-20 Q2,-12 6,-14 Q4,-26 12,-34 Q12,-22 18,-16 Q22,-6 13,2 Z', T('#ff5722')) + path('M7,0 Q1,-6 5,-13 Q7,-8 10,-10 Q12,-4 9,0 Z', T('#ffeb3b'), { 'stroke-width': 1.5 }) },
+  // 불꽃은 팔과 같이 기울면 어색해서 각도 고정 (fixed, 2026-11-28)
+  frenzy: { name: '불꽃 — 광폭화', fixed: true, draw: (T) => path('M5,2 Q-6,-8 0,-20 Q2,-12 6,-14 Q4,-26 12,-34 Q12,-22 18,-16 Q22,-6 13,2 Z', T('#ff5722')) + path('M7,0 Q1,-6 5,-13 Q7,-8 10,-10 Q12,-4 9,0 Z', T('#ffeb3b'), { 'stroke-width': 1.5 }) },
   boostAll: { name: '황금 방패 — 전체 강화', draw: (T) => path('M-4,-30 L16,-30 Q17,-14 6,-4 Q-5,-14 -4,-30 Z', T('#ffc107')) + path('M6,-27 L6,-8 M-1,-21 L13,-21', 'none', { stroke: T('#fff8e1'), 'stroke-width': 2.5 }) },
   poison: { name: '독 병 — 맹독', draw: (T) => `<rect x="1" y="-20" width="6" height="7" rx="1.5" fill="${T('#d7ccc8')}" stroke="${OUT}" stroke-width="2"/>` + circ(4, -6, 8, T('#ab47bc')) + circ(1, -8, 1.8, '#ffffff', { 'stroke-width': 0, opacity: 0.7 }) + circ(7, -4, 1.3, '#f3e5f5', { 'stroke-width': 0 }) },
   // 2026-11-28 추가 (spec 13~16)
@@ -163,7 +164,11 @@ const TOOLS = {
 }
 
 /** 도구 한 장 (몸과 같은 포즈 → 같은 자리에 겹치면 손에 붙음) */
-const toolLayer = (kind, p) => posed(p, g(armRot(p), g('translate(67 77) scale(1.45)', TOOLS[kind].draw(tinter(p)))))
+/** fixed 도구(불꽃)는 팔 회전·몸 기울기를 따르지 않고 늘 대기 자세 각도 (들썩임은 따름) */
+const toolLayer = (kind, p) => {
+  const fixed = TOOLS[kind].fixed
+  return posed(fixed ? { ...p, lean: 0 } : p, g(fixed ? armRot({}) : armRot(p), g('translate(67 77) scale(1.45)', TOOLS[kind].draw(tinter(p)))))
+}
 
 const burst = (x, y, s = 1) => twinkle(x, y, 11 * s) + twinkle(x + 9 * s, y - 8 * s, 4 * s) // 2026-11-27 별 대신 반짝이
 const iceBlock = `<rect x="12" y="6" width="72" height="84" rx="12" fill="#b3e5fc" fill-opacity="0.5" stroke="#e1f5fe" stroke-width="3"/><path d="M22,20 L34,12 M24,32 L40,18 M70,70 L78,62" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>`

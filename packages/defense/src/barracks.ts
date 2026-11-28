@@ -65,6 +65,19 @@ export function rerollAbility(rng: Rng, u: UnitInstance): UnitInstance | null {
 export const MERGE_TABLE: Readonly<Record<number, TicketKind>> = { 3: 'statNormal', 5: 'draw', 8: 'statHigh', 10: 'ability', 12: 'statTop' }
 export const MERGE_COUNTS = [3, 5, 8, 10, 12] as const
 
+/**
+ * 합성 (2026-11-28 바꿈): 만들 권을 먼저 고르고 → 그 권의 필요 인원 배수만큼 넣으면 그 수만큼 받음.
+ * 예) 능력치 변경권(보통) 3명 몫 → 12명 넣으면 4장. 보통은 장마다 따로 1% 최상급 · 5% 상급 행운
+ */
+export const MERGE_COST: Readonly<Record<TicketKind, number>> = { statNormal: 3, draw: 5, statHigh: 8, ability: 10, statTop: 12 }
+
+/** target 권으로 count 명 합성 → 받는 권 목록. 배수가 아니면 null */
+export function mergeRewards(rng: Rng, target: TicketKind, count: number): TicketKind[] | null {
+  const cost = MERGE_COST[target]
+  if (!cost || count < cost || count % cost !== 0) return null
+  return Array.from({ length: count / cost }, () => (target === 'statNormal' ? mergeReward(rng, 3)! : target))
+}
+
 /** 3명 합성 = 능력치 변경권(보통), 단 1% 최상급 · 5% 상급이 대신 나옴 */
 export function mergeReward(rng: Rng, count: number): TicketKind | null {
   const base = MERGE_TABLE[count]
