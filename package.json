@@ -12,6 +12,7 @@
     "test": "vitest run",
     "typecheck": "tsc -p packages/defense && tsc -p apps/web",
     "sprites": "node scripts/sprites/build.mjs",
+    "icons": "node scripts/pwa-icons.mjs",
     "calibrate": "vite-node scripts/calibrate.ts",
     "maps": "node scripts/import-maps.mjs",
     "check-maps": "vite-node scripts/check-maps.ts",

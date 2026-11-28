@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Icon, ICON_NAMES, type IconName } from './Icon.tsx'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import {
   attackCellCount,
+  smartPlace,
   RESIST_POWER,
   STAT_TIERS,
   pierceLine,
@@ -39,10 +41,8 @@ import {
 } from '@def/defense'
 import { CELL_PX, draw, monsterScreenPos, monsterSprite, newAnimState, PAD, type Fx } from './draw.ts'
 import { loadSprites, motionDuration } from './sprites.ts'
-import { Bench } from './Bench.tsx'
-import { Codex } from './Codex.tsx'
 import { ResultOverlay } from './ResultOverlay.tsx'
-import { SpriteGallery } from './SpriteGallery.tsx'
+import { usePwa } from './pwa.ts'
 import { bgm, getSoundPrefs, setSoundPrefs, sfx, unlockAudio, type SoundPrefs } from './sound.ts'
 import { StageMap } from './StageMap.tsx'
 import { unitLook, stageName, stageTheme } from './format.ts'
@@ -50,6 +50,11 @@ import { RosterTools, splitDesc, UnitFace, UnitRow, viewRoster, type RosterView 
 import { Barracks } from './Barracks.tsx'
 import type { GameApi } from './api/api.ts'
 import { createLocalApi } from './api/localApi.ts'
+
+// 자주 안 쓰는 화면은 따로 받음 (2026-11-28 최적화): 성능 시험 · 스프라이트 모아 보기 · 도감 → 첫 화면이 가벼워짐
+const Bench = lazy(() => import('./Bench.tsx').then((m) => ({ default: m.Bench })))
+const Codex = lazy(() => import('./Codex.tsx').then((m) => ({ default: m.Codex })))
+const SpriteGallery = lazy(() => import('./SpriteGallery.tsx').then((m) => ({ default: m.SpriteGallery })))
 
 const MAPS = MAP_DEFS.map(parseMap)
 const mapById = (id: string) => MAPS.find((m) => m.id === id)!
@@ -132,6 +137,10 @@ export function App() {
   const [paused, setPaused] = useState(false)
   /** 진행 중 뒤로 가기를 눌렀을 때 묻는 창 (wasPaused = 창을 띄우기 전 일시정지였나) */
   const [askLeave, setAskLeave] = useState<{ wasPaused: boolean } | null>(null)
+  /** 배치 화면 "모두 빼기" 확인 창 */
+  const [askClear, setAskClear] = useState(false)
+  /** 배치 화면 "자동 배치" 확인 창 */
+  const [askAuto, setAskAuto] = useState(false)
   /** 배치 화면: 눌러 본 출연 몬스터 (2026-11-28) */
   const [monsterInfo, setMonsterInfo] = useState<{ spec: MonsterSpec; count: number } | null>(null)
   /** 화면 버튼으로 탄 고르기에 돌아가는 중 (history.back 뒤 popstate 에서 묻지 않고 이동) */
@@ -398,7 +407,7 @@ export function App() {
         if (result.cleared !== mine.cleared || result.stars !== mine.stars) console.warn('화면 결과와 판정이 다름', mine, result)
         show(result)
       })
-      .catch((e: unknown) => show(mine, ` · ⚠ 기록 안 됨: ${e instanceof Error ? e.message : String(e)}`))
+      .catch((e: unknown) => show(mine, ` · 기록 안 됨: ${e instanceof Error ? e.message : String(e)}`))
   }
 
   /**
@@ -592,7 +601,12 @@ export function App() {
   const sim = simRef.current
   const maxOpen = unlockAll ? Infinity : best + 1
 
-  if (screen === 'bench') return <Bench onBack={goSelect} />
+  if (screen === 'bench')
+    return (
+      <Suspense fallback={null}>
+        <Bench onBack={goSelect} />
+      </Suspense>
+    )
 
   // ── 첫 화면: 아래 고정 메뉴로 막사 · 스테이지 · 상점 (2026-11-27) ──
   if (screen === 'select') {
@@ -634,7 +648,9 @@ export function App() {
                   거래소
                 </button>
               </div>
-              <span className="gold-pill">💰 {account?.gold ?? 0}</span>
+              <span className="gold-pill">
+                <Icon name="coin" /> {account?.gold ?? 0}
+              </span>
             </div>
             {shopTab === 'shop' ? (
               <>
@@ -646,7 +662,9 @@ export function App() {
                     const have = account?.tickets[it.kind] ?? 0
                     return (
                       <li key={it.kind}>
-                        <span className="big">{it.icon}</span>
+                        <span className="big">
+                          <Icon name={it.icon} />
+                        </span>
                         <div>
                           <b>{TICKET_NAMES[it.kind]}</b>
                           <div className="dim">
@@ -663,7 +681,7 @@ export function App() {
                               .catch((e: unknown) => alert(e instanceof Error ? e.message : String(e)))
                           }
                         >
-                          💰 {price}
+                          <Icon name="coin" /> {price}
                         </button>
                       </li>
                     )
@@ -694,7 +712,9 @@ export function App() {
             <section>
               <h3>막사</h3>
               <div className="row">
-                <button onClick={() => void api.dev?.grantTickets(5).then(setAccount)}>🎟️ 티켓 모두 +5</button>
+                <button onClick={() => void api.dev?.grantTickets(5).then(setAccount)}>
+                  <Icon name="ticket" /> 티켓 모두 +5
+                </button>
                 <button
                   onClick={() =>
                     confirm('막사 캐릭을 모두 새로 뽑을까요? (배치도 지워짐)') &&
@@ -704,7 +724,7 @@ export function App() {
                     })
                   }
                 >
-                  🎲 막사 전체 다시 뽑기
+                  <Icon name="dice" /> 막사 전체 다시 뽑기
                 </button>
               </div>
             </section>
@@ -714,14 +734,16 @@ export function App() {
                 파일 없이 그 자리에서 만든 소리 (sound.ts). 효과음은 게임에서 맞을 때·처치·특수능력·통과·끝날 때 남
               </p>
               <div className="row sound-test">
-                <button onClick={() => (bgm.playing ? bgm.stop() : (unlockAudio(), bgm.start()))}>🎵 배경음 켜기/끄기</button>
+                <button onClick={() => (bgm.playing ? bgm.stop() : (unlockAudio(), bgm.start()))}>
+                  <Icon name="music" /> 배경음 켜기/끄기
+                </button>
                 <button
                   onClick={() => {
                     unlockAudio()
                     bgm.setTrack(bgm.track === 'town' ? 'peace' : bgm.track === 'peace' ? 'boss' : 'town')
                   }}
                 >
-                  🎶 곡 넘기기 (마을 → 게임 → 우두머리)
+                  <Icon name="notes" /> 곡 넘기기 (마을 → 게임 → 우두머리)
                 </button>
                 {(
                   [
@@ -744,7 +766,7 @@ export function App() {
                       play()
                     }}
                   >
-                    🔊 {name}
+                    <Icon name="speaker" /> {name}
                   </button>
                 ))}
               </div>
@@ -759,11 +781,24 @@ export function App() {
                     setScreen('bench')
                   }}
                 >
-                  🧪 그리기 성능 시험 (200개~)
+                  <Icon name="test" /> 그리기 성능 시험 (200개~)
                 </button>
-                <button onClick={() => setShowSprites((v) => !v)}>{showSprites ? '스프라이트 접기' : '🖼️ 스프라이트 모아 보기'}</button>
+                <button onClick={() => setShowSprites((v) => !v)}>{showSprites ? '스프라이트 접기' : <><Icon name="picture" /> 스프라이트 모아 보기</>}</button>
               </div>
-              {showSprites && <SpriteGallery />}
+              {showSprites && (
+                <Suspense fallback={<p className="dim">불러오는 중…</p>}>
+                  <SpriteGallery />
+                </Suspense>
+              )}
+              {/* 아이콘 모아 보기 (2026-11-28): 이모지 대신 그린 SVG 전부 */}
+              <div className="icon-gallery">
+                {ICON_NAMES.map((n) => (
+                  <span key={n}>
+                    <Icon name={n} size={32} />
+                    <small>{n}</small>
+                  </span>
+                ))}
+              </div>
             </section>
             <section>
               <h3>게임 설정</h3>
@@ -787,7 +822,7 @@ export function App() {
                   })
                 }
               >
-                🧹 모든 데이터 초기화
+                <Icon name="broom" /> 모든 데이터 초기화
               </button>
             </section>
           </>
@@ -796,7 +831,9 @@ export function App() {
         <nav className="tabbar">
           {VISIBLE_TABS.map((t) => (
             <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
-              <span className="big">{t.icon}</span>
+              <span className="big">
+                <Icon name={t.icon} />
+              </span>
               {t.label}
             </button>
           ))}
@@ -819,7 +856,8 @@ export function App() {
         </h1>
         {/* 오른쪽 묶음: 시간 · 별 (별이 맨 오른쪽 → 시간 자리수가 늘어도 별은 안 움직임, 2026-11-28) */}
         <div className="ph-right">
-          <span className="ph-time">⏱ {sim ? (sim.tick / cfg.tickRate).toFixed(1) : '0.0'}초</span>
+          <span className="ph-time">
+            <Icon name="timer" /> {sim ? (sim.tick / cfg.tickRate).toFixed(1) : '0.0'}초</span>
           {(() => {
             // 지금 별 = 3 − 통과 수 (결과 화면이면 받은 별)
             const now = screen === 'result' && result ? result.stars : Math.max(0, 3 - (sim ? sim.leaked : 0))
@@ -850,10 +888,64 @@ export function App() {
           onSelect={goSelect}
         />
       )}
+      {/* 자동 배치 확인 (2026-11-28) */}
+      {askAuto && (
+        <div className="modal-backdrop" onClick={() => setAskAuto(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">자동 배치할까요?</div>
+            <ul className="auto-explain">
+              <li>능력치 점수가 높은 캐릭 {cfg.maxDeploy}명을 골라요 (특수능력은 안 봐요)</li>
+              <li>길이 꺾이는 코너 자리부터 먼저 채우고, 그다음 공격 칸이 많은 자리에 놓아요</li>
+            </ul>
+            {placedCount > 0 && <p className="warn-line">지금 배치({placedCount}명)는 지워지고 새로 배치돼요</p>}
+            <div className="row pause-row">
+              <button onClick={() => setAskAuto(false)}>취소</button>
+              <button
+                className="primary inline"
+                onClick={() => {
+                  setPlacements(smartPlace(cfg, map, roster, {}))
+                  setSelectedId(null)
+                  setAskAuto(false)
+                }}
+              >
+                자동 배치
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 모두 빼기 확인 (2026-11-28): 확인만 하는 창이라 가운데 */}
+      {askClear && (
+        <div className="modal-backdrop" onClick={() => setAskClear(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">모두 뺄까요?</div>
+            <p>
+              출전한 캐릭 {placedCount}명을 판에서 모두 빼요
+              <br />
+              <span className="dim">이 맵의 배치가 지워져요</span>
+            </p>
+            <div className="row pause-row">
+              <button onClick={() => setAskClear(false)}>취소</button>
+              <button
+                className="danger"
+                onClick={() => {
+                  setPlacements({})
+                  setSelectedId(null)
+                  setAskClear(false)
+                }}
+              >
+                모두 빼기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {askLeave && (
         <div className="modal-backdrop">
           <div className="modal">
-            <div className="modal-title">⏸ 일시정지</div>
+            <div className="modal-title">
+              <Icon name="pause" /> 일시정지
+            </div>
             {/* 일시정지 창에서도 소리 켜기/끄기·크기 (2026-11-28, 설정과 같은 값) */}
             <SoundSettings compact />
             <p className="dim">스테이지로 가면 지금 하던 판은 사라져요</p>
@@ -893,7 +985,9 @@ export function App() {
           {screen === 'play' && (
             <div className="controls">
               {/* 일시정지 = 일시정지 창 (계속하기 · 스테이지로). 기기 뒤로 가기·Esc 도 같은 창 (2026-11-28) */}
-              <button onClick={askToLeave}>⏸ 일시정지</button>
+              <button onClick={askToLeave}>
+                <Icon name="pause" /> 일시정지
+              </button>
               {[1, 2, 4].map((s) => (
                 <button key={s} className={speed === s ? 'on' : ''} onClick={() => setSpeed(s)}>
                   {s}×
@@ -944,9 +1038,20 @@ export function App() {
           <section>
             {/* 판 바로 아래에 한 번 더 붙음: 출전 수·필터가 목록을 내려도 보이게 (2026-11-28) */}
             <div className="roster-head">
-              <h3>
-                막사 ({roster.length}명) · 출전 {placedCount} / {cfg.maxDeploy}
-              </h3>
+              <div className="roster-head-top">
+                <h3>
+                  막사 ({roster.length}명) · 출전 {placedCount} / {cfg.maxDeploy}
+                </h3>
+                {/* 자동 배치(기존 배치 지우고 새로, 능력치 점수 순 · 코너 먼저) · 모두 빼기 — 둘 다 확인 창 (2026-11-28) */}
+                <div className="place-tools">
+                  <button disabled={roster.length === 0} onClick={() => setAskAuto(true)}>
+                    자동 배치
+                  </button>
+                  <button disabled={placedCount === 0} onClick={() => setAskClear(true)}>
+                    모두 빼기
+                  </button>
+                </div>
+              </div>
               <RosterTools view={view} onChange={setView} roster={roster} />
             </div>
             {roster.length === 0 && (
@@ -1050,12 +1155,12 @@ const SHOW_DEV_MENU = /\/dev\/?$/.test(window.location.pathname)
 const TABBAR_SPACE = 80
 /** 지도에서 깬 탄 위로 미리 보여 주는 무한 탄 수 (잠긴 채) */
 const INFINITE_PREVIEW = 3
-const TABS: { id: Tab; icon: string; label: string }[] = [
-  { id: 'barracks', icon: '⛺', label: '막사' },
-  { id: 'stages', icon: '⚔️', label: '스테이지' },
-  { id: 'shop', icon: '🛒', label: '상점' },
-  { id: 'settings', icon: '⚙️', label: '설정' },
-  { id: 'dev', icon: '🛠', label: '개발자' },
+const TABS: { id: Tab; icon: IconName; label: string }[] = [
+  { id: 'barracks', icon: 'tent', label: '막사' },
+  { id: 'stages', icon: 'road', label: '스테이지' },
+  { id: 'shop', icon: 'cart', label: '상점' },
+  { id: 'settings', icon: 'gear', label: '설정' },
+  { id: 'dev', icon: 'wrench', label: '개발자' },
 ]
 const VISIBLE_TABS = TABS.filter((t) => t.id !== 'dev' || SHOW_DEV_MENU)
 const TAB_TITLES: Record<Tab, string> = { barracks: '막사', stages: '스테이지', shop: '상점', settings: '설정', dev: '개발자' }
@@ -1067,13 +1172,13 @@ const BARRACKS_ACTIONS = [
   { icon: '🧪', label: '합성' },
 ]
 /** 상점 물건 (값은 엔진 SHOP_PRICES, 2026-11-28 *임시*) */
-const SHOP_ITEMS: { kind: TicketKind; icon: string; desc: string }[] = [
-  { kind: 'statNormal', icon: '🔄', desc: '능력치 4개 모두 다시' },
-  { kind: 'draw', icon: '🎟️', desc: '캐릭 1명 뽑기' },
-  { kind: 'statHigh', icon: '🔄', desc: '1개 골라 유지, 나머지 다시' },
-  { kind: 'ability', icon: '✨', desc: '특수능력만 다시' },
-  { kind: 'statTop', icon: '🔄', desc: '2개 골라 유지, 나머지 다시' },
-  { kind: 'abilityGrant', icon: '🎁', desc: '특수능력 없는 캐릭에 하나 붙임' },
+const SHOP_ITEMS: { kind: TicketKind; icon: IconName; desc: string }[] = [
+  { kind: 'statNormal', icon: 'reroll', desc: '능력치 4개 모두 다시' },
+  { kind: 'draw', icon: 'ticket', desc: '캐릭 1명 뽑기' },
+  { kind: 'statHigh', icon: 'reroll', desc: '1개 골라 유지, 나머지 다시' },
+  { kind: 'ability', icon: 'sparkle', desc: '특수능력만 다시' },
+  { kind: 'statTop', icon: 'reroll', desc: '2개 골라 유지, 나머지 다시' },
+  { kind: 'abilityGrant', icon: 'gift', desc: '특수능력 없는 캐릭에 하나 붙임' },
 ]
 
 /**
@@ -1103,26 +1208,58 @@ function SettingsPage({ cfg }: { cfg: DefenseConfig }) {
           </button>
           <b>도감</b>
         </div>
-        <Codex />
+        <Suspense fallback={<p className="dim">불러오는 중…</p>}>
+          <Codex />
+        </Suspense>
       </>
     )
   return (
     <>
       <SoundSettings />
+      <InstallSection />
       <section className="settings-menu">
         <h3>정보</h3>
         <button onClick={() => setView('codex')}>
-          <span>📖 도감</span>
+          <span>
+            <Icon name="book" /> 도감
+          </span>
           <small className="dim">캐릭 특수능력 · 슬라임 능력</small>
           <i>›</i>
         </button>
         <button onClick={() => setView('guide')}>
-          <span>📘 능력 설명</span>
+          <span>
+            <Icon name="guide" /> 능력 설명
+          </span>
           <small className="dim">능력치 계산 · 등급</small>
           <i>›</i>
         </button>
       </section>
     </>
+  )
+}
+
+/** 앱 설치 (PWA, 2026-11-28): 이미 앱으로 열었으면 안 보임 */
+function InstallSection() {
+  const pwa = usePwa()
+  if (pwa.standalone) return null
+  return (
+    <section className="install-section">
+      <h3>앱으로 설치</h3>
+      {pwa.canInstall ? (
+        <>
+          <p className="dim">홈 화면에 아이콘이 생기고, 주소창 없이 꽉 찬 화면으로 열려요</p>
+          <button className="primary" onClick={() => void pwa.install()}>
+            <Icon name="install" /> 홈 화면에 설치
+          </button>
+        </>
+      ) : pwa.ios ? (
+        <p className="dim">
+          Safari 아래 <b>공유 버튼</b> → <b>홈 화면에 추가</b>를 누르면 앱처럼 쓸 수 있어요
+        </p>
+      ) : (
+        <p className="dim">브라우저 메뉴(⋮)의 <b>앱 설치</b> 또는 <b>홈 화면에 추가</b>로 설치할 수 있어요</p>
+      )}
+    </section>
   )
 }
 
@@ -1176,8 +1313,8 @@ function SoundSettings({ compact }: { compact?: boolean } = {}) {
     setP((cur) => ({ ...cur, ...next }))
   }
   const rows = [
-    { on: 'bgm', vol: 'bgmVol', icon: '🎵', name: '배경음' },
-    { on: 'sfx', vol: 'sfxVol', icon: '🔊', name: '효과음' },
+    { on: 'bgm', vol: 'bgmVol', icon: 'music', name: '배경음' },
+    { on: 'sfx', vol: 'sfxVol', icon: 'speaker', name: '효과음' },
   ] as const
   return (
     <section className={`sound-settings ${compact ? 'compact' : ''}`}>
@@ -1186,7 +1323,7 @@ function SoundSettings({ compact }: { compact?: boolean } = {}) {
         <div key={r.on} className={`sound-row ${p[r.on] ? '' : 'off'}`}>
           <div className="sound-line">
             <span className="sound-name">
-              {r.icon} {r.name}
+              <Icon name={r.icon} /> {r.name}
             </span>
             {/* 켜기/끄기 스위치 */}
             <button

@@ -1,3 +1,4 @@
+import { Icon } from './Icon.tsx'
 import { useEffect, useRef } from 'react'
 import { LAST_NORMAL_STAGE, STAGES_PER_MAP, stageMapId } from '@def/defense'
 import { chapterTheme, stageName, stageShort } from './format.ts'
@@ -14,6 +15,9 @@ const TOP = 56
 
 const nodeX = (i: number) => 50 + 30 * Math.sin(i * 0.8) // 가로 위치 (%)
 const nodeY = (i: number) => TOP + i * STEP
+
+/** 풀밭 꽃잎 색 (분홍·빨강·하양·보라·주황·하늘) */
+const FLOWER_COLORS = ['#ff8fb1', '#ff6b6b', '#ffffff', '#c792ea', '#ffb74d', '#81d4fa']
 
 /** 칸마다 고정된 무작위 (장식 위치) */
 const rand = (k: number) => {
@@ -67,6 +71,25 @@ export function StageMap(props: { count: number; best: number; stars: Record<num
           const left = nodeX(topPos) > 50
           return (
             <div key={c} className={`chapter ${chapterTheme(c)}`} style={{ top, height: bottom - top }}>
+              {/* 얼음 맵: 눈송이가 천천히 내림 (2026-11-28, CSS 애니메이션 · 위치·속도는 매번 같게) */}
+              {chapterTheme(c) === 'ice' && (
+                <span className="snow" aria-hidden>
+                  {Array.from({ length: 14 }, (_, k) => (
+                    <i
+                      key={k}
+                      style={{
+                        left: `${4 + rand(c * 31 + k) * 92}%`,
+                        animationDuration: `${5 + rand(c * 17 + k + 5) * 5}s`,
+                        animationDelay: `${-rand(c * 13 + k + 9) * 10}s`,
+                        fontSize: `${9 + Math.floor(rand(c * 7 + k + 3) * 9)}px`,
+                        ['--sway' as string]: `${(rand(c * 5 + k) - 0.5) * 40}px`,
+                      }}
+                    >
+                      {k % 3 === 0 ? '❄' : '•'}
+                    </i>
+                  ))}
+                </span>
+              )}
               <span className={`chapter-sign ${left ? 'left' : 'right'}`}>
                 {first > LAST_NORMAL_STAGE && <em className="inf">무한</em>}
                 맵 <b>{id.toUpperCase()}</b>
@@ -83,13 +106,30 @@ export function StageMap(props: { count: number; best: number; stars: Record<num
         </svg>
 
         {/* 풀밭 장식 (꽃·풀) */}
-        {Array.from({ length: Math.floor(count * 1.2) }, (_, k) => {
+        {Array.from({ length: Math.floor(count * 2) }, (_, k) => {
           // 장식이 놓인 자리의 탄 → 그 구간이 얼음이면 눈송이
           const y = rand(k + 999) * height
           const n = Math.min(count, Math.max(1, count - Math.round((y - TOP) / STEP)))
           const ice = chapterTheme(Math.floor((n - 1) / STAGES_PER_MAP)) === 'ice'
+          const xPct = 4 + rand(k) * 92
+          const left = `${xPct}%`
+          // 탄 동그라미·별 위에 겹치지 않게: 근처 탄 자리 가까우면 건너뜀 (2026-11-28)
+          if ([n - 1, n, n + 1].some((m) => m >= 1 && m <= count && Math.abs(nodeX(pos(m)) - xPct) < 16 && Math.abs(nodeY(pos(m)) - y) < 42)) return null
+          // 풀밭: 가끔(약 40%) 색 있는 꽃 — 꽃잎 5장 + 노란 꽃술 (2026-11-28)
+          if (!ice && rand(k + 333) < 0.4) {
+            const color = FLOWER_COLORS[Math.floor(rand(k + 444) * FLOWER_COLORS.length)]!
+            const size = 13 + Math.floor(rand(k + 555) * 7)
+            return (
+              <svg key={k} className="deco flower" viewBox="-10 -10 20 20" width={size} height={size} style={{ left, top: y, transform: `translate(-50%, -50%) rotate(${Math.floor(rand(k + 666) * 72)}deg)` }}>
+                {[0, 72, 144, 216, 288].map((r) => (
+                  <ellipse key={r} cx="0" cy="-4.6" rx="3.2" ry="4.4" transform={`rotate(${r})`} fill={color} stroke="rgba(63,49,35,0.45)" strokeWidth="0.8" />
+                ))}
+                <circle r="2.6" fill="#ffd54f" stroke="rgba(63,49,35,0.45)" strokeWidth="0.8" />
+              </svg>
+            )
+          }
           return (
-            <span key={k} className={`deco ${ice ? 'ice' : ''}`} style={{ left: `${4 + rand(k) * 92}%`, top: y }}>
+            <span key={k} className={`deco ${ice ? 'ice' : ''}`} style={{ left, top: y }}>
               {ice ? (rand(k + 77) < 0.5 ? '❄' : '✦') : rand(k + 77) < 0.35 ? '✿' : '❦'}
             </span>
           )
@@ -111,7 +151,11 @@ export function StageMap(props: { count: number; best: number; stars: Record<num
               onClick={() => onOpen(n)}
               title={boss ? `${stageName(n)} · 우두머리` : stageName(n)}
             >
-              {boss && <span className="crown">👑</span>}
+              {boss && <span className="crown">
+                  {/* 얼음 맵이면 얼음 왕관 */}
+                  <Icon name={chapterTheme(Math.floor((n - 1) / STAGES_PER_MAP)) === 'ice' ? 'iceCrown' : 'crown'} />
+                </span>}
+              {n === current && !cleared && !locked && <span className="go-tag">도전!</span>}
               <span className="num">{stageShort(n)}</span>
               {cleared && (
                 <span className="node-stars">
@@ -120,7 +164,9 @@ export function StageMap(props: { count: number; best: number; stars: Record<num
                   ))}
                 </span>
               )}
-              {locked && <span className="badge lock">🔒</span>}
+              {locked && <span className="badge lock">
+                  <Icon name="lock" />
+                </span>}
             </button>
           )
         })}

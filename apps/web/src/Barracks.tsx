@@ -1,3 +1,4 @@
+import { Icon, type IconName } from './Icon.tsx'
 import { useState, type ReactNode } from 'react'
 import {
   MERGE_COST,
@@ -51,7 +52,7 @@ const GRADE_SHORT: Record<StatGrade, string> = { statNormal: '보통', statHigh:
 /** 배지 숫자: 9999 까지 그대로, 넘으면 9999+ (2026-11-28) */
 const badgeText = (n: number) => (n > 9999 ? '9999+' : String(n))
 /** 권 아이콘 (합성 결과 창) */
-const TICKET_ICON: Record<TicketKind, string> = { draw: '🎟️', statNormal: '🔄', statHigh: '🔄', statTop: '🔄', ability: '✨', abilityGrant: '🎁' }
+const TICKET_ICON: Record<TicketKind, IconName> = { draw: 'ticket', statNormal: 'reroll', statHigh: 'reroll', statTop: 'reroll', ability: 'sparkle', abilityGrant: 'gift' }
 
 export function Barracks(props: {
   cfg: DefenseConfig
@@ -99,7 +100,7 @@ export function Barracks(props: {
 
   const doStat = async (grade: StatGrade, unit: UnitInstance, keep: StatKey[]) => {
     const o = await send({ type: 'rerollStats', unitId: unit.id, grade, keep })
-    if (o?.type === 'changed') setPopup({ kind: 'changed', title: `${TICKET_NAMES[grade]} 사용`, before: o.before, after: o.after, note: o.gainedAbility ? '✨ 특수능력이 생겼어요! (5% 행운)' : undefined, redo: { type: 'stat', grade, keep } })
+    if (o?.type === 'changed') setPopup({ kind: 'changed', title: `${TICKET_NAMES[grade]} 사용`, before: o.before, after: o.after, note: o.gainedAbility ? '특수능력이 생겼어요! (5% 행운)' : undefined, redo: { type: 'stat', grade, keep } })
     else setPopup(null)
   }
   const doAbility = async (unit: UnitInstance) => {
@@ -109,7 +110,7 @@ export function Barracks(props: {
   }
   const doGrant = async (unit: UnitInstance) => {
     const o = await send({ type: 'grantAbility', unitId: unit.id })
-    if (o?.type === 'changed') setPopup({ kind: 'changed', title: '특수능력 부여 티켓 사용', before: o.before, after: o.after, note: '🎁 특수능력이 생겼어요!', redo: { type: 'ability' } })
+    if (o?.type === 'changed') setPopup({ kind: 'changed', title: '특수능력 부여 티켓 사용', before: o.before, after: o.after, note: '특수능력이 생겼어요!', redo: { type: 'ability' } })
     else setPopup(null)
   }
   const doMerge = async (target: TicketKind, ids: string[]) => {
@@ -131,12 +132,16 @@ export function Barracks(props: {
         {/* 메인 버튼 2개 (2026-11-28): 캐릭 뽑기 · 합성. 능력치·특수능력 변경은 캐릭을 누르면 */}
         <div className="barracks-actions two">
           <button title="캐릭 뽑기" className={`act draw ${tickets.draw ? '' : 'empty'}`} onClick={() => void draw()} disabled={!!mode || busy}>
-            <span className="big">🎟️</span>
+            <span className="big">
+              <Icon name="ticket" />
+            </span>
             <span className="label">캐릭 뽑기</span>
             {tickets.draw > 0 && <b className="badge">{badgeText(tickets.draw)}</b>}
           </button>
           <button title="캐릭 합성" className={`act merge ${mode?.kind === 'merge' ? 'on' : ''}`} onClick={() => (mode?.kind === 'merge' ? setMode(null) : setPopup({ kind: 'mergePick' }))}>
-            <span className="big">🧪</span>
+            <span className="big">
+              <Icon name="flask" />
+            </span>
             <span className="label">합성</span>
           </button>
         </div>
@@ -147,7 +152,7 @@ export function Barracks(props: {
           return (
             <div className="ticket-line" title={full}>
               <span>
-                🔄{' '}
+                <Icon name="reroll" />{' '}
                 {grades.length ? (
                   grades.map((g, i) => (
                     <span key={g}>
@@ -162,11 +167,11 @@ export function Barracks(props: {
               {/* 한 줄 유지: 부여 티켓이 있으면 그림만 "✨ n · 🎁 n" (전체 이름은 title) */}
               {tickets.abilityGrant > 0 ? (
                 <span>
-                  ✨ <b>{tickets.ability}</b> · 🎁 <b>{tickets.abilityGrant}</b>
+                  <Icon name="sparkle" /> <b>{tickets.ability}</b> · <Icon name="gift" /> <b>{tickets.abilityGrant}</b>
                 </span>
               ) : (
                 <span>
-                  ✨ 특수능력 <b>{tickets.ability}</b>
+                  <Icon name="sparkle" /> 특수능력 <b>{tickets.ability}</b>
                 </span>
               )}
             </div>
@@ -215,7 +220,7 @@ export function Barracks(props: {
         {/* 인원 · 보기 · 정렬 한 줄 (2026-11-28, "막사 (n/100명)" 제목 줄 대신) */}
         <RosterTools view={props.view} onChange={props.onView} roster={units} lead={<><b>{units.length}</b> / {cfg.rosterSize}</>} />
       </div>
-      {units.length === 0 && <p className="empty-note">아직 캐릭이 없어요. 위 <b>🎟️ 캐릭 뽑기</b>로 첫 캐릭을 뽑아 보세요!</p>}
+      {units.length === 0 && <p className="empty-note">아직 캐릭이 없어요. 위 <b>캐릭 뽑기</b>로 첫 캐릭을 뽑아 보세요!</p>}
       <ul className="roster picking">
         {shown.map((u) => (
           <UnitRow key={u.id} u={u} cfg={cfg} selected={mergeIds.includes(u.id)} onClick={() => onUnitClick(u)} />
@@ -316,7 +321,7 @@ function UnitDetail({ u, cfg, keep }: { u: UnitInstance; cfg: DefenseConfig; kee
           <AbilityRolls ability={u.ability} />
         </div>
       ) : (
-        <p className="dim">특수능력 없음 — 🎁 부여 티켓으로 붙이거나, 능력치 변경 때 5% 확률로 생겨요</p>
+        <p className="dim">특수능력 없음 — 부여 티켓으로 붙이거나, 능력치 변경 때 5% 확률로 생겨요</p>
       )}
     </div>
   )
@@ -348,14 +353,16 @@ function BarracksPopup(props: {
       return (
         <Modal title="" onClose={onClose} sheet>
           <button className="sheet-close" aria-label="닫기" onClick={onClose}>
-            ✕
+            <Icon name="close" />
           </button>
           <UnitDetail u={u} cfg={cfg} />
           {/* 바로 쓰기 4개 (2026-11-28): 능력치 변경 보통·상급·최상급 · 특수능력 변경 — 등급 고르는 단계 없이 바로 */}
           <div className="ud-actions four">
             {STAT_GRADES.map((g) => (
               <button key={g} className="act stat" disabled={props.tickets[g] < 1} onClick={() => props.setPopup({ kind: 'statPick', grade: g, unit: u, keep: [] })}>
-                <span className="a-main">🔄 능력치 변경</span>
+                <span className="a-main">
+                  <Icon name="reroll" /> 능력치 변경
+                </span>
                 <span className="a-sub">
                   {GRADE_SHORT[g]}
                   {STAT_TICKET_KEEP[g] ? ` · ${STAT_TICKET_KEEP[g]}개 유지` : ' · 모두 다시'}
@@ -366,13 +373,17 @@ function BarracksPopup(props: {
             {/* 4번째 칸: 특수능력 있으면 "변경", 없으면 "부여" (2026-11-28) */}
             {u.ability ? (
               <button className="act ability" disabled={props.tickets.ability < 1} onClick={() => props.setPopup({ kind: 'abilityPick', unit: u })}>
-                <span className="a-main">✨ 특수능력 변경</span>
+                <span className="a-main">
+                  <Icon name="sparkle" /> 특수능력 변경
+                </span>
                 <span className="a-sub">종류·수치 다시</span>
                 {props.tickets.ability > 0 && <b className="badge">{badgeText(props.tickets.ability)}</b>}
               </button>
             ) : (
               <button className="act grant" disabled={props.tickets.abilityGrant < 1} onClick={() => props.setPopup({ kind: 'abilityPick', unit: u })}>
-                <span className="a-main">🎁 특수능력 부여</span>
+                <span className="a-main">
+                  <Icon name="gift" /> 특수능력 부여
+                </span>
                 <span className="a-sub">하나 붙이기</span>
                 {props.tickets.abilityGrant > 0 && <b className="badge">{badgeText(props.tickets.abilityGrant)}</b>}
               </button>
@@ -387,7 +398,7 @@ function BarracksPopup(props: {
       return (
         <Modal title="" onClose={onClose} sheet>
           <button className="sheet-close" aria-label="닫기" onClick={onClose}>
-            ✕
+            <Icon name="close" />
           </button>
           <UnitDetail u={u} cfg={cfg} />
           <h4 className="sheet-step">능력치 변경 티켓 — 어떤 걸 쓸까요?</h4>
@@ -427,7 +438,7 @@ function BarracksPopup(props: {
       return (
         <Modal title="" onClose={onClose} sheet>
           <button className="sheet-close" aria-label="닫기" onClick={onClose}>
-            ✕
+            <Icon name="close" />
           </button>
           <UnitDetail u={pp.unit} cfg={cfg} keep={need > 0 ? { picked: pp.keep, need, onToggle: toggle } : undefined} />
           <h4 className="sheet-step">{TICKET_NAMES[pp.grade]} 쓰기</h4>
@@ -451,7 +462,7 @@ function BarracksPopup(props: {
       return (
         <Modal title="" onClose={onClose} sheet>
           <button className="sheet-close" aria-label="닫기" onClick={onClose}>
-            ✕
+            <Icon name="close" />
           </button>
           <UnitDetail u={pp.unit} cfg={cfg} />
           {pp.unit.ability ? (
@@ -490,15 +501,19 @@ function BarracksPopup(props: {
       return (
         <Modal title="" onClose={onClose} sheet>
           <button className="sheet-close" aria-label="닫기" onClick={onClose}>
-            ✕
+            <Icon name="close" />
           </button>
           <h4 className="sheet-title">{pp.title}</h4>
           <ChangeDiff before={pp.before} after={pp.after} cfg={cfg} />
-          {pp.note && <p className="lucky">{pp.note}</p>}
+          {pp.note && (
+            <p className="lucky">
+              <Icon name="sparkle" /> {pp.note}
+            </p>
+          )}
           <div className="redo-row">
             <button className={`act ${r.type === 'stat' ? 'stat' : 'ability'}`} disabled={left < 1} onClick={redo}>
               <span>
-                {r.type === 'stat' ? '🔄' : '✨'} {left < 1 ? '변경 티켓 없음' : '다시 바꾸기'}
+                <Icon name={r.type === 'stat' ? 'reroll' : 'sparkle'} /> {left < 1 ? '변경 티켓 없음' : '다시 바꾸기'}
               </span>
               {left > 0 && keepText && <small className="redo-keep">{keepText}</small>}
               {left > 0 && <b className="badge">{badgeText(left)}</b>}
@@ -515,7 +530,7 @@ function BarracksPopup(props: {
       return (
         <Modal title="" onClose={onClose} sheet>
           <button className="sheet-close" aria-label="닫기" onClick={onClose}>
-            ✕
+            <Icon name="close" />
           </button>
           <h4 className="sheet-title">무엇을 만들까요?</h4>
           <p className="dim" style={{ margin: '0 0 8px' }}>
@@ -524,7 +539,9 @@ function BarracksPopup(props: {
           <div className="grade-pick merge-pick">
             {(['statNormal', 'draw', 'statHigh', 'ability', 'statTop', 'abilityGrant'] as TicketKind[]).map((k) => (
               <button key={k} disabled={props.units.length < MERGE_COST[k]} onClick={() => props.onMergeTarget(k)}>
-                <b>{TICKET_ICON[k]}</b>
+                <b>
+                  <Icon name={TICKET_ICON[k]} />
+                </b>
                 <span>
                   {TICKET_NAMES[k]}
                   {k === 'statNormal' && <small className="dim merge-note">가끔 1%{'\u00a0'}최상급 · 5%{'\u00a0'}상급</small>}
@@ -548,7 +565,8 @@ function BarracksPopup(props: {
             </b>
             {pp.target === 'statNormal' && <span className="dim"> (장마다 1% 최상급 · 5% 상급)</span>}
           </p>
-          {precious.length > 0 && <p className="warn">⚠ 좋은 캐릭 {precious.length}명이 들어 있어요 (파랑 이상이거나 특수능력 있음). 합성하면 사라져요</p>}
+          {precious.length > 0 && <p className="warn">
+              <Icon name="warn" /> 좋은 캐릭 {precious.length}명이 들어 있어요 (파랑 이상이거나 특수능력 있음). 합성하면 사라져요</p>}
           <ul className="roster small">
             {list.map((u) => (
               <UnitRow key={u.id} u={u} cfg={cfg} />
@@ -572,10 +590,11 @@ function BarracksPopup(props: {
         <Modal title="합성 완료" onClose={onClose}>
           {[...got].map(([k, c]) => (
             <p key={k} className="big-reward">
-              {TICKET_ICON[k]} {TICKET_NAMES[k]} +{c}
+              <Icon name={TICKET_ICON[k]} /> {TICKET_NAMES[k]} +{c}
             </p>
           ))}
-          {lucky > 0 && <p className="lucky">✨ 행운! {lucky}장이 보통 대신 상급 이상으로 나왔어요</p>}
+          {lucky > 0 && <p className="lucky">
+              <Icon name="sparkle" /> 행운! {lucky}장이 보통 대신 상급 이상으로 나왔어요</p>}
           <div className="row end">
             <button className="primary inline" onClick={onClose}>
               확인

@@ -31,3 +31,27 @@ describe('관통 줄', () => {
     expect(pierceLine(map, { x: 6, y: 1 }, { x: 4, y: 0 })).toEqual([{ x: 4, y: 0 }])
   })
 })
+
+import { makeConfig, MAP_DEFS, parseMap, rollRoster, createRngState, smartPlace, pathCorners, statScore } from '../src/index.ts'
+describe('스마트 배치', () => {
+  const cfg = makeConfig()
+  const map = parseMap(MAP_DEFS[0]!)
+  const roster = rollRoster(cfg, createRngState('스마트')).units
+  it('능력치 점수 높은 10명 · 겹치지 않음 · 같은 입력이면 같은 결과', () => {
+    const p = smartPlace(cfg, map, roster)
+    const ids = Object.keys(p)
+    expect(ids.length).toBe(cfg.maxDeploy)
+    expect(new Set(Object.values(p).map((c) => `${c!.x},${c!.y}`)).size).toBe(ids.length)
+    const top = [...roster].sort((a, b) => statScore(cfg, { ...b, ability: null }) - statScore(cfg, { ...a, ability: null }))[0]!
+    expect(ids).toContain(top.id)
+    expect(smartPlace(cfg, map, roster)).toEqual(p)
+    expect(pathCorners(map).length).toBeGreaterThan(0)
+  })
+  it('이미 놓은 캐릭은 그대로, 빈 자리만', () => {
+    const first = smartPlace(cfg, map, roster)
+    const [id, cell] = Object.entries(first)[0]!
+    const p = smartPlace(cfg, map, roster, { [id]: cell! })
+    expect(p[id]).toEqual(cell)
+    expect(Object.keys(p).length).toBe(cfg.maxDeploy)
+  })
+})

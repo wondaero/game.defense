@@ -888,3 +888,110 @@ input.vol:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(76,17
 
 /* 일시정지 창 안 소리 설정 (2026-11-28): 카드 테두리 없이 */
 .sound-settings.compact { background: #f6efdc; border: none; box-shadow: none; padding: 4px 12px; margin: 10px 0 8px; text-align: left; border-radius: 12px; }
+.settings-menu button + button { margin-top: 8px; }
+
+/* PWA (2026-11-28): 새 버전 띠 · 설치 칸 */
+.update-banner { position: fixed; top: calc(8px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 80; display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 14px; border-radius: 999px; background: #fffdf5; border: 1.5px solid var(--line); box-shadow: 0 4px 14px rgba(0,0,0,0.2); white-space: nowrap; font-weight: 700; font-size: 13.5px; max-width: calc(100vw - 16px); }
+.update-banner button.link { font-size: 13px; color: var(--dim); }
+.app.with-tabbar > section.install-section { margin-top: 12px; }
+.install-section p { margin: 0 0 8px; }
+.install-section button.primary { margin-top: 0; }
+
+/* 배치 화면: 자동 배치 · 모두 빼기 (2026-11-28) */
+.roster-head-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
+.roster-head-top h3 { margin: 0; }
+.place-tools { display: flex; gap: 6px; margin-left: auto; }
+.place-tools button { padding: 4px 10px; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+.place-tools button:first-child:not(:disabled) { background: #e8f5e0; border-color: #66bb6a; box-shadow: 0 2px 0 #66bb6a; color: #2e7d32; }
+.roster-head .roster-head-top + .roster-tools { margin-top: 8px; }
+
+/* 얼음 맵 눈 내림 (2026-11-28) */
+.chapter .snow { position: absolute; inset: 14px 16px; overflow: hidden; pointer-events: none; border-radius: 30px; container-type: size; z-index: 0; }
+.chapter .snow i { position: absolute; top: -16px; font-style: normal; color: #ffffff; text-shadow: 0 0 2px #7fb3d5, 0 0 4px rgba(120,170,210,0.9); opacity: 0.9; animation-name: snow-fall; animation-timing-function: linear; animation-iteration-count: infinite; }
+@keyframes snow-fall {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(var(--sway), 50cqh) rotate(180deg); }
+  100% { transform: translate(0, calc(100cqh + 24px)) rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) { .chapter .snow { display: none; } }
+/* 잠긴 탄 동그라미: 투명도 빼서 뒤 길이 비치지 않게 (2026-11-28) */
+.stage-map .node:disabled, .stage-map .node.locked { opacity: 1; }
+
+/* SVG 아이콘 (2026-11-28, 이모지 대신) */
+svg.icon { display: inline-block; vertical-align: -0.2em; flex: none; overflow: visible; }
+.tabbar .big svg.icon, .barracks-actions .big svg.icon { width: 1.25em; height: 1.25em; }
+.icon-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; margin-top: 10px; }
+.icon-gallery span { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px; border-radius: 10px; background: #f6efdc; }
+.icon-gallery small { font-size: 10.5px; color: var(--dim); }
+.sheet-close svg.icon { width: 16px; height: 16px; vertical-align: middle; }
+
+/* 자동 배치 확인 창 */
+.auto-explain { text-align: left; margin: 6px 0 8px; padding-left: 18px; font-size: 13.5px; line-height: 1.5; }
+.auto-explain li + li { margin-top: 3px; }
+.warn-line { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: #d84315; }
+
+/* 얼음 맵 표지판 = 얼음 덩어리 (2026-11-28): 반투명 하늘색 + 흰 윗면 광택 + 위에 쌓인 눈 + 아래 고드름 */
+.chapter.ice .chapter-sign {
+  background: linear-gradient(160deg, rgba(255,255,255,0.95) 0%, #d6efff 35%, #9fd3f2 100%);
+  color: #1e5a86;
+  border: 2px solid #5fa7d6;
+  border-radius: 10px 14px 9px 12px;
+  box-shadow: 0 2px 0 #4a8fbd, inset 0 1px 0 #fff, inset -3px -3px 6px rgba(74,143,189,0.25);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.8);
+}
+.chapter.ice .chapter-sign small { opacity: 0.9; }
+/* 사선 흰 빛 두 줄 = 반짝 (2026-11-28 사용자: 눈·고드름 빼고 반짝임만) */
+.chapter.ice .chapter-sign { overflow: hidden; }
+.chapter.ice .chapter-sign::before {
+  content: ''; position: absolute; inset: -20%; pointer-events: none;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.85) 36%, transparent 42%, transparent 50%, rgba(255,255,255,0.6) 53%, transparent 56%);
+  animation: ice-shine 3.2s ease-in-out infinite;
+}
+@keyframes ice-shine { 0%, 55% { transform: translateX(-60%); } 100% { transform: translateX(60%); } }
+@media (prefers-reduced-motion: reduce) { .chapter.ice .chapter-sign::before { animation: none; transform: none; } }
+.stage-map svg.deco.flower { color: initial; overflow: visible; filter: drop-shadow(0 1px 0 rgba(0,0,0,0.15)); }
+
+/* 탄 표시 = 둥근 네모 (2026-11-28, 동그라미 대신) — 판의 칸·버튼과 같은 모양, 세 자리(∞12)도 넉넉 */
+.stage-map .node { border-radius: 14px; }
+.stage-map .node.boss { border-radius: 16px; }
+/* 탄 별: 네모 안 아래 가운데 (2026-11-28). 금색 네모와 겹쳐도 보이게 진한 밤색 알약 위에 */
+.stage-map .node-stars { top: auto; bottom: 3px; left: 50%; transform: translateX(-50%); flex-direction: row; gap: 0; font-size: 9px; line-height: 1; padding: 1px 3px 2px; border-radius: 6px; background: rgba(63,49,35,0.72); box-shadow: inset 0 1px 0 rgba(255,255,255,0.15); }
+.stage-map .node-stars i { color: rgba(255,255,255,0.28); text-shadow: none; }
+.stage-map .node-stars i.on { color: #ffd54f; text-shadow: 0 0 3px rgba(255,213,79,0.7); }
+.stage-map .node.cleared .num { transform: translateY(-5px); }
+.stage-map .node.boss .node-stars { font-size: 10.5px; bottom: 4px; }
+.stage-map .node.boss.cleared .num { transform: translateY(-6px); }
+
+/* 숫자 + 별을 한 묶음으로 세로 가운데 (2026-11-28) */
+.stage-map .node.cleared { flex-direction: column; gap: 3px; }
+.stage-map .node.cleared .num, .stage-map .node.boss.cleared .num { transform: none; line-height: 1; }
+.stage-map .node.cleared .node-stars, .stage-map .node.boss.cleared .node-stars { position: static; transform: none; bottom: auto; left: auto; }
+
+/* 지금 도전할 탄 (2026-11-28): 진한 초록 + 흰 숫자 + 크게 + 위에 "도전!" 깃발 + 빛이 퍼지는 고리 */
+.stage-map .node.current, .stage-map .node.boss.current {
+  width: 54px; height: 54px; font-size: 19px;
+  background: linear-gradient(180deg, #8be26a 0%, #4cb33a 55%, #2e8b2a 100%);
+  color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,0.3);
+  border: 3px solid #fff; border-radius: 16px;
+  box-shadow: 0 0 0 3px #2e7d32, 0 5px 0 3px #1b5e20, 0 8px 14px rgba(0,0,0,0.3);
+  animation: stage-go 1.6s ease-in-out infinite;
+  z-index: 3;
+}
+.stage-map .node.boss.current { width: 60px; height: 60px; }
+@keyframes stage-go {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.07); }
+}
+.stage-map .node.current::after {
+  content: ''; position: absolute; inset: -6px; border-radius: 20px; border: 3px solid rgba(139,226,106,0.9);
+  animation: stage-ring 1.6s ease-out infinite; pointer-events: none;
+}
+@keyframes stage-ring { 0% { opacity: 0.9; transform: scale(0.9); } 100% { opacity: 0; transform: scale(1.35); } }
+.stage-map .go-tag {
+  position: absolute; top: -21px; left: 50%; transform: translateX(-50%);
+  padding: 1px 7px 2px; border-radius: 8px; font-size: 11px; font-weight: 900; color: #fff; white-space: nowrap;
+  background: #ff7043; border: 2px solid #fff; box-shadow: 0 2px 0 #bf360c; text-shadow: 0 1px 0 rgba(0,0,0,0.25);
+}
+.stage-map .go-tag::after { content: ''; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); border: 4px solid transparent; border-top-color: #ff7043; }
+.stage-map .node.boss.current .go-tag { top: -38px; }
+@media (prefers-reduced-motion: reduce) { .stage-map .node.current, .stage-map .node.current::after { animation: none; } }
