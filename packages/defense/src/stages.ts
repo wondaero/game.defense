@@ -130,9 +130,9 @@ export const MONSTER_ABILITIES: Readonly<Record<MonsterAbilityKind, MonsterAbili
   // 8. 10% 확률로 때린 캐릭 5초간 공속·명중률 절반 / 쿨 20초
   weaken: { name: '약화', icon: '↓', chanceBp: 1000, cooldownMs: 20_000, durationMs: 5000, uses: 0 },
   // 9. (예전) 맞으면 3초간 방어력 + / 쿨 10초
-  armorUp: { name: '단단해지기', icon: '🛡', chanceBp: 10_000, cooldownMs: 10_000, durationMs: 3000, uses: 0 },
+  armorUp: { name: '단단해지기', icon: '◆', chanceBp: 10_000, cooldownMs: 10_000, durationMs: 3000, uses: 0 },
   // 10. 20% 확률로 때린 캐릭 3초 봉인(특수능력 발동 안 됨 · 강화 효과도 꺼짐) / 쿨 10초 (2026-11-27)
-  seal: { name: '봉인', icon: '⛓', chanceBp: 2000, cooldownMs: 10_000, durationMs: 3000, uses: 0 },
+  seal: { name: '봉인', icon: '⊘', chanceBp: 2000, cooldownMs: 10_000, durationMs: 3000, uses: 0 },
   // 11. 때린 캐릭 민첩을 3초간 1로 만들고 뺏은 만큼 자기 민첩에 더함 / 쿨 10초 (2026-11-28, spec 20% → 추천대로 10%, 민첩으로 피함)
   agiSteal: { name: '민첩 빼앗기', icon: '⇄', chanceBp: 1000, cooldownMs: 10_000, durationMs: 3000, uses: 0 },
   // 12. 1초 동안 받는 피해를 모두 체력으로 (최대 체력까지) / 쿨 10초

@@ -1,3 +1,4 @@
+import { FONT } from './format.ts'
 import { positionAt, type GameMap } from '@def/defense'
 import type { StageTheme } from './format.ts'
 
@@ -193,7 +194,7 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
   const portal = (c: { x: number; y: number }, text: string) => {
     const px = (c.x + 0.5) * cell
     const py = (c.y + 0.5) * cell
-    ctx.font = `bold ${Math.round(cell * 0.2)}px sans-serif`
+    ctx.font = `bold ${Math.round(cell * 0.2)}px ${FONT}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     // 글자는 굴 위에, 맨 윗줄이면 판 밖으로 잘리니 아래에
@@ -230,7 +231,7 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
     // 깃발은 판 밖으로 나갈 수 있어 draw.ts 에서 그림 (drawFinishFlag)
     // "도착" 글자 (배치 중에만)
     if (mode === 'prepare') {
-    ctx.font = `bold ${Math.round(cell * 0.2)}px sans-serif`
+    ctx.font = `bold ${Math.round(cell * 0.2)}px ${FONT}`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     // 체크무늬 가운데 어두운 띠 위에 (깃발과 안 겹치게)

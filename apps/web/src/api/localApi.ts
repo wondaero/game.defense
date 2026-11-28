@@ -9,7 +9,7 @@ import {
   type Answer,
   type DefenseConfig,
 } from '@def/defense'
-import { ApiError, type GameApi } from './api.ts'
+import { ApiError, type DevSnapshot, type GameApi } from './api.ts'
 
 /**
  * 시험판 창구: 서버 대신 브라우저 안에서 엔진(account.ts)을 돌리고 localStorage 에 저장.
@@ -23,6 +23,19 @@ const freshRng = () => new Rng(createRngState(crypto.getRandomValues(new Uint32A
 
 /** 시험용 막사: 씨앗으로 rosterSize 명을 뽑음 — 개발자 탭 "막사 다시 뽑기" 에서만 씀 (처음 계정은 빈 막사) */
 export const testUnits = (cfg: DefenseConfig, seed: string) => rollRoster(cfg, createRngState(seed)).units
+
+/** 개발자 상태 저장 슬롯 (2026-11-28): 계정 + 화면 저장(맵별 배치)을 문자열 그대로 보관, 최대 SNAP_MAX 개 */
+const SAVE_KEY = 'defense.save.v1'
+const SNAP_KEY = 'defense.devSnapshots.v1'
+const SNAP_MAX = 10
+type StoredSnap = DevSnapshot & { data: { account: string | null; save: string | null } }
+function readSnaps(): StoredSnap[] {
+  try {
+    return JSON.parse(localStorage.getItem(SNAP_KEY) ?? '[]') as StoredSnap[]
+  } catch {
+    return []
+  }
+}
 
 export function createLocalApi(getCfg: () => DefenseConfig, getUnlockAll: () => boolean): GameApi {
   const read = (): Account => {
@@ -97,6 +110,36 @@ export function createLocalApi(getCfg: () => DefenseConfig, getUnlockAll: () => 
         write(next)
         runs.clear()
         return next
+      },
+      snapshots() {
+        return readSnaps().map(({ data: _d, ...meta }) => meta)
+      },
+      saveSnapshot(name) {
+        const a = read()
+        const snap = {
+          id: `${Date.now()}`,
+          name,
+          at: new Date().toISOString(),
+          summary: { units: a.units.length, best: a.best, gold: a.gold ?? 0, tickets: Object.values(a.tickets).reduce((n, v) => n + v, 0) },
+          data: { account: localStorage.getItem(ACCOUNT_KEY), save: localStorage.getItem(SAVE_KEY) },
+        }
+        const list = [snap, ...readSnaps()].slice(0, SNAP_MAX)
+        localStorage.setItem(SNAP_KEY, JSON.stringify(list))
+        return list.map(({ data: _d, ...meta }) => meta)
+      },
+      loadSnapshot(id) {
+        const s = readSnaps().find((x) => x.id === id)
+        if (!s) throw new ApiError('없는 저장이에요')
+        if (s.data.account) localStorage.setItem(ACCOUNT_KEY, s.data.account)
+        else localStorage.removeItem(ACCOUNT_KEY)
+        if (s.data.save) localStorage.setItem(SAVE_KEY, s.data.save)
+        else localStorage.removeItem(SAVE_KEY)
+        runs.clear()
+      },
+      deleteSnapshot(id) {
+        const list = readSnaps().filter((x) => x.id !== id)
+        localStorage.setItem(SNAP_KEY, JSON.stringify(list))
+        return list.map(({ data: _d, ...meta }) => meta)
       },
       async setBest(best) {
         const next = { ...read(), best }

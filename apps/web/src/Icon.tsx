@@ -1,3 +1,5 @@
+import { MONSTER_ABILITIES, type MonsterAbilityKind } from '@def/defense'
+import { MON_AB_COLOR } from './format.ts'
 /**
  * 아이콘 (2026-11-28): 이모지 대신 직접 그린 SVG — 기기마다 모양이 달라지지 않고 게임 그림체(굵은 갈색 외곽선 + 납작한 색)와 맞춤.
  * 쓰는 법: <Icon name="tent" /> — 크기는 글자 크기(1em)를 따름. 개발자 탭 "아이콘 모아 보기"에서 전부 확인
@@ -230,6 +232,8 @@ const ICONS = {
       <path d="M5.5 17 H18.5" stroke="#9fd3f2" strokeWidth={1.4} />
     </>
   ),
+  /** 뒤로 (꺾쇠) */
+  back: () => <path d="M15 5 L8 12 L15 19" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />,
   /** 닫기 */
   close: () => <path d="M6 6 L18 18 M18 6 L6 18" stroke={O} strokeWidth={2.4} strokeLinecap="round" />,
   /** 확인 */
@@ -311,5 +315,24 @@ export function Icon({ name, size = '1.15em', className = '', title }: { name: I
       {title && <title>{title}</title>}
       {ICONS[name]()}
     </svg>
+  )
+}
+
+/** 슬라임 능력 표시: 능력 색 동그라미 + 흰 기호 (도감·배치·자세히 창 공통, 2026-11-28) */
+export function MonAbIcon({ kind, size = 18 }: { kind: MonsterAbilityKind; size?: number }) {
+  return (
+    <span className="mon-ab-icon" style={{ width: size, height: size, fontSize: size * 0.6, background: MON_AB_COLOR[kind] }} title={MONSTER_ABILITIES[kind].name}>
+      {MONSTER_ABILITIES[kind].icon}
+    </span>
+  )
+}
+
+/** 뒤로 가는 버튼 (2026-11-28): "‹ 설정" 같은 알약 버튼 — 화면 곳곳의 뒤로 가기는 모두 이 모양 */
+export function BackButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button className="back-btn" onClick={onClick}>
+      <Icon name="back" size="1em" />
+      {label}
+    </button>
   )
 }

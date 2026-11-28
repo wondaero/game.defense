@@ -14,9 +14,9 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon-64.png'],
       manifest: {
-        name: '슬라임 디펜스',
-        short_name: '슬라임 디펜스',
-        description: '캐릭을 배치해 슬라임을 막는 디펜스 게임',
+        name: '디펜슬라임 Defenslime',
+        short_name: '디펜슬라임',
+        description: '슬라임들의 레이스를 막아라! 캐릭을 배치해 슬라임을 막는 디펜스 게임',
         lang: 'ko',
         start_url: './',
         scope: './',
@@ -32,8 +32,16 @@ export default defineConfig({
       },
       workbox: {
         // 앱 파일은 미리 받아 두고(오프라인), /dev 같은 주소도 index.html 로
-        globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
+        // 글꼴 조각(Pretendard 수십 개)은 미리 다 받지 않고, 쓰일 때 받아서 저장(CacheFirst)
+        globPatterns: ['**/*.{js,css,html,png,svg}'],
         globIgnores: ['sprites/**'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.destination === 'font',
+            handler: 'CacheFirst',
+            options: { cacheName: 'fonts', expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 365 } },
+          },
+        ],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
       },

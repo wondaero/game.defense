@@ -23,9 +23,25 @@ export interface GameApi {
     setBest(best: number): Promise<Account>
     /** 모든 데이터 초기화: 캐릭·기록·별·골드를 비우고 첫 시작 권을 새로 받음 (= 새 계정) */
     resetAll(): Promise<Account>
+    /** 지금 상태 저장 (2026-11-28 개발자): 계정(캐릭·티켓·기록·별·골드) + 화면 저장(맵별 배치)을 통째로 → 슬롯 목록 */
+    snapshots(): DevSnapshot[]
+    saveSnapshot(name: string): DevSnapshot[]
+    /** 저장한 상태로 되돌림 (계정·배치 덮어씀) — 부른 뒤 화면을 새로 고침 */
+    loadSnapshot(id: string): void
+    deleteSnapshot(id: string): DevSnapshot[]
     /** "모든 탄 열기" — 열리지 않은 탄도 판정 */
     unlockAll: boolean
   }
+}
+
+/** 개발자 상태 저장 슬롯 */
+export interface DevSnapshot {
+  id: string
+  name: string
+  /** 저장 시각 (ISO) */
+  at: string
+  /** 한눈에 보기용 요약 */
+  summary: { units: number; best: number; gold: number; tickets: number }
 }
 
 export class ApiError extends Error {}

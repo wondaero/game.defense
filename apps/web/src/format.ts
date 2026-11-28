@@ -1,3 +1,4 @@
+import type { MonsterAbilityKind } from '@def/defense'
 import { ABILITY_NAMES, abilityDesc, LAST_NORMAL_STAGE, STAGES_PER_MAP, statTier, type DefenseConfig, type UnitInstance } from '@def/defense'
 
 /** 탄 이름 (2026-11-28): 1~100탄은 "N탄", 101탄부터는 "무한 N탄" (101 = 무한 1) */
@@ -53,3 +54,26 @@ export function unitLook(cfg: DefenseConfig, u: UnitInstance) {
     special: t.score >= 100 ? 'commander' : t.score <= 0 ? 'trainee' : null,
   }
 }
+
+/**
+ * 슬라임 능력 색 (2026-11-28): 도감·배치 화면·자세히 창·게임 판의 능력 표시가 같은 색 동그라미 + 흰 기호.
+ * 능력 기호는 엔진 MONSTER_ABILITIES[k].icon (이모지 아닌 글자 기호)
+ */
+export const MON_AB_COLOR: Readonly<Record<MonsterAbilityKind, string>> = {
+  freeze: '#29b6f6',
+  fullHeal: '#43a047',
+  groupHeal: '#ec407a',
+  haste: '#fb8c00',
+  blink: '#8e24aa',
+  invincible: '#f9a825',
+  scatter: '#8d6e63',
+  weaken: '#5e35b1',
+  armorUp: '#546e7a',
+  seal: '#37474f',
+  agiSteal: '#00897b',
+  absorb: '#c62828',
+  split: '#7cb342',
+}
+
+/** 판(canvas) 위 글자 글꼴 (2026-11-28 Pretendard) — HTML 은 body 글꼴을 따름 */
+export const FONT = "'Pretendard Variable', Pretendard, system-ui, sans-serif"

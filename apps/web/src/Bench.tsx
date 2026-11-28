@@ -1,3 +1,4 @@
+import { BackButton } from './Icon.tsx'
 import { useEffect, useRef, useState } from 'react'
 import { drawSprite, loadSprites, motionDuration } from './sprites.ts'
 
@@ -139,9 +140,7 @@ export function Bench({ onBack }: { onBack: () => void }) {
     <div className="app">
       <header>
         <h1>
-          <button className="link back" onClick={onBack}>
-            ←
-          </button>{' '}
+          <BackButton label="뒤로" onClick={onBack} />{' '}
           그리기 성능 시험
         </h1>
         <div className="stats">

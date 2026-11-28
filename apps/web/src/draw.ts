@@ -1,5 +1,7 @@
 import { baseStats, inRange, MONSTER_ABILITIES, positionAt, type Cell, type DefenseConfig, type GameMap, type Placements, type UnitInstance, type WaveSim } from '@def/defense'
 import { unitLook } from './format.ts'
+import { MON_AB_COLOR } from './format.ts'
+import { FONT } from './format.ts'
 import { drawSprite, drawSpriteTinted, motionDuration, spritesReady } from './sprites.ts'
 import { drawBlackHole, drawFinishFlag, groundImage, type GroundMode } from './ground.ts'
 import type { StageTheme } from './format.ts'
@@ -256,7 +258,7 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
     }
     if (agiStolen) {
       // 몬스터에게 민첩을 빼앗김: 민첩 1
-      ctx.font = 'bold 11px sans-serif'
+      ctx.font = 'bold 11px ' + FONT
       ctx.textAlign = 'center'
       ctx.lineWidth = 3
       ctx.strokeStyle = '#000'
@@ -267,7 +269,7 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
     }
     if (weakened) {
       // 약화: 보라 아래 화살표
-      ctx.font = 'bold 14px sans-serif'
+      ctx.font = 'bold 14px ' + FONT
       ctx.fillStyle = '#b388ff'
       ctx.strokeStyle = '#000'
       ctx.lineWidth = 3
@@ -381,7 +383,7 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
         for (let k = 0; k < 2; k++) {
           const q = (d.now / 800 + k / 2 + m.id * 0.13) % 1
           ctx.globalAlpha = 1 - q
-          ctx.font = `bold ${Math.round(size * (0.22 + 0.16 * q))}px sans-serif`
+          ctx.font = `bold ${Math.round(size * (0.22 + 0.16 * q))}px ${FONT}`
           const zx = p.x + size * (0.2 + 0.25 * q)
           const zy = foot - size * (0.9 + 0.4 * q)
           ctx.lineWidth = 3
@@ -395,7 +397,7 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
       }
       if (d.sim.tick < m.stolenUntil && m.stolenAgi > 0) {
         // 민첩 빼앗기: 머리 옆 청록 ⇄
-        ctx.font = `bold ${Math.round(size * 0.28)}px sans-serif`
+        ctx.font = `bold ${Math.round(size * 0.28)}px ${FONT}`
         ctx.textAlign = 'center'
         ctx.lineWidth = 3
         ctx.strokeStyle = 'rgba(0,0,0,0.55)'
@@ -411,7 +413,7 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
         for (let k = 0; k < 3; k++) {
           const t = ((d.now / 900 + k / 3 + m.id * 0.17) % 1)
           ctx.globalAlpha = 1 - t
-          ctx.font = `bold ${Math.round(size * (0.32 + 0.1 * (1 - t)))}px sans-serif`
+          ctx.font = `bold ${Math.round(size * (0.32 + 0.1 * (1 - t)))}px ${FONT}`
           const qx = p.x + (k - 1) * size * 0.28 + Math.sin(d.now / 200 + k) * 2
           const qy = foot - size * (0.95 + t * 0.45)
           ctx.lineWidth = 3
@@ -450,11 +452,25 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
       ctx.fillStyle = m.hp / m.maxHp > 0.5 ? '#66bb6a' : m.hp / m.maxHp > 0.25 ? '#ffca28' : '#ef5350'
       ctx.fillRect(p.x - bw / 2, top, (bw * Math.max(0, m.hp)) / m.maxHp, 4)
       if (t.abilities.length) {
-        ctx.font = 'bold 9px sans-serif'
-        ctx.fillStyle = '#fff'
-        ctx.textAlign = 'left'
-        ctx.fillText(t.abilities.map((a) => MONSTER_ABILITIES[a].icon).join(''), p.x + bw / 2 + 3, top + 2)
-        ctx.textAlign = 'center'
+        // 능력 표시 = 도감과 같은 색 동그라미 + 흰 기호 (2026-11-28), 체력 막대 오른쪽에 나란히
+        const r = 5.5
+        ctx.font = 'bold 7px ' + FONT
+        ctx.textBaseline = 'middle'
+        t.abilities.forEach((a, i) => {
+          const cx = p.x + bw / 2 + 3 + r + i * (r * 2 + 1)
+          const cy = top + 2
+          ctx.fillStyle = MON_AB_COLOR[a]
+          ctx.beginPath()
+          ctx.arc(cx, cy, r, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.strokeStyle = '#fff'
+          ctx.lineWidth = 1.2
+          ctx.stroke()
+          ctx.lineWidth = 1
+          ctx.fillStyle = '#fff'
+          ctx.fillText(MONSTER_ABILITIES[a].icon, cx, cy + 0.5)
+        })
+        ctx.textBaseline = 'alphabetic'
       }
     }
   }
@@ -474,7 +490,7 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
       ctx.lineWidth = 1
     } else if (f.kind === 'text') {
       ctx.fillStyle = f.color ?? '#fff'
-      ctx.font = 'bold 13px sans-serif'
+      ctx.font = 'bold 13px ' + FONT
       ctx.strokeStyle = '#000'
       ctx.lineWidth = 3
       ctx.strokeText(f.text ?? '', f.to.x, f.to.y - 16 - k * 18)

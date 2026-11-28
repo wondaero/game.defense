@@ -1,4 +1,4 @@
-import { Icon, ICON_NAMES, type IconName } from './Icon.tsx'
+import { BackButton, Icon, ICON_NAMES, MonAbIcon, type IconName } from './Icon.tsx'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import {
   attackCellCount,
@@ -48,7 +48,7 @@ import { StageMap } from './StageMap.tsx'
 import { unitLook, stageName, stageTheme } from './format.ts'
 import { RosterTools, splitDesc, UnitFace, UnitRow, viewRoster, type RosterView } from './UnitList.tsx'
 import { Barracks } from './Barracks.tsx'
-import type { GameApi } from './api/api.ts'
+import type { DevSnapshot, GameApi } from './api/api.ts'
 import { createLocalApi } from './api/localApi.ts'
 
 // 자주 안 쓰는 화면은 따로 받음 (2026-11-28 최적화): 성능 시험 · 스프라이트 모아 보기 · 도감 → 첫 화면이 가벼워짐
@@ -667,9 +667,8 @@ export function App() {
                         </span>
                         <div>
                           <b>{TICKET_NAMES[it.kind]}</b>
-                          <div className="dim">
-                            {it.desc} · 가진 것 {have}장
-                          </div>
+                          <div className="dim">{it.desc}</div>
+                          <div className="have">가진 것 {have}장</div>
                         </div>
                         <button
                           className="buy"
@@ -807,6 +806,7 @@ export function App() {
               </p>
               <Settings cfg={cfg} onChange={(p) => setCfg({ ...cfg, ...p })} />
             </section>
+            <DevSnapshots api={api} />
             <section className="danger-zone">
               <h3>초기화</h3>
               <p className="dim" style={{ margin: '0 0 8px' }}>
@@ -1097,7 +1097,10 @@ export function App() {
       {/* 배치 화면 아래 떠 있는 버튼 2개 (2026-11-28) */}
       {screen === 'prepare' && (
         <div className="prep-bar">
-          <button onClick={goSelect}>← 스테이지</button>
+          <button className="back-btn big" onClick={goSelect}>
+            <Icon name="back" size="1em" />
+            스테이지
+          </button>
           <button className="primary" disabled={placedCount === 0} onClick={startStage}>
             ▶ {stageName(stageNo)} 게임 시작
           </button>
@@ -1124,7 +1127,7 @@ export function App() {
               return (
                 <div key={k} className="ab mi-ab">
                   <b className="ab-name">
-                    {d.icon} {d.name}
+                    <MonAbIcon kind={k} size={18} /> {d.name}
                   </b>
                   <span className="ab-desc">{main}</span>
                   {notes.length > 0 && <span className="ab-note">{notes.join(' · ')}</span>}
@@ -1182,6 +1185,78 @@ const SHOP_ITEMS: { kind: TicketKind; icon: IconName; desc: string }[] = [
 ]
 
 /**
+ * 개발자: 지금 상태 저장 · 불러오기 (2026-11-28) — 시험(티켓 잔뜩 등) 전에 진짜 진행을 저장해 두고 나중에 되돌림.
+ * 캐릭·티켓·스테이지 기록·별·골드·맵별 배치를 통째로. 불러오면 새로 고침
+ */
+function DevSnapshots({ api }: { api: GameApi }) {
+  const [list, setList] = useState<DevSnapshot[]>(() => api.dev?.snapshots() ?? [])
+  const [ask, setAsk] = useState<DevSnapshot | null>(null)
+  if (!api.dev) return null
+  const fmt = (iso: string) => {
+    const d = new Date(iso)
+    const p = (n: number) => String(n).padStart(2, '0')
+    return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+  }
+  return (
+    <section className="dev-snaps">
+      <h3>상태 저장</h3>
+      <p className="dim" style={{ margin: '0 0 8px' }}>
+        캐릭 · 티켓 · 스테이지 기록 · 별 · 골드 · 배치를 통째로 저장해요 (이 기기, 최대 10개)
+      </p>
+      <button className="primary inline" onClick={() => setList(api.dev!.saveSnapshot(`저장 ${list.length + 1}`))}>
+        지금 상태 저장
+      </button>
+      {list.length === 0 ? (
+        <p className="dim" style={{ margin: '8px 0 0' }}>
+          아직 저장한 상태가 없어요
+        </p>
+      ) : (
+        <ul className="snap-list">
+          {list.map((s) => (
+            <li key={s.id}>
+              <div className="snap-info">
+                <b>{fmt(s.at)}</b>
+                <small className="dim">
+                  캐릭 {s.summary.units} · {s.summary.best}탄 · 골드 {s.summary.gold} · 티켓 {s.summary.tickets}
+                </small>
+              </div>
+              <button onClick={() => setAsk(s)}>불러오기</button>
+              <button className="snap-del" aria-label="지우기" onClick={() => setList(api.dev!.deleteSnapshot(s.id))}>
+                <Icon name="close" size={14} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {ask && (
+        <div className="modal-backdrop" onClick={() => setAsk(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">이 상태로 되돌릴까요?</div>
+            <p>
+              {fmt(ask.at)} 에 저장한 상태로 바꿔요
+              <br />
+              <span className="dim">지금 상태는 사라져요 (먼저 저장해 두세요)</span>
+            </p>
+            <div className="row pause-row">
+              <button onClick={() => setAsk(null)}>취소</button>
+              <button
+                className="primary inline"
+                onClick={() => {
+                  api.dev!.loadSnapshot(ask.id)
+                  location.reload()
+                }}
+              >
+                불러오기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+/**
  * 설정 탭 (2026-11-28): 소리(배경음·효과음 켜기/끄기 + 크기) · 도감 메뉴.
  * 도감은 메뉴를 누르면 들어가는 아래 화면 (← 설정 으로 돌아옴)
  */
@@ -1191,9 +1266,7 @@ function SettingsPage({ cfg }: { cfg: DefenseConfig }) {
     return (
       <>
         <div className="settings-sub-head">
-          <button className="link" onClick={() => setView('main')}>
-            ← 설정
-          </button>
+          <BackButton label="설정" onClick={() => setView('main')} />
           <b>능력 설명</b>
         </div>
         <AbilityGuide cfg={cfg} />
@@ -1203,9 +1276,7 @@ function SettingsPage({ cfg }: { cfg: DefenseConfig }) {
     return (
       <>
         <div className="settings-sub-head">
-          <button className="link" onClick={() => setView('main')}>
-            ← 설정
-          </button>
+          <BackButton label="설정" onClick={() => setView('main')} />
           <b>도감</b>
         </div>
         <Suspense fallback={<p className="dim">불러오는 중…</p>}>
@@ -1376,7 +1447,13 @@ function MonsterChips({ summary, onPick }: { summary: { spec: MonsterSpec; count
             <UnitFace body={monsterSprite(spec)} tool={null} />
             {/* 마릿수 = 오른쪽 위 뱃지 (막사 권 버튼과 같은 모양, 2026-11-28) */}
             <span className="badge">{count}</span>
-            {spec.abilities.length > 0 && <i className="chip-ab">{spec.abilities.map((a) => MONSTER_ABILITIES[a].icon).join('')}</i>}
+            {spec.abilities.length > 0 && (
+              <i className="chip-ab">
+                {spec.abilities.map((a) => (
+                  <MonAbIcon key={a} kind={a} size={14} />
+                ))}
+              </i>
+            )}
           </button>
         </li>
       ))}

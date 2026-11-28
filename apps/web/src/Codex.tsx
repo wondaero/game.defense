@@ -1,6 +1,7 @@
 import { ABILITY_KINDS, ABILITY_NAMES, MONSTER_ABILITIES, MONSTER_ABILITY_KINDS, monsterAbilityDesc, stageDef, type MonsterSpec } from '@def/defense'
 import { AbilityRolls, sampleAbility } from './abilityRolls.tsx'
 import { splitDesc, UnitFace } from './UnitList.tsx'
+import { MonAbIcon } from './Icon.tsx'
 
 /**
  * 설정 탭의 도감 (2026-11-28): 캐릭 특수능력 전부(뽑을 수 있는 값 전부) · 몬스터 능력 전부.
@@ -39,7 +40,9 @@ export function Codex() {
             const { main, notes } = splitDesc(d.name, monsterAbilityDesc(k, spec))
             return (
               <li key={k}>
-                <span className="codex-icon">{d.icon}</span>
+                <span className="codex-icon">
+                  <MonAbIcon kind={k} size={30} />
+                </span>
                 <div className="ab codex-ab">
                   <b className="ab-name">{d.name}</b>
                   <span className="ab-desc">{main}</span>
