@@ -214,6 +214,11 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
     const y0 = e.y * cell + 4
     const w = cell - 8
     const n = 5
+    // 체크판만 칸 가운데 기준으로 -5도(반시계) 기울임 (2026-11-28) — 깃발·"도착" 글자는 똑바로
+    ctx.save()
+    ctx.translate(x0 + w / 2, y0 + w / 2)
+    ctx.rotate((-5 * Math.PI) / 180)
+    ctx.translate(-(x0 + w / 2), -(y0 + w / 2))
     ctx.save()
     ctx.beginPath()
     ctx.roundRect(x0, y0, w, w, 6)
@@ -228,6 +233,7 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
     ctx.beginPath()
     ctx.roundRect(x0, y0, w, w, 6)
     ctx.stroke()
+    ctx.restore()
     // 깃발은 판 밖으로 나갈 수 있어 draw.ts 에서 그림 (drawFinishFlag)
     // "도착" 글자 (배치 중에만)
     if (mode === 'prepare') {
