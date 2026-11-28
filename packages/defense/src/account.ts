@@ -13,6 +13,7 @@ import {
   MERGE_COST,
   mergeRewards,
 } from './barracks.ts'
+import { rollAbility } from './abilities.ts'
 import type { DefenseConfig } from './config.ts'
 import { parseMap } from './map.ts'
 import { MAP_DEFS } from './maps.ts'
@@ -51,6 +52,8 @@ export type BarracksAction =
   | { type: 'draw' }
   | { type: 'rerollStats'; unitId: string; grade: StatGrade; keep: StatKey[] }
   | { type: 'rerollAbility'; unitId: string }
+  /** 특수능력 부여: 특수능력 없는 캐릭에 하나 붙임 (2026-11-28) */
+  | { type: 'grantAbility'; unitId: string }
   /** 합성: 만들 권(target)을 고르고 그 필요 인원의 배수만큼 (2026-11-28) */
   | { type: 'merge'; unitIds: string[]; target: TicketKind }
   /** 상점에서 골드로 권 사기 (2026-11-28) */
@@ -66,6 +69,7 @@ export const SHOP_PRICES: Readonly<Record<TicketKind, number>> = {
   statHigh: MERGE_COST.statHigh * 100,
   ability: MERGE_COST.ability * 100,
   statTop: MERGE_COST.statTop * 100,
+  abilityGrant: MERGE_COST.abilityGrant * 100,
 }
 
 export type BarracksOutcome =
@@ -113,6 +117,18 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
         ok: true,
         account: { ...acc, units: acc.units.map((x) => (x.id === u.id ? after : x)), tickets: spend('ability') },
         value: { type: 'changed', before: u, after, used: 'ability', gainedAbility: false },
+      }
+    }
+    case 'grantAbility': {
+      const u = unit(action.unitId)
+      if (!u) return fail('없는 캐릭이에요')
+      if (u.ability) return fail('이미 특수능력이 있는 캐릭이에요')
+      if ((acc.tickets.abilityGrant ?? 0) < 1) return fail('특수능력 부여 티켓이 없어요')
+      const after = { ...u, ability: rollAbility(rng) }
+      return {
+        ok: true,
+        account: { ...acc, units: acc.units.map((x) => (x.id === u.id ? after : x)), tickets: spend('abilityGrant') },
+        value: { type: 'changed', before: u, after, used: 'abilityGrant', gainedAbility: true },
       }
     }
     case 'buy': {

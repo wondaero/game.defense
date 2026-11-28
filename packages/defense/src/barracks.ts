@@ -9,7 +9,7 @@ import { IMAGES, rollUnit, type UnitInstance } from './roster.ts'
  */
 
 /** 권 종류 */
-export type TicketKind = 'draw' | 'statNormal' | 'statHigh' | 'statTop' | 'ability'
+export type TicketKind = 'draw' | 'statNormal' | 'statHigh' | 'statTop' | 'ability' | 'abilityGrant'
 export type Tickets = Record<TicketKind, number>
 
 export const TICKET_NAMES: Readonly<Record<TicketKind, string>> = {
@@ -19,10 +19,12 @@ export const TICKET_NAMES: Readonly<Record<TicketKind, string>> = {
   statHigh: '능력치 변경\u00a0티켓(상급)',
   statTop: '능력치 변경\u00a0티켓(최상급)',
   ability: '특수능력 변경\u00a0티켓',
+  /** 2026-11-28: 특수능력 없는 캐릭에 특수능력을 하나 붙임 (합성 30명 · 상점 3000) */
+  abilityGrant: '특수능력 부여\u00a0티켓',
 }
 
 /** 첫 시작 지급 (확정): 뽑기권 5 · 특수능력 변경권 1 · 능력치 변경권(보통) 3 */
-export const START_TICKETS: Readonly<Tickets> = { draw: 5, statNormal: 3, statHigh: 0, statTop: 0, ability: 1 }
+export const START_TICKETS: Readonly<Tickets> = { draw: 5, statNormal: 3, statHigh: 0, statTop: 0, ability: 1, abilityGrant: 0 }
 
 /** 막사 최대 인원 = cfg.rosterSize (100) */
 export const barracksFull = (cfg: DefenseConfig, units: readonly UnitInstance[]) => units.length >= cfg.rosterSize
@@ -63,14 +65,14 @@ export function rerollAbility(rng: Rng, u: UnitInstance): UnitInstance | null {
 }
 
 /** 합성: 넣는 캐릭 수 → 받는 권 (확정). 이 수 말고는 합성 안 됨 */
-export const MERGE_TABLE: Readonly<Record<number, TicketKind>> = { 3: 'statNormal', 5: 'draw', 8: 'statHigh', 10: 'ability', 12: 'statTop' }
+export const MERGE_TABLE: Readonly<Record<number, TicketKind>> = { 3: 'statNormal', 5: 'draw', 8: 'statHigh', 10: 'ability', 12: 'statTop', 30: 'abilityGrant' }
 export const MERGE_COUNTS = [3, 5, 8, 10, 12] as const
 
 /**
  * 합성 (2026-11-28 바꿈): 만들 권을 먼저 고르고 → 그 권의 필요 인원 배수만큼 넣으면 그 수만큼 받음.
  * 예) 능력치 변경권(보통) 3명 몫 → 12명 넣으면 4장. 보통은 장마다 따로 1% 최상급 · 5% 상급 행운
  */
-export const MERGE_COST: Readonly<Record<TicketKind, number>> = { statNormal: 3, draw: 5, statHigh: 8, ability: 10, statTop: 12 }
+export const MERGE_COST: Readonly<Record<TicketKind, number>> = { statNormal: 3, draw: 5, statHigh: 8, ability: 10, statTop: 12, abilityGrant: 30 }
 
 /** target 권으로 count 명 합성 → 받는 권 목록. 배수가 아니면 null */
 export function mergeRewards(rng: Rng, target: TicketKind, count: number): TicketKind[] | null {

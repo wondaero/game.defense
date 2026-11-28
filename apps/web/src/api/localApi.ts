@@ -29,7 +29,12 @@ export function createLocalApi(getCfg: () => DefenseConfig, getUnlockAll: () => 
     try {
       const raw = localStorage.getItem(ACCOUNT_KEY)
       // 예전 저장엔 없던 칸은 기본값으로
-      if (raw) return { ...newAccount(), ...(JSON.parse(raw) as Partial<Account>) }
+      if (raw) {
+        const a = JSON.parse(raw) as Partial<Account>
+        // 새로 생긴 티켓 종류(특수능력 부여 등)는 0 으로 채움
+        const zero = Object.fromEntries(Object.keys(newAccount().tickets).map((k) => [k, 0])) as Account['tickets']
+        return { ...newAccount(), ...a, tickets: { ...zero, ...(a.tickets ?? newAccount().tickets) } }
+      }
     } catch {
       /* 깨진 저장은 새로 */
     }

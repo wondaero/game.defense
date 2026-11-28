@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   attackCellCount,
+  RESIST_POWER,
+  STAT_TIERS,
   pierceLine,
   ABILITY_NAMES,
   createRngState,
@@ -674,7 +676,7 @@ export function App() {
         )}
 
         {/* 설정 (2026-11-28): 소리 · 도감 메뉴. 나중에 계정 등 */}
-        {tab === 'settings' && <SettingsPage />}
+        {tab === 'settings' && <SettingsPage cfg={cfg} />}
 
         {/* 개발자 메뉴 (2026-11-28): 시험용 기능 전부 여기. 숨기려면 SHOW_DEV_MENU = false */}
         {tab === 'dev' && SHOW_DEV_MENU && (
@@ -1068,14 +1070,27 @@ const SHOP_ITEMS: { kind: TicketKind; icon: string; desc: string }[] = [
   { kind: 'statHigh', icon: '🔄', desc: '1개 골라 유지, 나머지 다시' },
   { kind: 'ability', icon: '✨', desc: '특수능력만 다시' },
   { kind: 'statTop', icon: '🔄', desc: '2개 골라 유지, 나머지 다시' },
+  { kind: 'abilityGrant', icon: '🎁', desc: '특수능력 없는 캐릭에 하나 붙임' },
 ]
 
 /**
  * 설정 탭 (2026-11-28): 소리(배경음·효과음 켜기/끄기 + 크기) · 도감 메뉴.
  * 도감은 메뉴를 누르면 들어가는 아래 화면 (← 설정 으로 돌아옴)
  */
-function SettingsPage() {
-  const [view, setView] = useState<'main' | 'codex'>('main')
+function SettingsPage({ cfg }: { cfg: DefenseConfig }) {
+  const [view, setView] = useState<'main' | 'codex' | 'guide'>('main')
+  if (view === 'guide')
+    return (
+      <>
+        <div className="settings-sub-head">
+          <button className="link" onClick={() => setView('main')}>
+            ← 설정
+          </button>
+          <b>능력 설명</b>
+        </div>
+        <AbilityGuide cfg={cfg} />
+      </>
+    )
   if (view === 'codex')
     return (
       <>
@@ -1098,6 +1113,53 @@ function SettingsPage() {
           <small className="dim">캐릭 특수능력 · 슬라임 능력</small>
           <i>›</i>
         </button>
+        <button onClick={() => setView('guide')}>
+          <span>📘 능력 설명</span>
+          <small className="dim">능력치 계산 · 등급</small>
+          <i>›</i>
+        </button>
+      </section>
+    </>
+  )
+}
+
+/** 능력 설명 (2026-11-28): 캐릭 자세히에 있던 계산식 안내를 여기로 모음 */
+function AbilityGuide({ cfg }: { cfg: DefenseConfig }) {
+  const items = [
+    { k: '공격력', r: `${cfg.atk.min} ~ ${cfg.atk.max}`, d: ['피해 = 공격력 − 슬라임 방어력 (최소 1)', '2배 데미지는 공격력 × 2 − 방어력'] },
+    { k: '사거리', r: `${cfg.range.min} ~ ${cfg.range.max}칸`, d: [`이 칸 수 안의 슬라임을 공격 (${cfg.rangeShape === 'diamond' ? '마름모: 가로 + 세로 칸 수' : '네모: 대각선도 1칸'})`, '여러 마리면 도착에 가장 가까운 슬라임부터', '호크아이로 더 늘어날 수 있어요'] },
+    { k: '공속', r: `${cfg.attackSpeed.min} ~ ${cfg.attackSpeed.max}`, d: ['1초에 공격하는 횟수'] },
+    { k: '민첩', r: `${cfg.agility.min} ~ ${cfg.agility.max}`, d: ['명중 = 내 민첩 ÷ (내 민첩 + 슬라임 민첩)', '슬라임 기술(얼림·봉인 등)을 피할 때도 같은 계산', `특수능력 저항: 슬라임에게 거는 능력은 ${RESIST_POWER} ÷ (${RESIST_POWER} + 슬라임 민첩) 확률로 걸림`] },
+  ]
+  return (
+    <>
+      <section>
+        <h3>능력치</h3>
+        <ul className="guide-list">
+          {items.map((it) => (
+            <li key={it.k}>
+              <b>{it.k}</b> <span className="dim">({it.r})</span>
+              <ul>
+                {it.d.map((x) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section>
+        <h3>등급</h3>
+        <p className="dim" style={{ margin: '0 0 8px' }}>
+          능력치 점수(0~100)로 정해져요. 특수능력으로 오른 값은 점수에 안 들어가요
+        </p>
+        <ul className="guide-tiers">
+          {STAT_TIERS.map((t) => (
+            <li key={t.tier}>
+              <b className={`tl-dot t${t.tier}`} /> {t.name} <span className="dim">{t.min}점 ~</span>
+            </li>
+          ))}
+        </ul>
       </section>
     </>
   )

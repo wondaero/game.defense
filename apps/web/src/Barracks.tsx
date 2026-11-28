@@ -7,6 +7,7 @@ import {
   baseStats,
   statScore,
   statTier,
+  STAT_TIERS,
   TICKET_NAMES,
   type Account,
   type BarracksAction,
@@ -50,7 +51,7 @@ const GRADE_SHORT: Record<StatGrade, string> = { statNormal: '보통', statHigh:
 /** 배지 숫자: 9999 까지 그대로, 넘으면 9999+ (2026-11-28) */
 const badgeText = (n: number) => (n > 9999 ? '9999+' : String(n))
 /** 권 아이콘 (합성 결과 창) */
-const TICKET_ICON: Record<TicketKind, string> = { draw: '🎟️', statNormal: '🔄', statHigh: '🔄', statTop: '🔄', ability: '✨' }
+const TICKET_ICON: Record<TicketKind, string> = { draw: '🎟️', statNormal: '🔄', statHigh: '🔄', statTop: '🔄', ability: '✨', abilityGrant: '🎁' }
 
 export function Barracks(props: {
   cfg: DefenseConfig
@@ -106,6 +107,11 @@ export function Barracks(props: {
     if (o?.type === 'changed') setPopup({ kind: 'changed', title: '특수능력 변경 티켓 사용', before: o.before, after: o.after, redo: { type: 'ability' } })
     else setPopup(null)
   }
+  const doGrant = async (unit: UnitInstance) => {
+    const o = await send({ type: 'grantAbility', unitId: unit.id })
+    if (o?.type === 'changed') setPopup({ kind: 'changed', title: '특수능력 부여 티켓 사용', before: o.before, after: o.after, note: '🎁 특수능력이 생겼어요!', redo: { type: 'ability' } })
+    else setPopup(null)
+  }
   const doMerge = async (target: TicketKind, ids: string[]) => {
     const o = await send({ type: 'merge', unitIds: ids, target })
     if (o?.type === 'merged') {
@@ -137,7 +143,7 @@ export function Barracks(props: {
         {/* 가진 변경권 한 줄 (쓰는 곳은 캐릭 창): 가진 등급만 표시, 전체 내역은 title (2026-11-28) */}
         {(() => {
           const grades = STAT_GRADES.filter((g) => tickets[g] > 0)
-          const full = `능력치 변경 티켓: 보통 ${tickets.statNormal} · 상급 ${tickets.statHigh} · 최상급 ${tickets.statTop} / 특수능력 변경 티켓 ${tickets.ability}`
+          const full = `능력치 변경 티켓: 보통 ${tickets.statNormal} · 상급 ${tickets.statHigh} · 최상급 ${tickets.statTop} / 특수능력 변경 티켓 ${tickets.ability} · 특수능력 부여 티켓 ${tickets.abilityGrant}`
           return (
             <div className="ticket-line" title={full}>
               <span>
@@ -153,9 +159,16 @@ export function Barracks(props: {
                   <b>0</b>
                 )}
               </span>
-              <span>
-                ✨ 특수능력 <b>{tickets.ability}</b>
-              </span>
+              {/* 한 줄 유지: 부여 티켓이 있으면 그림만 "✨ n · 🎁 n" (전체 이름은 title) */}
+              {tickets.abilityGrant > 0 ? (
+                <span>
+                  ✨ <b>{tickets.ability}</b> · 🎁 <b>{tickets.abilityGrant}</b>
+                </span>
+              ) : (
+                <span>
+                  ✨ 특수능력 <b>{tickets.ability}</b>
+                </span>
+              )}
             </div>
           )
         })()}
@@ -209,7 +222,7 @@ export function Barracks(props: {
         ))}
       </ul>
 
-      {popup && <BarracksPopup popup={popup} cfg={cfg} units={units} tickets={tickets} onClose={() => setPopup(null)} onStat={doStat} onAbility={doAbility} onMerge={doMerge} onMergeTarget={(target) => {
+      {popup && <BarracksPopup popup={popup} cfg={cfg} units={units} tickets={tickets} onClose={() => setPopup(null)} onStat={doStat} onAbility={doAbility} onGrant={doGrant} onMerge={doMerge} onMergeTarget={(target) => {
             setMode({ kind: 'merge', target, ids: mode?.kind === 'merge' ? mode.ids : [] })
             setPopup(null)
           }} setPopup={setPopup} />}
@@ -239,38 +252,53 @@ function UnitDetail({ u, cfg }: { u: UnitInstance; cfg: DefenseConfig }) {
   const look = unitLook(cfg, u)
   const b = baseStats(cfg, u)
   const ab = abilityText(u)
-  const row = (label: string, now: number, orig: number, unit: string, help: string) => (
-    <li>
-      <span className="k">{label}</span>
-      <span className="v">
-        {now !== orig ? (
-          <>
-            <s>{orig}</s> → <b className="up">{now}</b>
-          </>
-        ) : (
-          <b>{now}</b>
-        )}
-        {unit}
-      </span>
-      <span className="h">{help}</span>
-    </li>
-  )
+  /** 능력치 한 줄 = 이름 · 값 · 최소 ━━●━━ 최대 막대 (2026-11-28). 특수능력으로 올라간 값은 ▲ (막대 끝을 넘으면 끝에 붙음) */
+  const row = (label: string, now: number, orig: number, unit: string, min: number, max: number) => {
+    const pos = (v: number) => Math.max(0, Math.min(100, ((v - min) / Math.max(1, max - min)) * 100))
+    return (
+      <li>
+        <span className="k">{label}</span>
+        <span className="v">
+          <b className={now !== orig ? 'up' : ''}>{now}</b>
+          {unit}
+          {now !== orig && <small className="up">▲</small>}
+        </span>
+        <span className="sbar">
+          <i>{min}</i>
+          <span className="track">
+            {/* 손잡이가 막대 끝에서 반쯤 삐져나가 숫자에 붙지 않게, 손잡이 중심이 움직이는 길이 = 막대 − 손잡이 폭 */}
+            <span className="fill" style={{ width: `calc(7px + (100% - 14px) * ${pos(now) / 100})` }} />
+            <span className={`knob ${now !== orig ? 'up' : ''}`} style={{ left: `calc(7px + (100% - 14px) * ${pos(now) / 100})` }} />
+          </span>
+          <i>{max}</i>
+        </span>
+      </li>
+    )
+  }
+  const score = statScore(cfg, u)
   return (
     <div className="unit-detail">
       <div className="ud-head">
         <UnitFace body={look.body} tool={look.tool} rainbow={look.tier === 6} big />
-        <div>
+        <div className="ud-title">
           <b className={`tier-pill t${look.tier} ${look.special === 'trainee' ? 'trainee' : ''}`}>{look.title}</b>
-          {/* 등급 · 점수는 항상 두 줄 */}
-          <div className="dim">{look.tierName} 등급</div>
-          <div className="dim">능력치 점수 {statScore(cfg, u)} / 100</div>
+          {/* 등급 사다리 (2026-11-28): 흰 - 노랑 - 초록 - 파랑 - 보라 - 무지개, 내 등급만 크게 */}
+          <div className="tier-ladder" aria-label={`${look.tierName} 등급`}>
+            {STAT_TIERS.map((t, i) => (
+              <span key={t.tier} className={`tl-step ${t.tier === look.tier ? 'me' : ''} ${t.tier < look.tier ? 'past' : ''}`}>
+                {i > 0 && <i className="tl-line" />}
+                <b className={`tl-dot t${t.tier}`} title={`${t.name} (${t.min}점~)`} />
+              </span>
+            ))}
+          </div>
+          <div className="dim ud-score">{score}점</div>
         </div>
       </div>
-      <ul className="ud-stats">
-        {row('공격력', b.atk, u.atk, '', `피해 = 공격력 − 슬라임 방어 (범위 ${cfg.atk.min}~${cfg.atk.max})`)}
-        {row('사거리', b.range, u.range, '칸', '이 칸 수 안의 슬라임을 공격')}
-        {row('공속', b.attackSpeed, u.attackSpeed, '', `1초에 ${b.attackSpeed}대 (범위 ${cfg.attackSpeed.min}~${cfg.attackSpeed.max})`)}
-        {row('민첩', b.agility, u.agility, '', '명중 · 슬라임 기술 피하기 · 특수능력 버티기')}
+      <ul className={`ud-stats tier-t${look.tier}`}>
+        {row('공격력', b.atk, u.atk, '', cfg.atk.min, cfg.atk.max)}
+        {row('사거리', b.range, u.range, '칸', cfg.range.min, cfg.range.max)}
+        {row('공속', b.attackSpeed, u.attackSpeed, '', cfg.attackSpeed.min, cfg.attackSpeed.max)}
+        {row('민첩', b.agility, u.agility, '', cfg.agility.min, cfg.agility.max)}
       </ul>
       {ab && u.ability ? (
         <div className="ab big">
@@ -279,7 +307,7 @@ function UnitDetail({ u, cfg }: { u: UnitInstance; cfg: DefenseConfig }) {
           <AbilityRolls ability={u.ability} />
         </div>
       ) : (
-        <p className="dim">특수능력 없음 (능력치 변경 티켓을 쓰면 5% 확률로 생겨요)</p>
+        <p className="dim">특수능력 없음 — 🎁 부여 티켓으로 붙이거나, 능력치 변경 때 5% 확률로 생겨요</p>
       )}
     </div>
   )
@@ -293,6 +321,7 @@ function BarracksPopup(props: {
   onClose: () => void
   onStat: (g: StatGrade, u: UnitInstance, keep: StatKey[]) => Promise<void>
   onAbility: (u: UnitInstance) => Promise<void>
+  onGrant: (u: UnitInstance) => Promise<void>
   onMerge: (target: TicketKind, ids: string[]) => Promise<void>
   onMergeTarget: (target: TicketKind) => void
   setPopup: (p: Popup) => void
@@ -307,24 +336,39 @@ function BarracksPopup(props: {
     case 'unit': {
       const u = props.units.find((x) => x.id === pp.unitId)
       if (!u) return null
-      const statTotal = props.tickets.statNormal + props.tickets.statHigh + props.tickets.statTop
       return (
         <Modal title="" onClose={onClose} sheet>
           <button className="sheet-close" aria-label="닫기" onClick={onClose}>
             ✕
           </button>
           <UnitDetail u={u} cfg={cfg} />
-          <div className="ud-actions">
-            <button className="act stat" disabled={statTotal < 1} onClick={() => props.setPopup({ kind: 'gradePick', unitId: u.id })}>
-              🔄 능력치 변경{statTotal > 0 && <b className="badge">{badgeText(statTotal)}</b>}
-            </button>
-            <button className="act ability" disabled={!u.ability || props.tickets.ability < 1} onClick={() => props.setPopup({ kind: 'abilityPick', unit: u })}>
-              ✨ 특수능력 변경{props.tickets.ability > 0 && <b className="badge">{badgeText(props.tickets.ability)}</b>}
-            </button>
+          {/* 바로 쓰기 4개 (2026-11-28): 능력치 변경 보통·상급·최상급 · 특수능력 변경 — 등급 고르는 단계 없이 바로 */}
+          <div className="ud-actions four">
+            {STAT_GRADES.map((g) => (
+              <button key={g} className="act stat" disabled={props.tickets[g] < 1} onClick={() => props.setPopup({ kind: 'statPick', grade: g, unit: u, keep: [] })}>
+                <span className="a-main">🔄 능력치 변경</span>
+                <span className="a-sub">
+                  {GRADE_SHORT[g]}
+                  {STAT_TICKET_KEEP[g] ? ` · ${STAT_TICKET_KEEP[g]}개 유지` : ' · 모두 다시'}
+                </span>
+                {props.tickets[g] > 0 && <b className="badge">{badgeText(props.tickets[g])}</b>}
+              </button>
+            ))}
+            {/* 4번째 칸: 특수능력 있으면 "변경", 없으면 "부여" (2026-11-28) */}
+            {u.ability ? (
+              <button className="act ability" disabled={props.tickets.ability < 1} onClick={() => props.setPopup({ kind: 'abilityPick', unit: u })}>
+                <span className="a-main">✨ 특수능력 변경</span>
+                <span className="a-sub">종류·수치 다시</span>
+                {props.tickets.ability > 0 && <b className="badge">{badgeText(props.tickets.ability)}</b>}
+              </button>
+            ) : (
+              <button className="act grant" disabled={props.tickets.abilityGrant < 1} onClick={() => props.setPopup({ kind: 'abilityPick', unit: u })}>
+                <span className="a-main">🎁 특수능력 부여</span>
+                <span className="a-sub">하나 붙이기</span>
+                {props.tickets.abilityGrant > 0 && <b className="badge">{badgeText(props.tickets.abilityGrant)}</b>}
+              </button>
+            )}
           </div>
-          {(!u.ability || statTotal < 1 || props.tickets.ability < 1) && (
-            <p className="dim ud-why">{[statTotal < 1 && '능력치 변경 티켓이 없어요', !u.ability ? '특수능력이 없는 캐릭은 특수능력 변경을 못 써요' : props.tickets.ability < 1 && '특수능력 변경 티켓이 없어요'].filter(Boolean).join(' · ')}</p>
-          )}
         </Modal>
       )
     }
@@ -410,16 +454,29 @@ function BarracksPopup(props: {
             ✕
           </button>
           <UnitDetail u={pp.unit} cfg={cfg} />
-          <h4 className="sheet-step">특수능력 변경 티켓 쓰기</h4>
-          <p className="dim">
-            특수능력만 다시 뽑아요
-            <br />
-            종류·수치 모두 새로 뽑고, 특수능력이 없어지지는 않아요
-          </p>
+          {pp.unit.ability ? (
+            <>
+              <h4 className="sheet-step">특수능력 변경 티켓 쓰기</h4>
+              <p className="dim">
+                특수능력만 다시 뽑아요
+                <br />
+                종류·수치 모두 새로 뽑고, 특수능력이 없어지지는 않아요
+              </p>
+            </>
+          ) : (
+            <>
+              <h4 className="sheet-step">특수능력 부여 티켓 쓰기</h4>
+              <p className="dim">
+                이 캐릭에 특수능력을 하나 붙여요
+                <br />
+                종류·수치는 무작위 (능력치는 그대로)
+              </p>
+            </>
+          )}
           <div className="row end">
             <button onClick={onClose}>취소</button>
-            <button className="primary inline" onClick={() => void props.onAbility(pp.unit)}>
-              바꾸기
+            <button className="primary inline" onClick={() => void (pp.unit.ability ? props.onAbility(pp.unit) : props.onGrant(pp.unit))}>
+              {pp.unit.ability ? '바꾸기' : '붙이기'}
             </button>
           </div>
         </Modal>
@@ -465,7 +522,7 @@ function BarracksPopup(props: {
             고른 티켓의 인원 단위로 캐릭을 넣어요. 예) 보통 3명 단위 → 12명이면 4장
           </p>
           <div className="grade-pick merge-pick">
-            {(['statNormal', 'draw', 'statHigh', 'ability', 'statTop'] as TicketKind[]).map((k) => (
+            {(['statNormal', 'draw', 'statHigh', 'ability', 'statTop', 'abilityGrant'] as TicketKind[]).map((k) => (
               <button key={k} disabled={props.units.length < MERGE_COST[k]} onClick={() => props.onMergeTarget(k)}>
                 <b>{TICKET_ICON[k]}</b>
                 <span>

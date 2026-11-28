@@ -24,7 +24,7 @@ const units = rollRoster(cfg, createRngState('시험판-1')).units
 
 describe('계정 (서버가 돌릴 규칙)', () => {
   it('막사 요청: 권이 없거나 잘못된 요청은 거절, 계정은 그대로', () => {
-    const acc = { ...newAccount(units.slice(0, 5)), tickets: { draw: 0, statNormal: 0, statHigh: 0, statTop: 0, ability: 0 } }
+    const acc = { ...newAccount(units.slice(0, 5)), tickets: { draw: 0, statNormal: 0, statHigh: 0, statTop: 0, ability: 0, abilityGrant: 0 } }
     expect(applyBarracks(cfg, acc, { type: 'draw' }, rng()).ok).toBe(false)
     expect(applyBarracks(cfg, acc, { type: 'rerollAbility', unitId: 'u1' }, rng()).ok).toBe(false)
     expect(applyBarracks(cfg, acc, { type: 'merge', unitIds: ['u1', 'u2'], target: 'statNormal' }, rng()).ok).toBe(false)
@@ -126,5 +126,23 @@ describe('우두머리 첫 처치 보너스 (2026-11-28)', () => {
     const { judgeStage: _j, BOSS_FIRST_CLEAR_GOLD } = await import('../src/index.ts')
     void _j
     expect(BOSS_FIRST_CLEAR_GOLD).toBe(100)
+  })
+})
+
+describe('특수능력 부여 티켓 (2026-11-28)', () => {
+  it('특수능력 없는 캐릭에만, 티켓 1장 써서 붙임', async () => {
+    const { applyBarracks, newAccount, makeConfig, Rng, createRngState, rollRoster, SHOP_PRICES, MERGE_COST } = await import('../src/index.ts')
+    const cfg = makeConfig()
+    const units = rollRoster(cfg, createRngState('부여')).units
+    const plain = units.find((u) => !u.ability)!
+    const withAb = units.find((u) => !!u.ability)!
+    const acc = { ...newAccount([plain, withAb]), tickets: { ...newAccount().tickets, abilityGrant: 1 } }
+    const rng = new Rng(createRngState(1))
+    const r = applyBarracks(cfg, acc, { type: 'grantAbility', unitId: plain.id }, rng)
+    expect(r.ok && r.account.units.find((u) => u.id === plain.id)!.ability).toBeTruthy()
+    expect(r.ok && r.account.tickets.abilityGrant).toBe(0)
+    expect(applyBarracks(cfg, acc, { type: 'grantAbility', unitId: withAb.id }, rng).ok).toBe(false)
+    expect(MERGE_COST.abilityGrant).toBe(30)
+    expect(SHOP_PRICES.abilityGrant).toBe(3000)
   })
 })
