@@ -1,6 +1,6 @@
 /**
  * 소리 (2026-11-28): 파일 없이 브라우저(Web Audio)에서 그 자리에서 합성.
- * - 배경음: 평소 곡(밝은 칩튠, 120BPM) · 우두머리 곡(A단조, 150BPM) — 우두머리가 판에 있는 동안만 우두머리 곡
+ * - 배경음: 마을 곡(메뉴·배치, F장조 96BPM) · 게임 곡(밝은 칩튠, 120BPM) · 우두머리 곡(A단조, 150BPM, 우두머리가 판에 있는 동안)
  * - 효과음: 맞음(hit) · 치명타(crit) · 처치(kill) · 특수능력(proc) · 통과(leak) · 클리어(clear) · 실패(fail)
  * - 같은 소리가 한꺼번에 몰리면 시끄러우니 종류마다 최소 간격(throttle)
  * - 휴대폰은 사용자가 화면을 한 번 눌러야 소리가 나므로 첫 터치 때 켬 (unlockAudio)
@@ -189,13 +189,45 @@ const BOSS: Track = {
     noise(bgmBus, t, 0.03, pos % 2 ? 0.16 : 0.1, 'highpass', 7500)
   },
 }
-const TRACKS = { peace: PEACE, boss: BOSS }
+/**
+ * 마을 곡 (2026-11-28, 막사·지도·상점·설정·배치): F장조 F → Dm → B♭ → C | F → Am → B♭ → C, 96BPM.
+ * 부드러운 삼각파 멜로디 + 느린 베이스 + 잔잔한 분산화음, 북은 아주 작게 — 오래 들어도 덜 피곤하게
+ */
+const TOWN: Track = {
+  bpm: 96,
+  roots: [41, 38, 46, 36, 41, 45, 46, 36],
+  chords: [MAJ, MIN, MAJ, MAJ, MAJ, MIN, MAJ, MAJ],
+  melody: [
+    [72, null, 69, null, 72, 74, 72, null],
+    [69, null, 65, null, 67, 69, 65, null],
+    [70, null, 74, null, 72, 70, 69, null],
+    [67, null, null, 69, 70, null, 67, null],
+    [72, null, 77, null, 76, 74, 72, null],
+    [76, null, 72, null, 69, 72, 76, null],
+    [74, null, 70, 74, 77, null, 76, 74],
+    [72, null, null, null, 67, null, 69, 70],
+  ],
+  play(tr, bar, pos, t, step) {
+    const root = tr.roots[bar]!
+    const chord = tr.chords[bar]!
+    // 베이스: 1·5칸만, 길고 둥글게
+    if (pos === 0 || pos === 4) tone(bgmBus, 'sine', midiHz(root - 12 + (pos === 4 ? 7 : 0)), t, step * 3.6, 0.5, undefined, 0.02)
+    // 분산화음: 사인파로 아주 작게, 올라갔다 내려옴
+    tone(bgmBus, 'sine', midiHz(root + 24 + chord[[0, 1, 2, 1][pos % 4]!]!), t, step * 1.4, 0.06, undefined, 0.01)
+    const m = tr.melody[bar]![pos]
+    if (m != null) tone(bgmBus, 'triangle', midiHz(m), t, step * 1.7, 0.2, undefined, 0.015)
+    // 북: 1칸 아주 작은 쿵, 5칸 솔솔 (스네어 없음)
+    if (pos === 0) tone(bgmBus, 'sine', 110, t, 0.18, 0.4, 45)
+    if (pos === 4) noise(bgmBus, t, 0.08, 0.08, 'bandpass', 5000)
+  },
+}
+const TRACKS = { town: TOWN, peace: PEACE, boss: BOSS }
 export type TrackName = keyof typeof TRACKS
 
 let bgmTimer: number | null = null
 let nextTime = 0
 let step = 0
-let track: TrackName = 'peace'
+let track: TrackName = 'town'
 /** 다음 박에서 바꿀 곡 (바로 끊지 않고 박자에 맞춰 넘어감) */
 let pendingTrack: TrackName | null = null
 
@@ -233,7 +265,7 @@ export const bgm = {
     g.setTargetAtTime(0, t, 0.06)
     g.setTargetAtTime((prefs.bgmVol / 100) * BGM_MAX, t + ms / 1000, 0.35)
   },
-  /** 곡 바꾸기: 'boss' (우두머리 등장) · 'peace' (평소). 같은 곡이면 아무 일 없음 */
+  /** 곡 바꾸기: 'town' (메뉴·배치) · 'peace' (게임 진행) · 'boss' (우두머리 등장). 같은 곡이면 아무 일 없음 */
   setTrack(name: TrackName) {
     if ((pendingTrack ?? track) === name) return
     if (bgmTimer == null) {
@@ -346,4 +378,12 @@ export const sfx = {
     ;[67, 63, 60].forEach((m, i) => tone(sfxBus, 'triangle', midiHz(m), t + i * 0.22, 0.3, 0.3))
     tone(sfxBus, 'sine', midiHz(48), t + 0.66, 0.6, 0.3, midiHz(43))
   },
+}
+
+// 개발 중 이 파일을 고쳐 저장하면(HMR) 새 모듈이 또 곡을 틀어서 옛 곡과 두 곡이 겹침 → 옛 모듈의 곡·소리 장치를 끔 (2026-11-28)
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    bgm.stop()
+    void ctx?.close()
+  })
 }

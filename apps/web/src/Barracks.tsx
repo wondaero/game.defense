@@ -204,11 +204,11 @@ export function Barracks(props: {
                 </div>
               )
             })()}
-            <button onClick={() => setPopup({ kind: 'mergePick' })}>티켓 바꾸기</button>
+            <button onClick={() => setPopup({ kind: 'mergePick' })}>티켓 변경</button>
             <button className="primary inline" disabled={!mergeOk} onClick={() => setPopup({ kind: 'mergeConfirm', target: mode.target, ids: mergeIds })}>
               합성하기
             </button>
-            <button onClick={() => setMode(null)}>그만</button>
+            <button onClick={() => setMode(null)}>취소</button>
           </div>
         )}
 
@@ -248,15 +248,24 @@ function Modal({ title, children, onClose, sheet }: { title: string; children: R
 }
 
 /** 캐릭 자세히 (창 위쪽): 큰 얼굴 · 이름 · 등급·점수 · 능력치 4개(뜻 포함) · 특수능력 전체 설명 */
-function UnitDetail({ u, cfg }: { u: UnitInstance; cfg: DefenseConfig }) {
+/** keep: 능력치 변경(상급·최상급)에서 유지할 능력치를 능력치 줄 체크로 고를 때 (2026-11-28) */
+function UnitDetail({ u, cfg, keep }: { u: UnitInstance; cfg: DefenseConfig; keep?: { picked: StatKey[]; need: number; onToggle: (k: StatKey) => void } }) {
   const look = unitLook(cfg, u)
   const b = baseStats(cfg, u)
   const ab = abilityText(u)
   /** 능력치 한 줄 = 이름 · 값 · 최소 ━━●━━ 최대 막대 (2026-11-28). 특수능력으로 올라간 값은 ▲ (막대 끝을 넘으면 끝에 붙음) */
-  const row = (label: string, now: number, orig: number, unit: string, min: number, max: number) => {
+  const row = (key: StatKey, label: string, now: number, orig: number, unit: string, min: number, max: number) => {
     const pos = (v: number) => Math.max(0, Math.min(100, ((v - min) / Math.max(1, max - min)) * 100))
+    const on = !!keep?.picked.includes(key)
+    const full = !!keep && keep.picked.length >= keep.need
     return (
-      <li>
+      <li
+        className={keep ? `pickable ${on ? 'keep-on' : ''} ${!on && full ? 'keep-off' : ''}` : ''}
+        onClick={keep ? () => keep.onToggle(key) : undefined}
+        role={keep ? 'checkbox' : undefined}
+        aria-checked={keep ? on : undefined}
+      >
+        {keep && <span className={`keep-box ${on ? 'on' : ''}`}>{on ? '✓' : ''}</span>}
         <span className="k">{label}</span>
         <span className="v">
           <b className={now !== orig ? 'up' : ''}>{now}</b>
@@ -294,11 +303,11 @@ function UnitDetail({ u, cfg }: { u: UnitInstance; cfg: DefenseConfig }) {
           <div className="dim ud-score">{score}점</div>
         </div>
       </div>
-      <ul className={`ud-stats tier-t${look.tier}`}>
-        {row('공격력', b.atk, u.atk, '', cfg.atk.min, cfg.atk.max)}
-        {row('사거리', b.range, u.range, '칸', cfg.range.min, cfg.range.max)}
-        {row('공속', b.attackSpeed, u.attackSpeed, '', cfg.attackSpeed.min, cfg.attackSpeed.max)}
-        {row('민첩', b.agility, u.agility, '', cfg.agility.min, cfg.agility.max)}
+      <ul className={`ud-stats tier-t${look.tier} ${keep ? 'picking' : ''}`}>
+        {row('atk', '공격력', b.atk, u.atk, '', cfg.atk.min, cfg.atk.max)}
+        {row('range', '사거리', b.range, u.range, '칸', cfg.range.min, cfg.range.max)}
+        {row('attackSpeed', '공속', b.attackSpeed, u.attackSpeed, '', cfg.attackSpeed.min, cfg.attackSpeed.max)}
+        {row('agility', '민첩', b.agility, u.agility, '', cfg.agility.min, cfg.agility.max)}
       </ul>
       {ab && u.ability ? (
         <div className="ab big">
@@ -420,21 +429,12 @@ function BarracksPopup(props: {
           <button className="sheet-close" aria-label="닫기" onClick={onClose}>
             ✕
           </button>
-          <UnitDetail u={pp.unit} cfg={cfg} />
+          <UnitDetail u={pp.unit} cfg={cfg} keep={need > 0 ? { picked: pp.keep, need, onToggle: toggle } : undefined} />
           <h4 className="sheet-step">{TICKET_NAMES[pp.grade]} 쓰기</h4>
           {need > 0 ? (
-            <>
-              <p className="dim">
-                유지할 능력치 {need}개를 고르세요 ({pp.keep.length} / {need})
-              </p>
-              <div className="chips keep">
-                {STAT_KEYS.map((k) => (
-                  <button key={k} className={pp.keep.includes(k) ? 'on' : ''} onClick={() => toggle(k)}>
-                    {STAT_KEY_NAMES[k]} {pp.unit[k]}
-                  </button>
-                ))}
-              </div>
-            </>
+            <p className="dim keep-hint">
+              유지할 능력치 {need}개를 <b>위에서 체크</b>하세요 <b className="keep-count">{pp.keep.length} / {need}</b>
+            </p>
           ) : (
             <p className="dim">공격력·사거리·공속·민첩을 모두 다시 뽑아요. 특수능력은 그대로 (없으면 5% 확률로 생김)</p>
           )}

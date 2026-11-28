@@ -876,3 +876,15 @@ input.vol:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(76,17
    고른 줄(합성)만 테두리가 바깥 여백 쪽으로 8px 나가게 — 안의 내용은 안 움직임 */
 .barracks-page .roster > li { padding-left: 0; padding-right: 0; }
 .barracks-page .roster > li.sel { margin-left: -5px; margin-right: -5px; padding-left: 5px; padding-right: 5px; }
+
+/* 능력치 변경(상급·최상급): 유지할 능력치를 능력치 줄에서 바로 체크 (2026-11-28) */
+.ud-stats.picking li { grid-template-columns: 20px 40px 34px 1fr; cursor: pointer; border: 2px solid transparent; transition: background .15s, border-color .15s; }
+.ud-stats.picking li.keep-on { background: #e3f4d7; border-color: #43a047; }
+.ud-stats.picking li.keep-off { opacity: 0.55; }
+.keep-box { width: 20px; height: 20px; border-radius: 6px; border: 2px solid #b9ab88; background: #fff; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; font-weight: 900; line-height: 1; }
+.keep-box.on { background: #43a047; border-color: #2e7d32; }
+.keep-hint b { color: var(--text); }
+.keep-count { white-space: nowrap; color: #2e7d32 !important; }
+
+/* 일시정지 창 안 소리 설정 (2026-11-28): 카드 테두리 없이 */
+.sound-settings.compact { background: #f6efdc; border: none; box-shadow: none; padding: 4px 12px; margin: 10px 0 8px; text-align: left; border-radius: 12px; }

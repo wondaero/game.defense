@@ -478,11 +478,12 @@ export function App() {
 
   const placedCount = Object.keys(placements).length
 
-  // 진행 화면을 벗어나면 항상 평소 곡으로
+  // 곡 (2026-11-28): 게임 진행 = 게임 곡(우두머리 나오면 우두머리 곡), 그 밖(메뉴·배치·결과) = 마을 곡
   useEffect(() => {
-    if (screen !== 'play') {
+    if (screen === 'play') bgm.setTrack('peace')
+    else {
       bossOnRef.current = false
-      bgm.setTrack('peace')
+      bgm.setTrack('town')
     }
   }, [screen])
 
@@ -717,10 +718,10 @@ export function App() {
                 <button
                   onClick={() => {
                     unlockAudio()
-                    bgm.setTrack(bgm.track === 'boss' ? 'peace' : 'boss')
+                    bgm.setTrack(bgm.track === 'town' ? 'peace' : bgm.track === 'peace' ? 'boss' : 'town')
                   }}
                 >
-                  👑 평소 곡 ↔ 우두머리 곡
+                  🎶 곡 넘기기 (마을 → 게임 → 우두머리)
                 </button>
                 {(
                   [
@@ -853,6 +854,8 @@ export function App() {
         <div className="modal-backdrop">
           <div className="modal">
             <div className="modal-title">⏸ 일시정지</div>
+            {/* 일시정지 창에서도 소리 켜기/끄기·크기 (2026-11-28, 설정과 같은 값) */}
+            <SoundSettings compact />
             <p className="dim">스테이지로 가면 지금 하던 판은 사라져요</p>
             <div className="row pause-row">
               <button
@@ -1166,7 +1169,7 @@ function AbilityGuide({ cfg }: { cfg: DefenseConfig }) {
 }
 
 /** 소리: 배경음·효과음 각각 켜기/끄기 + 크기 (이 기기에 저장) */
-function SoundSettings() {
+function SoundSettings({ compact }: { compact?: boolean } = {}) {
   const [p, setP] = useState<SoundPrefs>(getSoundPrefs)
   const set = (next: Partial<SoundPrefs>) => {
     setSoundPrefs(next)
@@ -1177,8 +1180,8 @@ function SoundSettings() {
     { on: 'sfx', vol: 'sfxVol', icon: '🔊', name: '효과음' },
   ] as const
   return (
-    <section className="sound-settings">
-      <h3>소리</h3>
+    <section className={`sound-settings ${compact ? 'compact' : ''}`}>
+      {!compact && <h3>소리</h3>}
       {rows.map((r) => (
         <div key={r.on} className={`sound-row ${p[r.on] ? '' : 'off'}`}>
           <div className="sound-line">
