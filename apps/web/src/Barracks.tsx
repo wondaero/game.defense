@@ -45,7 +45,6 @@ export function Barracks(props: {
   onAccount: (next: Account, removedIds?: string[]) => void
   view: RosterView
   onView: (v: RosterView) => void
-  onReroll: () => void
 }) {
   const { cfg, account } = props
   const { units, tickets } = account
@@ -190,12 +189,6 @@ export function Barracks(props: {
           />
         ))}
       </ul>
-      <div className="row" style={{ marginTop: 8 }}>
-        <button onClick={() => void props.api.dev?.grantTickets(5).then((a) => props.onAccount(a))}>
-          🧪 시험용: 권 모두 +5
-        </button>
-        <button onClick={() => confirm('막사 캐릭을 모두 새로 뽑을까요? (배치도 지워짐)') && props.onReroll()}>🎲 시험용: 막사 전체 다시 뽑기</button>
-      </div>
 
       {popup && <BarracksPopup popup={popup} cfg={cfg} units={units} onClose={() => setPopup(null)} onStat={doStat} onAbility={doAbility} onMerge={doMerge} setPopup={setPopup} />}
     </section>

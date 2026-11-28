@@ -98,8 +98,10 @@ export function App() {
   // 계정 창구: 지금은 브라우저 안(localApi), 서버를 붙이면 serverApi 로 바꿈 (화면 코드는 그대로)
   const cfgRef = useRef(cfg)
   cfgRef.current = cfg
-  const unlockRef = useRef(save.unlockAll)
-  unlockRef.current = save.unlockAll
+  // 개발자 메뉴를 숨기면 "모든 탄 열기"도 저장값과 상관없이 꺼짐
+  const unlockAll = SHOW_DEV_MENU && save.unlockAll
+  const unlockRef = useRef(unlockAll)
+  unlockRef.current = unlockAll
   const api = useMemo<GameApi>(() => createLocalApi(() => cfgRef.current, () => unlockRef.current), [])
   const [account, setAccount] = useState<Account | null>(null)
   useEffect(() => {
@@ -119,7 +121,6 @@ export function App() {
   const [askLeave, setAskLeave] = useState<{ wasPaused: boolean } | null>(null)
   /** 화면 버튼으로 탄 고르기에 돌아가는 중 (history.back 뒤 popstate 에서 묻지 않고 이동) */
   const leavingRef = useRef(false)
-  const [showSettings, setShowSettings] = useState(false)
   const [, setUiTick] = useState(0)
 
   useEffect(() => localStorage.setItem(SAVE_KEY, JSON.stringify(save)), [save])
@@ -451,7 +452,7 @@ export function App() {
   }
 
   const sim = simRef.current
-  const maxOpen = save.unlockAll ? Infinity : best + 1
+  const maxOpen = unlockAll ? Infinity : best + 1
 
   if (screen === 'bench') return <Bench onBack={goSelect} />
 
@@ -474,33 +475,11 @@ export function App() {
             <section>
               <StageMap count={LAST_NORMAL_STAGE} best={best} stars={account?.stars ?? {}} maxOpen={maxOpen} onOpen={openStage} />
               <div className="row" style={{ marginTop: 10 }}>
-                <button className="primary inline" disabled={best < LAST_NORMAL_STAGE && !save.unlockAll} onClick={() => openStage(infinite)}>
+                <button className="primary inline" disabled={best < LAST_NORMAL_STAGE && !unlockAll} onClick={() => openStage(infinite)}>
                   ♾ 무한 ({infinite}탄)
                 </button>
                 <span className="dim">100탄을 깨면 열림. 그 뒤로 끝없이 어려워짐</span>
               </div>
-            </section>
-            <section>
-              <div className="row">
-                <label className="dim">
-                  <input type="checkbox" checked={save.unlockAll} onChange={(e) => setSave({ ...save, unlockAll: e.target.checked })} /> 시험용: 모든 탄 열기
-                </label>
-                <button onClick={() => confirm('최고 기록을 0으로 되돌릴까요?') && void api.dev?.setBest(0).then(setAccount)}>기록 지우기</button>
-                <button
-                  onClick={() => {
-                    enterSubScreen()
-                    live.current.screen = 'bench'
-                    setScreen('bench')
-                  }}
-                >
-                  🧪 그리기 성능 시험 (200개~)
-                </button>
-                <a className="dim" href="sprites/preview.html" target="_blank">스프라이트 모아 보기</a>
-              </div>
-              <button className="link" onClick={() => setShowSettings(!showSettings)}>
-                ⚙ 설정 {showSettings ? '접기' : '펼치기'}
-              </button>
-              {showSettings && <Settings cfg={cfg} onChange={(p) => setCfg({ ...cfg, ...p })} />}
             </section>
           </>
         )}
@@ -521,12 +500,6 @@ export function App() {
             }}
             view={view}
             onView={setView}
-            onReroll={() =>
-              void api.dev?.resetBarracks(`시험판-${Math.floor(Math.random() * 1e6)}`).then((a) => {
-                setAccount(a)
-                setSave((s) => ({ ...s, placementsByMap: {} }))
-              })
-            }
           />
         )}
 
@@ -562,8 +535,64 @@ export function App() {
           </section>
         )}
 
+        {/* 개발자 메뉴 (2026-11-28): 시험용 기능 전부 여기. 숨기려면 SHOW_DEV_MENU = false */}
+        {tab === 'dev' && SHOW_DEV_MENU && (
+          <>
+            <section>
+              <h3>진행</h3>
+              <div className="row">
+                <label>
+                  <input type="checkbox" checked={save.unlockAll} onChange={(e) => setSave({ ...save, unlockAll: e.target.checked })} /> 모든 탄 열기
+                </label>
+                <button onClick={() => confirm('최고 기록을 0으로 되돌릴까요?') && void api.dev?.setBest(0).then(setAccount)}>기록 지우기</button>
+              </div>
+            </section>
+            <section>
+              <h3>막사</h3>
+              <div className="row">
+                <button onClick={() => void api.dev?.grantTickets(5).then(setAccount)}>🎟️ 권 모두 +5</button>
+                <button
+                  onClick={() =>
+                    confirm('막사 캐릭을 모두 새로 뽑을까요? (배치도 지워짐)') &&
+                    void api.dev?.resetBarracks(`시험판-${Math.floor(Math.random() * 1e6)}`).then((a) => {
+                      setAccount(a)
+                      setSave((s) => ({ ...s, placementsByMap: {} }))
+                    })
+                  }
+                >
+                  🎲 막사 전체 다시 뽑기
+                </button>
+              </div>
+            </section>
+            <section>
+              <h3>그림</h3>
+              <div className="row">
+                <button
+                  onClick={() => {
+                    enterSubScreen()
+                    live.current.screen = 'bench'
+                    setScreen('bench')
+                  }}
+                >
+                  🧪 그리기 성능 시험 (200개~)
+                </button>
+                <a className="dim" href="sprites/preview.html" target="_blank">
+                  스프라이트 모아 보기
+                </a>
+              </div>
+            </section>
+            <section>
+              <h3>게임 설정</h3>
+              <p className="dim" style={{ margin: '0 0 6px' }}>
+                바꾸면 판 계산이 달라짐 (새로고침하면 기본값으로)
+              </p>
+              <Settings cfg={cfg} onChange={(p) => setCfg({ ...cfg, ...p })} />
+            </section>
+          </>
+        )}
+
         <nav className="tabbar">
-          {TABS.map((t) => (
+          {VISIBLE_TABS.map((t) => (
             <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
               <span className="big">{t.icon}</span>
               {t.label}
@@ -726,13 +755,20 @@ export function App() {
 }
 
 /** 아래 고정 메뉴 (막사 · 스테이지 · 상점, 가운데 스테이지) */
-type Tab = 'barracks' | 'stages' | 'shop'
+type Tab = 'barracks' | 'stages' | 'shop' | 'dev'
+/**
+ * 개발자 메뉴 (2026-11-28): 시험용 기능(모든 탄 열기·기록 지우기·권 지급·막사 다시 뽑기·성능 시험·스프라이트·게임 설정)을 한 탭에.
+ * **출시할 때 false 한 줄**이면 탭이 사라지고 "모든 탄 열기"도 꺼짐. 서버 api 엔 dev 가 없어서 기능도 같이 없어짐
+ */
+const SHOW_DEV_MENU = true
 const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: 'barracks', icon: '⛺', label: '막사' },
   { id: 'stages', icon: '⚔️', label: '스테이지' },
   { id: 'shop', icon: '🛒', label: '상점' },
+  { id: 'dev', icon: '🛠', label: '개발자' },
 ]
-const TAB_TITLES: Record<Tab, string> = { barracks: '막사', stages: '스테이지', shop: '상점' }
+const VISIBLE_TABS = TABS.filter((t) => t.id !== 'dev' || SHOW_DEV_MENU)
+const TAB_TITLES: Record<Tab, string> = { barracks: '막사', stages: '스테이지', shop: '상점', dev: '개발자' }
 /** 막사에서 할 일 (아직 준비 중) */
 const BARRACKS_ACTIONS = [
   { icon: '🎟️', label: '캐릭 뽑기' },
