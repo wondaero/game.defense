@@ -196,7 +196,9 @@ export function App() {
       const W = L.map.width * CELL_PX + PAD * 2
       const H = L.map.height * CELL_PX + PAD * 2
       // 배치 화면은 판을 작게(화면 높이의 약 42%) → 아래 캐릭 목록이 더 보이게 (2026-11-28)
-      const want = L.screen === 'prepare' ? `min(${W}px, calc(42dvh * ${(W / H).toFixed(4)}))` : `${W}px`
+      // 진행·결과 화면은 판을 최대한 크게: 폭은 화면 폭까지, 높이는 위 제목·아래 조작/가로 목록 몫(약 230px)만 남김 (2026-11-28)
+      const ratio = (W / H).toFixed(4)
+      const want = L.screen === 'prepare' ? `min(${W}px, calc(42dvh * ${ratio}))` : `min(${Math.round(W * 1.5)}px, calc((100dvh - 230px) * ${ratio}))`
       if (canvas.style.width !== want) canvas.style.width = want
       const scale = (canvas.clientWidth || W) / W
       const bw = Math.round(W * scale * dpr)
@@ -681,7 +683,7 @@ export function App() {
   // ── 탄 준비 · 진행 · 결과 (판이 보이는 화면) ──
   const summary = stageSummary(stage)
   return (
-    <div className={`app ${screen === 'prepare' ? 'prepare-view' : ''}`}>
+    <div className={`app ${screen === 'prepare' ? 'prepare-view' : 'play-view'}`}>
       {/* 배치 화면은 제목 줄 없이 판부터 (2026-11-28) — 돌아가기·시작은 아래 떠 있는 버튼 */}
       {screen !== 'prepare' && (
       <header className={stageTheme(stageNo)}>
@@ -690,6 +692,24 @@ export function App() {
             ←
           </button>{' '}
           {stageName(stageNo)} {stage.isBoss && <span className="boss-tag">우두머리</span>}
+          {/* 별·처음 도전은 제목 줄 오른쪽 → 진행 화면 제목 영역을 두 줄로 (2026-11-28) */}
+          <span className="h1-right">
+            {/* 이 탄에서 딴 별 (2026-11-28, 전체 최고 기록 대신) */}
+            {(() => {
+              const got = account?.stars?.[stageNo] ?? 0
+              return got > 0 ? (
+                <span className="stage-stars" title={`이 탄 최고 별 ${got}개`}>
+                  {[1, 2, 3].map((k) => (
+                    <i key={k} className={k <= got ? 'on' : ''}>
+                      ★
+                    </i>
+                  ))}
+                </span>
+              ) : (
+                <span>처음 도전</span>
+              )
+            })()}
+          </span>
         </h1>
         <div className="stats">
           <span>🚪 통과 {sim ? sim.leaked : 0}/{cfg.startLives - 1}</span>
@@ -698,21 +718,6 @@ export function App() {
               ⏱ {(sim.tick / cfg.tickRate).toFixed(1)}초 · 남은 슬라임 {sim.spawns.length - sim.spawnIdx + sim.monsters.length}
             </span>
           )}
-          {/* 이 탄에서 딴 별 (2026-11-28, 전체 최고 기록 대신) */}
-          {(() => {
-            const got = account?.stars?.[stageNo] ?? 0
-            return got > 0 ? (
-              <span className="stage-stars" title={`이 탄 최고 별 ${got}개`}>
-                {[1, 2, 3].map((k) => (
-                  <i key={k} className={k <= got ? 'on' : ''}>
-                    ★
-                  </i>
-                ))}
-              </span>
-            ) : (
-              <span>처음 도전</span>
-            )
-          })()}
         </div>
       </header>
       )}
@@ -788,37 +793,37 @@ export function App() {
                 {stageName(stageNo)} {stage.isBoss && <span className="boss-tag">우두머리</span>} 출연 슬라임 <span className="dim">· 눌러서 보기</span>
               </h3>
               {/* 그림 + 마릿수를 가로로, 누르면 능력치·특수능력 (2026-11-28) */}
-              <ul className="monster-chips">
-                {summary.map(({ spec, count }) => (
-                  <li key={spec.id}>
-                    <button onClick={() => setMonsterInfo({ spec, count })} title={spec.name}>
-                      <UnitFace body={monsterSprite(spec)} tool={null} />
-                      <b>×{count}</b>
-                      {spec.abilities.length > 0 && <i className="chip-ab">{spec.abilities.map((a) => MONSTER_ABILITIES[a].icon).join('')}</i>}
-                    </button>
-                  </li>
-                ))}
+              <MonsterChips summary={summary} onPick={(spec, count) => setMonsterInfo({ spec, count })} />
+            </section>
+          )}
+          {/* 진행·결과 화면 (2026-11-28): 조작은 일시정지·배속뿐이라 막사 목록 대신 가로 목록 2줄만 → 판을 크게 */}
+          {screen !== 'prepare' && (
+            <section className="play-info">
+              <h3>
+                출연 슬라임 <span className="dim">· 맵 {map.name} · 눌러서 보기</span>
+              </h3>
+              <MonsterChips summary={summary} onPick={(spec, count) => setMonsterInfo({ spec, count })} />
+              <h3>
+                출전 캐릭 {placedCount}명 <span className="dim">· 눌러서 사거리 보기</span>
+              </h3>
+              <ul className="unit-chips">
+                {roster
+                  .filter((u) => placements[u.id])
+                  .map((u) => {
+                    const look = unitLook(cfg, u)
+                    return (
+                      <li key={u.id}>
+                        <button className={selectedId === u.id ? 'on' : ''} onClick={() => setSelectedId(selectedId === u.id ? null : u.id)} title={look.title}>
+                          <UnitFace body={look.body} tool={look.tool} rainbow={look.tier === 6} />
+                        </button>
+                      </li>
+                    )
+                  })}
               </ul>
             </section>
           )}
-          {screen !== 'prepare' && (
-          <section>
-            <h3>
-              출연 슬라임 <span className="dim">· 맵 {map.name} · 길 {map.path.length}칸</span>
-            </h3>
-            <p className="dim" style={{ margin: '0 0 6px' }}>
-              {stageNo <= REFERENCE_MAX_STAGE
-                ? `기준: 특수능력 없는 10명이 평균 ${referenceSummary(stageNo)} 이면 겨우 깸 (2마리까지 통과)`
-                : `기준 덱(능력치 최고 10명)으로는 못 깸 — 특수능력이 있어야 함 (70탄보다 체력 +${Math.round((stageHpBp(stageNo) / stageHpBp(REFERENCE_MAX_STAGE) - 1) * 100)}%)`}
-            </p>
-            <ul className="monsters">
-              {summary.map(({ spec, count }) => (
-                <MonsterRow key={spec.id} spec={spec} count={count} cfg={cfg} />
-              ))}
-            </ul>
-          </section>
-          )}
 
+          {screen === 'prepare' && (
           <section>
             {/* 판 바로 아래에 한 번 더 붙음: 출전 수·필터가 목록을 내려도 보이게 (2026-11-28) */}
             <div className="roster-head">
@@ -853,8 +858,9 @@ export function App() {
                 )
               })}
             </ul>
-            {screen === 'prepare' && <p className="hint">캐릭을 고른 뒤 초록 칸을 누르면 배치 · 판 위 캐릭을 고르고 다른 칸을 누르면 이동·자리 바꾸기. 배치는 맵마다 기억됨</p>}
+            <p className="hint">캐릭을 고른 뒤 초록 칸을 누르면 배치 · 판 위 캐릭을 고르고 다른 칸을 누르면 이동·자리 바꾸기. 배치는 맵마다 기억됨</p>
           </section>
+          )}
         </aside>
       </main>
 
@@ -942,6 +948,23 @@ const SHOP_ITEMS: { kind: TicketKind; icon: string; desc: string }[] = [
   { kind: 'ability', icon: '✨', desc: '특수능력만 다시' },
   { kind: 'statTop', icon: '🔄', desc: '2개 골라 유지, 나머지 다시' },
 ]
+
+/** 출연 슬라임 가로 목록 (그림 + 마릿수, 누르면 자세히) — 배치·진행 화면 공용 (2026-11-28) */
+function MonsterChips({ summary, onPick }: { summary: { spec: MonsterSpec; count: number }[]; onPick: (spec: MonsterSpec, count: number) => void }) {
+  return (
+    <ul className="monster-chips">
+      {summary.map(({ spec, count }) => (
+        <li key={spec.id}>
+          <button onClick={() => onPick(spec, count)} title={spec.name}>
+            <UnitFace body={monsterSprite(spec)} tool={null} />
+            <b>×{count}</b>
+            {spec.abilities.length > 0 && <i className="chip-ab">{spec.abilities.map((a) => MONSTER_ABILITIES[a].icon).join('')}</i>}
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 function MonsterRow({ spec, count, cfg }: { spec: MonsterSpec; /** 없으면 마릿수 안 씀 (자세히 창) */ count?: number; cfg: DefenseConfig }) {
   const hp = Math.max(1, Math.floor((spec.hp * cfg.monsterHpBp) / 10000))

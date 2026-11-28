@@ -538,7 +538,7 @@ section.barracks-page { background: none; border: none; box-shadow: none; paddin
 .sheet-title { margin: 2px 40px 12px 0; font-size: 16px; }
 
 /* 탄 화면 제목 줄: 이 탄에서 딴 별 (2026-11-28) */
-.stats > span.stage-stars { letter-spacing: 1px; font-size: 15px; }
+.stats > span.stage-stars, .h1-right > span.stage-stars { letter-spacing: 1px; font-size: 15px; }
 .stage-stars i { font-style: normal; color: #d8ccb0; }
 .stage-stars i.on { color: #ffb300; text-shadow: 0 1px 0 #8d6e00; }
 
@@ -661,3 +661,21 @@ html, body { overflow-x: clip; overscroll-behavior-x: none; }
 .sprite-gallery .sg-item { display: flex; flex-direction: column; gap: 3px; }
 .sprite-gallery img { max-width: 100%; background: #7cbd5a; border-radius: 8px; }
 .sprite-gallery small, .sprite-gallery span { font-size: 11.5px; }
+
+/* 진행·결과 화면 (2026-11-28): 판 크게 + 아래는 가로 목록 2줄 */
+.app.play-view .board { width: 100%; display: flex; flex-direction: column; align-items: center; }
+.app.play-view .board canvas { margin: 0 auto; }
+.app.play-view .controls { align-self: stretch; justify-content: center; }
+.play-info h3 { font-size: 14px; margin: 0 0 6px; }
+.play-info h3 + ul + h3 { margin-top: 8px; }
+.play-info .monster-chips button { min-width: 56px; padding: 4px 6px 3px; }
+.unit-chips { list-style: none; margin: 0; padding: 2px 0 4px; display: flex; gap: 6px; overflow-x: auto; }
+.unit-chips button { padding: 4px; border-radius: 12px; line-height: 0; }
+.unit-chips button.on { background: #fff3c4; border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); }
+/* 진행 화면 제목 줄은 얇게: 제목 · 기록 한 줄 */
+.app.play-view header { padding-top: 6px; padding-bottom: 6px; gap: 4px 8px; }
+.app.play-view header h1 { font-size: 18px; }
+.app.play-view header .stats { gap: 6px; font-size: 12.5px; }
+.app.play-view header h1 { display: flex; align-items: center; gap: 6px; width: 100%; }
+.app.play-view header h1 .h1-right { margin-left: auto; font-size: 12.5px; text-shadow: none; }
+.app.play-view header h1 .h1-right > span { background: rgba(255,255,255,0.9); color: var(--text); border-radius: 999px; padding: 3px 9px; font-weight: 700; }
