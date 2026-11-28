@@ -17,12 +17,11 @@ import { ApiError, type GameApi } from './api.ts'
  */
 const ACCOUNT_KEY = 'defense.account.v1'
 /** 예전 저장 (캐릭·권·기록이 화면 저장에 같이 있던 때) */
-const OLD_SAVE_KEY = 'defense.save.v1'
 
 /** 브라우저 난수 (서버라면 서버가 굴림) */
 const freshRng = () => new Rng(createRngState(crypto.getRandomValues(new Uint32Array(1))[0]!))
 
-/** 시험판 막사: 씨앗으로 rosterSize 명을 뽑아 둠 (진짜 게임은 빈 막사 + 첫 지급 권으로 시작) */
+/** 시험용 막사: 씨앗으로 rosterSize 명을 뽑음 — 개발자 탭 "막사 다시 뽑기" 에서만 씀 (처음 계정은 빈 막사) */
 export const testUnits = (cfg: DefenseConfig, seed: string) => rollRoster(cfg, createRngState(seed)).units
 
 export function createLocalApi(getCfg: () => DefenseConfig, getUnlockAll: () => boolean): GameApi {
@@ -34,15 +33,9 @@ export function createLocalApi(getCfg: () => DefenseConfig, getUnlockAll: () => 
     } catch {
       /* 깨진 저장은 새로 */
     }
-    // 처음: 예전 저장이 있으면 옮겨 옴 (캐릭은 같은 씨앗으로 만들어 원래 그대로)
-    let old: Partial<Account> & { rosterSeed?: string } = {}
-    try {
-      old = JSON.parse(localStorage.getItem(OLD_SAVE_KEY) ?? '{}')
-    } catch {
-      old = {}
-    }
-    const units = old.units ?? testUnits(getCfg(), old.rosterSeed ?? '시험판-1')
-    const acc = { ...newAccount(units), ...(old.tickets ? { tickets: old.tickets } : {}), nextUnitId: old.nextUnitId ?? units.length + 1, best: old.best ?? 0, stars: old.stars ?? {} }
+    // 처음 들어온 기기 (2026-11-28): 빈 막사 + 처음 지급 티켓만 (START_TICKETS). 캐릭은 뽑기 티켓으로 직접 뽑음
+    // (예전엔 시험용 100명을 미리 넣어 줬음 — 개발자 탭 "막사 다시 뽑기"로 여전히 받을 수 있음)
+    const acc = newAccount()
     write(acc)
     return acc
   }

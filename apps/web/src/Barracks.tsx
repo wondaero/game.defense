@@ -202,6 +202,7 @@ export function Barracks(props: {
         {/* 인원 · 보기 · 정렬 한 줄 (2026-11-28, "막사 (n/100명)" 제목 줄 대신) */}
         <RosterTools view={props.view} onChange={props.onView} roster={units} lead={<><b>{units.length}</b> / {cfg.rosterSize}</>} />
       </div>
+      {units.length === 0 && <p className="empty-note">아직 캐릭이 없어요. 위 <b>🎟️ 캐릭 뽑기</b>로 첫 캐릭을 뽑아 보세요!</p>}
       <ul className="roster picking">
         {shown.map((u) => (
           <UnitRow key={u.id} u={u} cfg={cfg} selected={mergeIds.includes(u.id)} onClick={() => onUnitClick(u)} />

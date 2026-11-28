@@ -39,6 +39,7 @@ import { Bench } from './Bench.tsx'
 import { Codex } from './Codex.tsx'
 import { ResultOverlay } from './ResultOverlay.tsx'
 import { SpriteGallery } from './SpriteGallery.tsx'
+import { bgm, getSoundPrefs, setSoundPrefs, sfx, unlockAudio, type SoundPrefs } from './sound.ts'
 import { StageMap } from './StageMap.tsx'
 import { unitLook, stageName, stageTheme } from './format.ts'
 import { RosterTools, splitDesc, UnitFace, UnitRow, viewRoster, type RosterView } from './UnitList.tsx'
@@ -158,6 +159,8 @@ export function App() {
   const fxRef = useRef<Fx[]>([])
   const animRef = useRef(newAnimState())
   const accRef = useRef(0)
+  /** 우두머리가 판에 있는지 (곡 바꾸기용) */
+  const bossOnRef = useRef(false)
   const live = useRef({ cfg, map, roster, placements, selectedId, hover, speed, paused, screen, stageNo })
   live.current = { cfg, map, roster, placements, selectedId, hover, speed, paused, screen, stageNo }
 
@@ -182,6 +185,13 @@ export function App() {
           accRef.current -= tickMs
           stepWave(sim)
           collectFx(sim, now)
+        }
+        // 우두머리 곡 (2026-11-28): 우두머리가 판에 나오면 우두머리 곡 + 등장음, 죽거나 통과해서 판에서 사라지면 평소 곡
+        const bossOn = sim.monsters.some((m) => m.spec.id === 'boss')
+        if (bossOn !== bossOnRef.current) {
+          bossOnRef.current = bossOn
+          if (bossOn) sfx.bossAppear()
+          bgm.setTrack(bossOn ? 'boss' : 'peace')
         }
         if (sim.done) finishStage(sim)
       }
@@ -243,6 +253,11 @@ export function App() {
       return u ? { x: (u.cell.x + 0.5) * CELL_PX, y: (u.cell.y + 0.5) * CELL_PX } : null
     }
     for (const ev of sim.events) {
+      // 효과음 (2026-11-28): 맞을 때만(때리는 순간·빗나감은 소리 없음) + 처치·특수능력·통과
+      if (ev.type === 'hit') ev.crit ? sfx.crit() : sfx.hit()
+      else if (ev.type === 'kill') sim.stage.monsters[ev.monsterType]?.id === 'boss' ? sfx.bossDown() : sfx.kill()
+      else if (ev.type === 'proc') sfx.proc()
+      else if (ev.type === 'leak') sfx.leak()
       if (ev.type === 'proc') {
         fxRef.current.push({ kind: 'text', born: now, life: 900, to: { ...monsterScreenPos(map, ev.dist, ev.monsterId), y: monsterScreenPos(map, ev.dist, ev.monsterId).y - 14 }, text: ABILITY_NAMES[ev.kind] + '!', color: '#ffeb3b' })
         const p = unitPos(ev.unitId)
@@ -344,6 +359,8 @@ export function App() {
     const show = (r: { cleared: boolean; stars: number; killed: number; leaked: number; ticks: number; bossLeaked: boolean; reward?: StageReward }, note = '') => {
       const text = (r.bossLeaked ? '왕이 통과했어요 (왕은 꼭 잡아야 해요) · ' : '') + `${r.killed}마리 처치 · ${r.leaked}마리 통과 · ${(r.ticks / live.current.cfg.tickRate).toFixed(0)}초` + note
       setResult({ cleared: r.cleared, text, stars: r.stars, reward: r.reward })
+      if (r.cleared) sfx.clear()
+      else sfx.fail()
       setScreen('result')
     }
     const mine = { cleared: sim.lives > 0, stars: starsFor(sim.lives > 0, sim.leaked), killed: sim.killed, leaked: sim.leaked, ticks: sim.tick, bossLeaked: sim.bossLeaked }
@@ -435,6 +452,25 @@ export function App() {
   }
 
   const placedCount = Object.keys(placements).length
+
+  // 진행 화면을 벗어나면 항상 평소 곡으로
+  useEffect(() => {
+    if (screen !== 'play') {
+      bossOnRef.current = false
+      bgm.setTrack('peace')
+    }
+  }, [screen])
+
+  // 소리: 브라우저는 사용자가 한 번 눌러야 소리를 허락함 → 첫 터치·클릭·키 때 켬 (배경음도 그때 시작)
+  useEffect(() => {
+    const on = () => unlockAudio()
+    window.addEventListener('pointerdown', on)
+    window.addEventListener('keydown', on)
+    return () => {
+      window.removeEventListener('pointerdown', on)
+      window.removeEventListener('keydown', on)
+    }
+  }, [])
 
   /** 진행 화면: 제목 높이를 CSS 변수로 → 판이 제목 바로 아래에 붙음 (제목·판 고정, 아래 목록만 스크롤, 2026-11-28) */
   useEffect(() => {
@@ -614,8 +650,8 @@ export function App() {
           </section>
         )}
 
-        {/* 설정 (2026-11-28): 지금은 도감만. 나중에 계정·소리 등 */}
-        {tab === 'settings' && <Codex />}
+        {/* 설정 (2026-11-28): 소리 · 도감 메뉴. 나중에 계정 등 */}
+        {tab === 'settings' && <SettingsPage />}
 
         {/* 개발자 메뉴 (2026-11-28): 시험용 기능 전부 여기. 숨기려면 SHOW_DEV_MENU = false */}
         {tab === 'dev' && SHOW_DEV_MENU && (
@@ -644,6 +680,46 @@ export function App() {
                 >
                   🎲 막사 전체 다시 뽑기
                 </button>
+              </div>
+            </section>
+            <section>
+              <h3>소리 들어보기</h3>
+              <p className="dim" style={{ margin: '0 0 6px' }}>
+                파일 없이 그 자리에서 만든 소리 (sound.ts). 효과음은 게임에서 맞을 때·처치·특수능력·통과·끝날 때 남
+              </p>
+              <div className="row sound-test">
+                <button onClick={() => (bgm.playing ? bgm.stop() : (unlockAudio(), bgm.start()))}>🎵 배경음 켜기/끄기</button>
+                <button
+                  onClick={() => {
+                    unlockAudio()
+                    bgm.setTrack(bgm.track === 'boss' ? 'peace' : 'boss')
+                  }}
+                >
+                  👑 평소 곡 ↔ 우두머리 곡
+                </button>
+                {(
+                  [
+                    ['맞음', sfx.hit],
+                    ['치명타', sfx.crit],
+                    ['처치', sfx.kill],
+                    ['특수능력', sfx.proc],
+                    ['통과', sfx.leak],
+                    ['클리어', sfx.clear],
+                    ['실패', sfx.fail],
+                    ['우두머리 등장', sfx.bossAppear],
+                    ['우두머리 처치', sfx.bossDown],
+                  ] as const
+                ).map(([name, play]) => (
+                  <button
+                    key={name}
+                    onClick={() => {
+                      unlockAudio()
+                      play()
+                    }}
+                  >
+                    🔊 {name}
+                  </button>
+                ))}
               </div>
             </section>
             <section>
@@ -844,6 +920,11 @@ export function App() {
               </h3>
               <RosterTools view={view} onChange={setView} roster={roster} />
             </div>
+            {roster.length === 0 && (
+              <p className="empty-note">
+                캐릭이 없어요. <button className="link" onClick={() => { setTab('barracks'); goSelect() }}>막사</button>에서 뽑기 티켓으로 캐릭을 뽑아 오세요
+              </p>
+            )}
             <ul className="roster">
               {viewRoster(cfg, roster, view).map((u) => {
                 const placed = !!placements[u.id]
@@ -961,6 +1042,97 @@ const SHOP_ITEMS: { kind: TicketKind; icon: string; desc: string }[] = [
   { kind: 'ability', icon: '✨', desc: '특수능력만 다시' },
   { kind: 'statTop', icon: '🔄', desc: '2개 골라 유지, 나머지 다시' },
 ]
+
+/**
+ * 설정 탭 (2026-11-28): 소리(배경음·효과음 켜기/끄기 + 크기) · 도감 메뉴.
+ * 도감은 메뉴를 누르면 들어가는 아래 화면 (← 설정 으로 돌아옴)
+ */
+function SettingsPage() {
+  const [view, setView] = useState<'main' | 'codex'>('main')
+  if (view === 'codex')
+    return (
+      <>
+        <div className="settings-sub-head">
+          <button className="link" onClick={() => setView('main')}>
+            ← 설정
+          </button>
+          <b>도감</b>
+        </div>
+        <Codex />
+      </>
+    )
+  return (
+    <>
+      <SoundSettings />
+      <section className="settings-menu">
+        <h3>정보</h3>
+        <button onClick={() => setView('codex')}>
+          <span>📖 도감</span>
+          <small className="dim">캐릭 특수능력 · 슬라임 능력</small>
+          <i>›</i>
+        </button>
+      </section>
+    </>
+  )
+}
+
+/** 소리: 배경음·효과음 각각 켜기/끄기 + 크기 (이 기기에 저장) */
+function SoundSettings() {
+  const [p, setP] = useState<SoundPrefs>(getSoundPrefs)
+  const set = (next: Partial<SoundPrefs>) => {
+    setSoundPrefs(next)
+    setP((cur) => ({ ...cur, ...next }))
+  }
+  const rows = [
+    { on: 'bgm', vol: 'bgmVol', icon: '🎵', name: '배경음' },
+    { on: 'sfx', vol: 'sfxVol', icon: '🔊', name: '효과음' },
+  ] as const
+  return (
+    <section className="sound-settings">
+      <h3>소리</h3>
+      {rows.map((r) => (
+        <div key={r.on} className={`sound-row ${p[r.on] ? '' : 'off'}`}>
+          <div className="sound-line">
+            <span className="sound-name">
+              {r.icon} {r.name}
+            </span>
+            {/* 켜기/끄기 스위치 */}
+            <button
+              role="switch"
+              aria-checked={p[r.on]}
+              className={`switch ${p[r.on] ? 'on' : ''}`}
+              onClick={() => {
+                unlockAudio()
+                set({ [r.on]: !p[r.on] })
+              }}
+            >
+              <i />
+              <span className="sr">{p[r.on] ? '켜짐' : '꺼짐'}</span>
+            </button>
+          </div>
+          <div className="sound-line">
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={p[r.vol]}
+              disabled={!p[r.on]}
+              aria-label={`${r.name} 크기`}
+              onChange={(e) => {
+                unlockAudio()
+                set({ [r.vol]: Number(e.target.value) })
+              }}
+              // 효과음은 손을 뗄 때 한 번 들려줌 (얼마나 큰지 바로 알게)
+              onPointerUp={() => r.on === 'sfx' && sfx.hit()}
+            />
+            <b className="sound-vol">{p[r.vol]}</b>
+          </div>
+        </div>
+      ))}
+    </section>
+  )
+}
 
 /** 출연 슬라임 가로 목록 (그림 + 마릿수, 누르면 자세히) — 배치·진행 화면 공용 (2026-11-28) */
 function MonsterChips({ summary, onPick }: { summary: { spec: MonsterSpec; count: number }[]; onPick: (spec: MonsterSpec, count: number) => void }) {

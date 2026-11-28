@@ -738,3 +738,31 @@ html, body { overflow-x: clip; overscroll-behavior-x: none; }
 .play-head .ph-right { display: flex; align-items: center; gap: 6px; flex: none; }
 /* 탄 지도 별: 동그라미 아래 → 오른쪽 세로 줄 (2026-11-28). 동그라미가 가장 오른쪽(80%)이어도 280px 안에 들어옴 */
 .stage-map .node-stars { bottom: auto; top: 50%; left: calc(100% + 3px); transform: translateY(-50%); flex-direction: column; gap: 1px; font-size: 12px; }
+
+/* 소리 (2026-11-28) */
+.sound-test { display: flex; flex-wrap: wrap; gap: 6px; }
+.sound-test button { padding: 6px 10px; font-size: 13px; }
+.empty-note { text-align: center; color: var(--dim); padding: 18px 8px; margin: 0; }
+.empty-note button.link { padding: 0; border: none; background: none; box-shadow: none; color: var(--primary-dark, #2e7d32); font-weight: 700; text-decoration: underline; }
+/* 설정: 소리 줄 (2026-11-28) — 이름 · 스위치 / 크기 막대 · 숫자 */
+.sound-row { padding: 8px 0; border-top: 1px solid var(--line); }
+.sound-row:first-of-type { border-top: none; padding-top: 2px; }
+.sound-line { display: flex; align-items: center; gap: 10px; }
+.sound-line + .sound-line { margin-top: 6px; }
+.sound-name { flex: 1; font-weight: 700; font-size: 15px; }
+.sound-line input[type=range] { flex: 1; min-width: 0; accent-color: var(--primary, #4caf50); height: 24px; }
+.sound-vol { width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+.sound-row.off .sound-vol, .sound-row.off input[type=range] { opacity: 0.4; }
+.switch { position: relative; width: 50px; height: 28px; padding: 0; border-radius: 999px; border: none; background: #cfc6b4; box-shadow: inset 0 1px 2px rgba(0,0,0,0.2); flex: none; transition: background .2s; }
+.switch i { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); transition: transform .2s; }
+.switch.on { background: #4caf50; }
+.switch.on i { transform: translateX(22px); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* 설정 메뉴 줄 · 아래 화면 머리 */
+.settings-menu button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 12px; text-align: left; }
+.settings-menu button span { font-weight: 700; font-size: 15px; white-space: nowrap; }
+.settings-menu button small { flex: 1; min-width: 0; font-size: 12px; }
+.settings-menu button i { font-style: normal; font-size: 20px; color: var(--dim); }
+.app.with-tabbar > section.settings-menu { margin-top: 12px; }
+.settings-sub-head { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; }
+.settings-sub-head b { font-size: 17px; }
