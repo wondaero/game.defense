@@ -571,3 +571,10 @@ section.barracks-page { background: none; border: none; box-shadow: none; paddin
 .roster > li.sel { border: 2.5px solid #43a047 !important; background: #e3f4d7 !important; border-radius: 12px; box-shadow: 0 0 0 3px rgba(67,160,71,0.18); }
 /* 고른 캐릭끼리 붙지 않게 위아래 여백 (2026-11-28) */
 .roster > li.sel { margin: 4px 0; }
+
+/*
+ * 가로 스크롤 방지 (2026-11-28): 일부러 칸 밖으로 넘치게 둔 것들(배지 · 캐릭 도구 그림 · ✓ 표시 · 효과)이
+ * 화면 오른쪽 끝에 걸리면 페이지가 옆으로 밀릴 수 있음 → 페이지 가로만 잘라 냄.
+ * hidden 대신 clip: hidden 은 스크롤 상자가 돼서 sticky(판 고정 · 막사 위쪽 고정)가 깨짐
+ */
+html, body { overflow-x: clip; overscroll-behavior-x: none; }
