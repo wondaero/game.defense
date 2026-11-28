@@ -734,3 +734,5 @@ html, body { overflow-x: clip; overscroll-behavior-x: none; }
 .confetti i { animation-name: ro-confetti-full; }
 @keyframes ro-confetti-full { 0% { opacity: 1; transform: translate(0, -20px) rotate(0); } 100% { opacity: 0.9; transform: translate(var(--drift), 105vh) rotate(calc(var(--rot) + 720deg)); } }
 .play-head .ph-right { display: flex; align-items: center; gap: 6px; flex: none; }
+/* 탄 지도 별: 동그라미 아래 → 오른쪽 세로 줄 (2026-11-28). 동그라미가 가장 오른쪽(80%)이어도 280px 안에 들어옴 */
+.stage-map .node-stars { bottom: auto; top: 50%; left: calc(100% + 3px); transform: translateY(-50%); flex-direction: column; gap: 1px; font-size: 12px; }
