@@ -198,7 +198,7 @@ export function App() {
       // 배치 화면은 판을 작게(화면 높이의 약 42%) → 아래 캐릭 목록이 더 보이게 (2026-11-28)
       // 진행·결과 화면은 판을 최대한 크게: 폭은 화면 폭까지, 높이는 위 제목·아래 조작/가로 목록 몫(약 230px)만 남김 (2026-11-28)
       const ratio = (W / H).toFixed(4)
-      const want = L.screen === 'prepare' ? `min(${W}px, calc(42dvh * ${ratio}))` : `min(${Math.round(W * 1.5)}px, calc((100dvh - 230px) * ${ratio}))`
+      const want = L.screen === 'prepare' ? `min(${W}px, calc(42dvh * ${ratio}))` : `min(${Math.round(W * 1.5)}px, max(calc(240px * ${ratio}), calc((100dvh - 180px) * ${ratio})))`
       if (canvas.style.width !== want) canvas.style.width = want
       const scale = (canvas.clientWidth || W) / W
       const bw = Math.round(W * scale * dpr)
@@ -373,9 +373,20 @@ export function App() {
   }
   /** 진행 중 나가기: 일시정지하고 물어봄 */
   const askToLeave = () => {
-    setAskLeave({ wasPaused: live.current.paused })
+    if (live.current.screen !== 'play') return
+    // 이미 창이 떠 있으면 그대로 (뒤로 가기를 여러 번 눌러도 게임이 다시 돌지 않게)
+    setAskLeave((cur) => cur ?? { wasPaused: false })
     setPaused(true)
   }
+  // Esc(취소) 키 = 일시정지 창 (기기 뒤로 가기와 같음)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && live.current.screen === 'play') askToLeave()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const onPop = () => {
@@ -424,6 +435,17 @@ export function App() {
   }
 
   const placedCount = Object.keys(placements).length
+
+  /** 진행 화면: 제목 높이를 CSS 변수로 → 판이 제목 바로 아래에 붙음 (제목·판 고정, 아래 목록만 스크롤, 2026-11-28) */
+  useEffect(() => {
+    const head = document.querySelector<HTMLElement>('header.play-head')
+    if (!head) return
+    const update = () => document.documentElement.style.setProperty('--head-h', `${Math.floor(head.getBoundingClientRect().height)}px`)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(head)
+    return () => ro.disconnect()
+  }, [screen])
 
   /** 판 높이를 CSS 변수로 → 목록 머리(.roster-head)가 판 바로 아래에 붙음. 판이 옆에 있는 넓은 화면이면 0 */
   useEffect(() => {
@@ -554,7 +576,7 @@ export function App() {
             </div>
             {shopTab === 'shop' ? (
               <>
-                <p className="dim">탄을 깨서 모은 골드로 권을 사요</p>
+                <p className="dim">탄을 깨서 모은 골드로 티켓을 사요</p>
                 <ul className="shop-list">
                   {SHOP_ITEMS.map((it) => {
                     const price = SHOP_PRICES[it.kind]
@@ -610,7 +632,7 @@ export function App() {
             <section>
               <h3>막사</h3>
               <div className="row">
-                <button onClick={() => void api.dev?.grantTickets(5).then(setAccount)}>🎟️ 권 모두 +5</button>
+                <button onClick={() => void api.dev?.grantTickets(5).then(setAccount)}>🎟️ 티켓 모두 +5</button>
                 <button
                   onClick={() =>
                     confirm('막사 캐릭을 모두 새로 뽑을까요? (배치도 지워짐)') &&
@@ -650,12 +672,12 @@ export function App() {
             <section className="danger-zone">
               <h3>초기화</h3>
               <p className="dim" style={{ margin: '0 0 8px' }}>
-                캐릭·스테이지 기록·별·골드·배치를 모두 지우고, 처음 시작할 때 주는 권(뽑기권 · 능력치 변경권 · 특수능력 변경권)을 새로 받아요
+                캐릭·스테이지 기록·별·골드·배치를 모두 지우고, 처음 시작할 때 주는 티켓(뽑기 티켓 · 능력치 변경 티켓 · 특수능력 변경 티켓)을 새로 받아요
               </p>
               <button
                 className="danger"
                 onClick={() =>
-                  confirm('정말 모든 데이터를 초기화할까요?\n\n캐릭·스테이지 기록·별·골드가 모두 사라지고\n처음 시작할 때 주는 권만 새로 받아요.\n되돌릴 수 없어요.') &&
+                  confirm('정말 모든 데이터를 초기화할까요?\n\n캐릭·스테이지 기록·별·골드가 모두 사라지고\n처음 시작할 때 주는 티켓만 새로 받아요.\n되돌릴 수 없어요.') &&
                   void api.dev?.resetAll().then((a) => {
                     setAccount(a)
                     setSave((s) => ({ ...s, placementsByMap: {} }))
@@ -686,48 +708,51 @@ export function App() {
     <div className={`app ${screen === 'prepare' ? 'prepare-view' : 'play-view'}`}>
       {/* 배치 화면은 제목 줄 없이 판부터 (2026-11-28) — 돌아가기·시작은 아래 떠 있는 버튼 */}
       {screen !== 'prepare' && (
-      <header className={stageTheme(stageNo)}>
+      <header className={`play-head ${stageTheme(stageNo)}`}>
+        {/* 진행 화면 제목 (2026-11-28 다시 정리): 한 줄 = 탄 이름(왼쪽) · 시간 · 지금 별(오른쪽 끝, 통과할 때마다 하나씩 꺼짐).
+            ← 버튼은 없음 — 아래 일시정지 버튼 · 기기 뒤로 가기가 같은 일시정지 창을 엶 */}
         <h1>
-          <button className="link back" onClick={() => (screen === 'play' ? askToLeave() : goSelect())} title="탄 고르기로">
-            ←
-          </button>{' '}
           {stageName(stageNo)} {stage.isBoss && <span className="boss-tag">우두머리</span>}
-          {/* 별·처음 도전은 제목 줄 오른쪽 → 진행 화면 제목 영역을 두 줄로 (2026-11-28) */}
-          <span className="h1-right">
-            {/* 이 탄에서 딴 별 (2026-11-28, 전체 최고 기록 대신) */}
-            {(() => {
-              const got = account?.stars?.[stageNo] ?? 0
-              return got > 0 ? (
-                <span className="stage-stars" title={`이 탄 최고 별 ${got}개`}>
-                  {[1, 2, 3].map((k) => (
-                    <i key={k} className={k <= got ? 'on' : ''}>
-                      ★
-                    </i>
-                  ))}
-                </span>
-              ) : (
-                <span>처음 도전</span>
-              )
-            })()}
-          </span>
         </h1>
-        <div className="stats">
-          <span>🚪 통과 {sim ? sim.leaked : 0}/{cfg.startLives - 1}</span>
-          {sim && (
-            <span>
-              ⏱ {(sim.tick / cfg.tickRate).toFixed(1)}초 · 남은 슬라임 {sim.spawns.length - sim.spawnIdx + sim.monsters.length}
-            </span>
-          )}
+        {/* 오른쪽 묶음: 시간 · 별 (별이 맨 오른쪽 → 시간 자리수가 늘어도 별은 안 움직임, 2026-11-28) */}
+        <div className="ph-right">
+          <span className="ph-time">⏱ {sim ? (sim.tick / cfg.tickRate).toFixed(1) : '0.0'}초</span>
+          {(() => {
+            // 지금 별 = 3 − 통과 수 (결과 화면이면 받은 별)
+            const now = screen === 'result' && result ? result.stars : Math.max(0, 3 - (sim ? sim.leaked : 0))
+            return (
+              <span className="ph-stars" title={`지금 별 ${now}개 (1마리 통과할 때마다 하나씩 줄어요)`}>
+                {[1, 2, 3].map((k) => (
+                  <i key={k} className={k <= now ? 'on' : 'lost'}>
+                    ★
+                  </i>
+                ))}
+              </span>
+            )
+          })()}
         </div>
       </header>
       )}
 
+      {/* 결과 창: 판(고정·z-index 있는 상자) 밖에 둬야 화면 전체(제목까지)를 덮음 (2026-11-28) */}
+      {screen === 'result' && result && (
+        <ResultOverlay
+          cleared={result.cleared}
+          stars={result.stars}
+          stage={stageNo}
+          detail={result.text}
+          reward={result.reward ? { ...result.reward, ticket: result.reward.ticket ? TICKET_NAMES[result.reward.ticket] : null } : null}
+          onNext={() => openStage(stageNo + 1)}
+          onRetry={() => openStage(stageNo)}
+          onSelect={goSelect}
+        />
+      )}
       {askLeave && (
         <div className="modal-backdrop">
           <div className="modal">
             <div className="modal-title">⏸ 일시정지</div>
-            <p>탄 고르기로 갈까요?<br />지금 하던 판은 사라집니다.</p>
-            <div className="row">
+            <p className="dim">스테이지로 가면 지금 하던 판은 사라져요</p>
+            <div className="row pause-row">
               <button
                 className="primary inline"
                 onClick={() => {
@@ -743,7 +768,7 @@ export function App() {
                   goSelect()
                 }}
               >
-                탄 고르기로
+                스테이지로
               </button>
             </div>
           </div>
@@ -751,18 +776,6 @@ export function App() {
       )}
       <main>
         <div className={`board ${stageTheme(stageNo)}`}>
-          {screen === 'result' && result && (
-            <ResultOverlay
-              cleared={result.cleared}
-              stars={result.stars}
-              stage={stageNo}
-              detail={result.text}
-              reward={result.reward ? { ...result.reward, ticket: result.reward.ticket ? TICKET_NAMES[result.reward.ticket] : null } : null}
-              onNext={() => openStage(stageNo + 1)}
-              onRetry={() => openStage(stageNo)}
-              onSelect={goSelect}
-            />
-          )}
           <canvas
             ref={canvasRef}
             onClick={(e) => onCellClick(cellFromEvent(e))}
@@ -774,9 +787,8 @@ export function App() {
           />
           {screen === 'play' && (
             <div className="controls">
-              <button className={paused ? 'on' : ''} onClick={() => setPaused(!paused)}>
-                {paused ? '▶ 계속' : '⏸ 일시정지'}
-              </button>
+              {/* 일시정지 = 일시정지 창 (계속하기 · 스테이지로). 기기 뒤로 가기·Esc 도 같은 창 (2026-11-28) */}
+              <button onClick={askToLeave}>⏸ 일시정지</button>
               {[1, 2, 4].map((s) => (
                 <button key={s} className={speed === s ? 'on' : ''} onClick={() => setSpeed(s)}>
                   {s}×
@@ -957,7 +969,8 @@ function MonsterChips({ summary, onPick }: { summary: { spec: MonsterSpec; count
         <li key={spec.id}>
           <button onClick={() => onPick(spec, count)} title={spec.name}>
             <UnitFace body={monsterSprite(spec)} tool={null} />
-            <b>×{count}</b>
+            {/* 마릿수 = 오른쪽 위 뱃지 (막사 권 버튼과 같은 모양, 2026-11-28) */}
+            <span className="badge">{count}</span>
             {spec.abilities.length > 0 && <i className="chip-ab">{spec.abilities.map((a) => MONSTER_ABILITIES[a].icon).join('')}</i>}
           </button>
         </li>

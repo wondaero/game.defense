@@ -13,11 +13,12 @@ export type TicketKind = 'draw' | 'statNormal' | 'statHigh' | 'statTop' | 'abili
 export type Tickets = Record<TicketKind, number>
 
 export const TICKET_NAMES: Readonly<Record<TicketKind, string>> = {
-  draw: '뽑기권',
-  statNormal: '능력치 변경권(보통)',
-  statHigh: '능력치 변경권(상급)',
-  statTop: '능력치 변경권(최상급)',
-  ability: '특수능력 변경권',
+  // '변경 티켓' 사이는 줄바꿈 안 되는 빈칸(\u00a0): 좁은 화면에서 "특수능력 변경 / 티켓" 처럼 티켓만 떨어지지 않게 (2026-11-28 권 → 티켓)
+  draw: '뽑기\u00a0티켓',
+  statNormal: '능력치 변경\u00a0티켓(보통)',
+  statHigh: '능력치 변경\u00a0티켓(상급)',
+  statTop: '능력치 변경\u00a0티켓(최상급)',
+  ability: '특수능력 변경\u00a0티켓',
 }
 
 /** 첫 시작 지급 (확정): 뽑기권 5 · 특수능력 변경권 1 · 능력치 변경권(보통) 3 */

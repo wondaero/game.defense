@@ -103,7 +103,7 @@ export function Barracks(props: {
   }
   const doAbility = async (unit: UnitInstance) => {
     const o = await send({ type: 'rerollAbility', unitId: unit.id })
-    if (o?.type === 'changed') setPopup({ kind: 'changed', title: '특수능력 변경권 사용', before: o.before, after: o.after, redo: { type: 'ability' } })
+    if (o?.type === 'changed') setPopup({ kind: 'changed', title: '특수능력 변경 티켓 사용', before: o.before, after: o.after, redo: { type: 'ability' } })
     else setPopup(null)
   }
   const doMerge = async (target: TicketKind, ids: string[]) => {
@@ -137,7 +137,7 @@ export function Barracks(props: {
         {/* 가진 변경권 한 줄 (쓰는 곳은 캐릭 창): 가진 등급만 표시, 전체 내역은 title (2026-11-28) */}
         {(() => {
           const grades = STAT_GRADES.filter((g) => tickets[g] > 0)
-          const full = `능력치 변경권: 보통 ${tickets.statNormal} · 상급 ${tickets.statHigh} · 최상급 ${tickets.statTop} / 특수능력 변경권 ${tickets.ability}`
+          const full = `능력치 변경 티켓: 보통 ${tickets.statNormal} · 상급 ${tickets.statHigh} · 최상급 ${tickets.statTop} / 특수능력 변경 티켓 ${tickets.ability}`
           return (
             <div className="ticket-line" title={full}>
               <span>
@@ -191,7 +191,7 @@ export function Barracks(props: {
                 </div>
               )
             })()}
-            <button onClick={() => setPopup({ kind: 'mergePick' })}>권 바꾸기</button>
+            <button onClick={() => setPopup({ kind: 'mergePick' })}>티켓 바꾸기</button>
             <button className="primary inline" disabled={!mergeOk} onClick={() => setPopup({ kind: 'mergeConfirm', target: mode.target, ids: mergeIds })}>
               합성하기
             </button>
@@ -278,7 +278,7 @@ function UnitDetail({ u, cfg }: { u: UnitInstance; cfg: DefenseConfig }) {
           <AbilityRolls ability={u.ability} />
         </div>
       ) : (
-        <p className="dim">특수능력 없음 (능력치 변경권을 쓰면 5% 확률로 생겨요)</p>
+        <p className="dim">특수능력 없음 (능력치 변경 티켓을 쓰면 5% 확률로 생겨요)</p>
       )}
     </div>
   )
@@ -322,7 +322,7 @@ function BarracksPopup(props: {
             </button>
           </div>
           {(!u.ability || statTotal < 1 || props.tickets.ability < 1) && (
-            <p className="dim ud-why">{[statTotal < 1 && '능력치 변경권이 없어요', !u.ability ? '특수능력이 없는 캐릭은 특수능력 변경을 못 써요' : props.tickets.ability < 1 && '특수능력 변경권이 없어요'].filter(Boolean).join(' · ')}</p>
+            <p className="dim ud-why">{[statTotal < 1 && '능력치 변경 티켓이 없어요', !u.ability ? '특수능력이 없는 캐릭은 특수능력 변경을 못 써요' : props.tickets.ability < 1 && '특수능력 변경 티켓이 없어요'].filter(Boolean).join(' · ')}</p>
           )}
         </Modal>
       )
@@ -336,7 +336,7 @@ function BarracksPopup(props: {
             ✕
           </button>
           <UnitDetail u={u} cfg={cfg} />
-          <h4 className="sheet-step">능력치 변경권 — 어떤 걸 쓸까요?</h4>
+          <h4 className="sheet-step">능력치 변경 티켓 — 어떤 걸 쓸까요?</h4>
           <div className="grade-pick">
             {STAT_GRADES.map((g) => {
               const keep = STAT_TICKET_KEEP[g]
@@ -409,7 +409,7 @@ function BarracksPopup(props: {
             ✕
           </button>
           <UnitDetail u={pp.unit} cfg={cfg} />
-          <h4 className="sheet-step">특수능력 변경권 쓰기</h4>
+          <h4 className="sheet-step">특수능력 변경 티켓 쓰기</h4>
           <p className="dim">
             특수능력만 다시 뽑아요
             <br />
@@ -440,7 +440,7 @@ function BarracksPopup(props: {
           <div className="redo-row">
             <button className={`act ${r.type === 'stat' ? 'stat' : 'ability'}`} disabled={left < 1} onClick={redo}>
               <span>
-                {r.type === 'stat' ? '🔄' : '✨'} {left < 1 ? '변경권 없음' : '다시 바꾸기'}
+                {r.type === 'stat' ? '🔄' : '✨'} {left < 1 ? '변경 티켓 없음' : '다시 바꾸기'}
               </span>
               {left > 0 && keepText && <small className="redo-keep">{keepText}</small>}
               {left > 0 && <b className="badge">{badgeText(left)}</b>}
@@ -461,15 +461,15 @@ function BarracksPopup(props: {
           </button>
           <h4 className="sheet-title">무엇을 만들까요?</h4>
           <p className="dim" style={{ margin: '0 0 8px' }}>
-            고른 권의 인원 단위로 캐릭을 넣어요. 예) 보통 3명 단위 → 12명이면 4장
+            고른 티켓의 인원 단위로 캐릭을 넣어요. 예) 보통 3명 단위 → 12명이면 4장
           </p>
-          <div className="grade-pick">
+          <div className="grade-pick merge-pick">
             {(['statNormal', 'draw', 'statHigh', 'ability', 'statTop'] as TicketKind[]).map((k) => (
               <button key={k} disabled={props.units.length < MERGE_COST[k]} onClick={() => props.onMergeTarget(k)}>
                 <b>{TICKET_ICON[k]}</b>
                 <span>
                   {TICKET_NAMES[k]}
-                  {k === 'statNormal' && <small className="dim"> · 1% 최상급 · 5% 상급</small>}
+                  {k === 'statNormal' && <small className="dim merge-note">가끔 1%{'\u00a0'}최상급 · 5%{'\u00a0'}상급</small>}
                 </span>
                 <em>{MERGE_COST[k]}명</em>
               </button>

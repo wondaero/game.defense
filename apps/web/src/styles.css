@@ -19,7 +19,8 @@
   --primary: #5cb85c;
   --primary-dark: #2e7d32;
 }
-body { margin: 0; background: linear-gradient(180deg, var(--bg), var(--bg2)) fixed; color: var(--text); font-family: system-ui, -apple-system, 'Malgun Gothic', sans-serif; font-size: 14px; }
+/* 배경은 한 색 (2026-11-28): 예전 위→아래 그라데이션은 고정 영역(판·막사 머리 등 배경색 상자)과 색이 어긋나 보여서 없앰 */
+body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, 'Malgun Gothic', sans-serif; font-size: 14px; }
 button { font: inherit; cursor: pointer; background: #fff; color: var(--text); border: 1.5px solid var(--line-dark); border-radius: 10px; padding: 4px 10px; box-shadow: 0 2px 0 var(--line-dark); }
 button:hover:not(:disabled) { background: #fff8e6; }
 button:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 1px 0 var(--line-dark); }
@@ -413,7 +414,7 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 
 /* 막사는 카드 박스 없이 화면 폭 그대로 (2026-11-28): 겹친 좌우 여백을 없애 내용을 더 넣음 */
 section.barracks-page { background: none; border: none; box-shadow: none; padding: 0; border-radius: 0; }
-.barracks-page .barracks-sticky { margin: -12px -12px 4px; padding: 12px 12px 8px; border-radius: 0; background: rgba(240,246,226,0.94); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.barracks-page .barracks-sticky { margin: -12px -12px 4px; padding: 12px 12px 8px; border-radius: 0; background: rgba(238,246,226,0.94); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 @media (max-width: 520px) { .barracks-page .barracks-sticky { margin: -8px -8px 4px; padding: 10px 8px 8px; } }
 /* 배지: 한 자리 = 정원(최소 너비 = 높이), 두 자리부터 내용만큼 늘어남 (2026-11-28) */
 .barracks-actions .badge { min-width: 20px; height: 20px; padding: 0 3px; }
@@ -679,3 +680,57 @@ html, body { overflow-x: clip; overscroll-behavior-x: none; }
 .app.play-view header h1 { display: flex; align-items: center; gap: 6px; width: 100%; }
 .app.play-view header h1 .h1-right { margin-left: auto; font-size: 12.5px; text-shadow: none; }
 .app.play-view header h1 .h1-right > span { background: rgba(255,255,255,0.9); color: var(--text); border-radius: 999px; padding: 3px 9px; font-weight: 700; }
+
+/* 슬라임 가로 목록: 마릿수 뱃지(오른쪽 위) · 특수능력 표시는 왼쪽 위로 (2026-11-28) */
+.monster-chips { padding-top: 10px; padding-right: 8px; }
+.monster-chips button, .play-info .monster-chips button { min-width: 0; padding: 5px; }
+.monster-chips .badge { position: absolute; top: -8px; right: -7px; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 10px; background: #ff3b30; color: #fff; font-size: 12px; font-weight: 800; line-height: 1; display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.monster-chips .chip-ab { top: 1px; right: auto; left: 3px; }
+.monster-chips { gap: 12px; }
+
+/* 합성 — 무엇을 만들까요: 첫 칸은 그림 하나라 좁게, 티켓 이름은 잘 보이게 (2026-11-28 권 → 티켓으로 이름이 길어짐) */
+.grade-pick.merge-pick button { grid-template-columns: 26px 1fr auto; }
+.grade-pick.merge-pick button span { font-size: 13.5px; color: var(--text); font-weight: 600; }
+.grade-pick.merge-pick button span small { font-weight: 400; }
+.grade-pick.merge-pick .merge-note { display: block; font-size: 11.5px; margin-top: 1px; }
+
+/* 진행 화면 제목 (2026-11-28): 한 줄 = 탄 이름(왼쪽) · 지금 별(가운데) · 시간(오른쪽) */
+.app.play-view header.play-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; padding: 9px 12px; margin-bottom: 12px; }
+.play-head h1 { min-width: 0; font-size: 19px; margin: 0; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.play-head .ph-stars { background: rgba(255,255,255,0.92); border-radius: 999px; padding: 1px 10px; font-size: 17px; letter-spacing: 1px; box-shadow: 0 1px 0 rgba(0,0,0,0.12); }
+.play-head .ph-stars i { font-style: normal; display: inline-block; color: #ffb300; text-shadow: 0 1px 0 #8d6e00; transition: color .3s, transform .3s; }
+.play-head .ph-stars i.lost { color: #d8ccb0; text-shadow: none; animation: star-lost .45s ease-out; }
+@keyframes star-lost { 0% { transform: scale(1.5); color: #ff5252; } 100% { transform: scale(1); } }
+.play-head .ph-time { justify-self: end; background: rgba(255,255,255,0.92); color: var(--text); border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 1px 0 rgba(0,0,0,0.12); }
+.pause-row { justify-content: center; }
+/* 진행 화면에선 판이 제목 밑으로 파고들지 않게 (배치 화면용 위 여백 당김 끔) */
+.app.play-view .board { margin-top: 0; padding-top: 0; }
+/* 좁은 화면에서 "10탄 우두머리" 와 별이 겹치지 않게: 이름·시간은 제 폭, 별은 남는 가운데 칸 */
+.app.play-view header.play-head { grid-template-columns: auto 1fr auto; padding: 9px 10px; }
+.play-head .ph-stars { justify-self: center; }
+.play-head h1 .boss-tag { font-size: 11px; padding: 2px 6px; }
+@media (max-width: 320px) {
+  .play-head h1 { font-size: 17px; gap: 4px; }
+  .play-head .ph-stars { font-size: 15px; padding: 1px 7px; letter-spacing: 0; }
+  .play-head .ph-time { font-size: 12px; padding: 3px 8px; }
+}
+
+/* 진행 화면: 제목·판 고정, 아래 목록만 스크롤 (2026-11-28) — 판 위 틈은 판 안쪽 여백(배경색)이라 목록이 비치지 않음 */
+.app.play-view header.play-head { position: sticky; top: 0; z-index: 7; margin-bottom: 0; }
+.app.play-view .board { top: var(--head-h, 0px); padding-top: 12px; }
+/* 제목 줄 세로 가운데 맞춤 (2026-11-28): 별·시간 알약을 같은 높이의 flex 상자로, 글자 줄높이 1 */
+.play-head h1, .play-head .ph-stars, .play-head .ph-time { line-height: 1; align-self: center; }
+.play-head .ph-stars, .play-head .ph-time { display: inline-flex; align-items: center; justify-content: center; height: 28px; padding-top: 0; padding-bottom: 0; box-sizing: border-box; }
+.play-head .ph-stars i { display: block; line-height: 1; }
+.play-head h1 { height: 28px; }
+/* 제목 줄: 탄 이름 왼쪽 · [시간 · 별] 오른쪽 묶음 (2026-11-28) */
+.app.play-view header.play-head { position: sticky; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.app.play-view header.play-head { flex-wrap: nowrap; }
+.app.play-view header.play-head h1 { width: auto; flex: none; }
+.play-head .ph-time { flex: none; }
+
+/* 결과(클리어·실패) 창 = 화면 전체 딤 (2026-11-28): 판 안이 아니라 화면 전체(제목·목록까지)를 덮고 카드는 화면 가운데 */
+.result-overlay { position: fixed; inset: 0; z-index: 60; border-radius: 0; padding: 12px; }
+.confetti i { animation-name: ro-confetti-full; }
+@keyframes ro-confetti-full { 0% { opacity: 1; transform: translate(0, -20px) rotate(0); } 100% { opacity: 0.9; transform: translate(var(--drift), 105vh) rotate(calc(var(--rot) + 720deg)); } }
+.play-head .ph-right { display: flex; align-items: center; gap: 6px; flex: none; }

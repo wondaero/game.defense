@@ -84,7 +84,7 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
   const spend = (k: TicketKind): Tickets => ({ ...acc.tickets, [k]: acc.tickets[k] - 1 })
   switch (action.type) {
     case 'draw': {
-      if (acc.tickets.draw < 1) return fail('뽑기권이 없어요')
+      if (acc.tickets.draw < 1) return fail('뽑기 티켓이 없어요')
       if (barracksFull(cfg, acc.units)) return fail(`막사가 꽉 찼어요 (${cfg.rosterSize}명). 합성으로 자리를 비워 주세요`)
       const u = drawUnit(cfg, rng, `u${acc.nextUnitId}`)
       return { ok: true, account: { ...acc, units: [...acc.units, u], tickets: spend('draw'), nextUnitId: acc.nextUnitId + 1 }, value: { type: 'drawn', unit: u } }
@@ -92,7 +92,7 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
     case 'rerollStats': {
       const u = unit(action.unitId)
       if (!u) return fail('없는 캐릭이에요')
-      if (!(action.grade in STAT_TICKET_KEEP)) return fail('잘못된 변경권')
+      if (!(action.grade in STAT_TICKET_KEEP)) return fail('잘못된 변경 티켓')
       if (acc.tickets[action.grade] < 1) return fail(`${TICKET_NAMES[action.grade]}이 없어요`)
       const keep = [...new Set(action.keep)]
       if (keep.length !== STAT_TICKET_KEEP[action.grade]) return fail(`유지할 능력치를 ${STAT_TICKET_KEEP[action.grade]}개 골라 주세요`)
@@ -106,7 +106,7 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
     case 'rerollAbility': {
       const u = unit(action.unitId)
       if (!u) return fail('없는 캐릭이에요')
-      if (acc.tickets.ability < 1) return fail('특수능력 변경권이 없어요')
+      if (acc.tickets.ability < 1) return fail('특수능력 변경 티켓이 없어요')
       const after = rerollAbility(rng, u)
       if (!after) return fail('특수능력이 없는 캐릭엔 못 써요')
       return {
@@ -129,7 +129,7 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
       const ids = [...new Set(action.unitIds)]
       if (ids.some((id) => !unit(id))) return fail('없는 캐릭이 섞여 있어요')
       const rewards = mergeRewards(rng, action.target, ids.length)
-      if (!rewards) return fail(`${TICKET_NAMES[action.target] ?? '권'}은 ${MERGE_COST[action.target] ?? '?'}명 단위로 합성해요`)
+      if (!rewards) return fail(`${TICKET_NAMES[action.target] ?? '티켓'}은 ${MERGE_COST[action.target] ?? '?'}명 단위로 합성해요`)
       const tickets = { ...acc.tickets }
       for (const k of rewards) tickets[k]++
       return {

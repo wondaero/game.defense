@@ -91,7 +91,7 @@ export function ResultOverlay(props: {
           <button className={cleared ? '' : 'primary inline'} onClick={props.onRetry}>
             {cleared ? '다시 하기' : '배치 바꿔서 다시'}
           </button>
-          <button onClick={props.onSelect}>탄 고르기</button>
+          <button onClick={props.onSelect}>스테이지로</button>
         </div>
       </div>
     </div>
