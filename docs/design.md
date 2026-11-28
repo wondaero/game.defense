@@ -207,7 +207,7 @@
 - 예전 프로젝트의 Supabase 구조(`game.war/supabase`, `game.war/apps/mobile/src/online`) 참고. 비밀 키는 절대 앱·커밋에 넣지 않음
 
 ## 8. 그림 (확정: 그림은 코드로 그려 스프라이트로)
-- `scripts/sprites/art.mjs` 에 SVG 코드로 그림 → `npm run sprites` 로 시트(PNG) 생성 → 게임이 개체마다 따로 애니메이션
+- `scripts/sprites/art.mjs` 에 SVG 코드로 그림 → 게임이 그 SVG 를 직접 읽어 시트로 만들고 개체마다 따로 애니메이션 (2026-11-28 PNG 단계 없앰: 그림 고치기 = SVG 태그만 수정, 저장소엔 코드만)
 - 지금 그림(헬멧 쓴 사람 6색 + 도구 8종, 슬라임 몬스터 12종)은 **임시 그림.** 사용자가 그림 가이드를 주면 다시 그림
 - 성능: 200개 60fps, 1000개 60fps, 2000개 29fps (PC 크롬). 휴대폰은 확인 전
 

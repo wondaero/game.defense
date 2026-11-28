@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { baseStats, statScore, type DefenseConfig, type UnitInstance } from '@def/defense'
 import { abilityText, unitLook } from './format.ts'
+import { sheetUrl } from './sprites.ts'
 
 /** 캐릭 목록 줄 · 필터 · 정렬 (막사와 탄 준비 화면이 같이 씀) */
 
@@ -55,7 +56,8 @@ export function RosterTools(props: { view: RosterView; onChange: (v: RosterView)
 
 /** 캐릭 얼굴: 스프라이트 첫 프레임(몸 + 도구)을 작게 */
 export function UnitFace({ body, tool }: { body: string; tool: string | null }) {
-  const bg = [tool, body].filter(Boolean).map((id) => `url(sprites/${id}.png)`).join(', ')
+  // SVG 시트를 그대로 배경으로 (PNG 없음, 2026-11-28)
+  const bg = [tool, body].map((id) => (id ? sheetUrl(id) : null)).filter(Boolean).map((u) => `url(${u})`).join(', ')
   return <span className="face sprite" style={{ backgroundImage: bg }} />
 }
 

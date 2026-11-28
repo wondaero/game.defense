@@ -6,3 +6,5 @@ dist
 .env.*
 !.env.example
 docs/game.war/node_modules
+# 스프라이트 미리 보기 (npm run sprites 가 만듦, 게임은 art.mjs 를 직접 그림)
+apps/web/public/sprites/

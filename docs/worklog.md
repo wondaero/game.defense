@@ -341,3 +341,10 @@
 - "올려줘" → 얼음 제목 줄 커밋·푸시
 - "얼음 구간만 풀밭 위에 박스로 표시하면?" → 좋다고 의견(페이드 띠는 경계가 흐림, 얼어붙은 연못처럼 섬이 되면 한눈에 구분·아기자기) → 지도 얼음 구간 = 둥근 얼음판(`.chapter.ice::before`: 좌우 12·위아래 10 여백, 둥근 34px, 하얀 눈 테두리 + 푸른 테 + 안쪽 빛·그림자). 화면 폭 띠·페이드 삭제. build 통과, 360px 확인. 아직 안 올림
 - "올려줘" → 얼음판 상자 커밋·푸시 / "캐릭 그림을 png 대신 svg 로 그리는 방식은?" → 대화로 답 (지금도 원본은 SVG 코드, png 는 만들어지는 결과물)
+- "그림은 오래 걸리니 단축하고 싶음 — png 대신 svg 로, 그림 추가 = svg 태그 추가, 수정 = 그 태그만 수정" → 원본은 원래 SVG 코드(art.mjs)였고 느린 건 PNG 변환(18초)·PNG 58장 6.2MB 커밋이라 설명, PNG 단계를 없애기로
+  - `scripts/sprites/sheet.mjs`(+ `sheet.d.mts`): 시트 만들기를 Node·브라우저 공용으로 분리 (모션 정보 = 바로, 시트 SVG = 필요할 때)
+  - `apps/web/src/sprites.ts`: art.mjs 를 직접 import → 열 때 시트마다 SVG → 2배 캔버스로 한 번 변환해 캐시, 판 위 그리기는 예전처럼 잘라 그림(속도 같음). `sheetUrl(id)` = SVG Blob 주소 → 캐릭 목록 얼굴(UnitList)은 SVG 배경
+  - `build.mjs`: PNG·sprites.json 삭제, 개발자 탭 미리 보기용 `<id>.svg`·preview.html 만 (0.17초). root `dev`·`build` 가 먼저 실행. `apps/web/public/sprites/` 는 .gitignore + 저장소에서 지움(PNG 58장 6.2MB 빠짐)
+  - 확인: typecheck·build 통과, 막사 얼굴·성능 시험(200개) 화면 정상, 개발 서버가 art.mjs 저장 시 page reload 확인. 번들 +약 70KB(그림 코드)
+  - CLAUDE.md 구조 설명·design.md 8장 고침. 아직 안 올림
+- "올려줘" → PNG 없애기(SVG 직접 그리기) 커밋·푸시

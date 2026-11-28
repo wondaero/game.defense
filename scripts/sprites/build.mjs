@@ -1,59 +1,31 @@
 /**
- * 스프라이트 만들기: node scripts/sprites/build.mjs  (= npm run sprites)
+ * 스프라이트 미리 보기 만들기: node scripts/sprites/build.mjs  (= npm run sprites, dev·build 때 자동)
  *
- * art.mjs 의 그림 → 개체마다 시트 1장 (가로 = 프레임, 세로 = 모션)
- *   apps/web/public/sprites/<id>.svg   합친 원본 (그림 그대로, 고치기 쉬움)
- *   apps/web/public/sprites/<id>.png   게임이 쓰는 이미지 (2배 해상도)
- *   apps/web/public/sprites/sprites.json  모션별 줄 번호·프레임 수·속도
+ * 2026-11-28: 게임은 art.mjs 를 직접 읽어 그 자리에서 그림 (sheet.mjs) → PNG 없음.
+ * 여기선 개발자 탭 "스프라이트 모아 보기"용 파일만 만든다 (저장소엔 안 올림, .gitignore):
+ *   apps/web/public/sprites/<id>.svg      개체별 시트
  *   apps/web/public/sprites/preview.html  한눈에 보기
  */
-import { Resvg } from '@resvg/resvg-js'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ALIASES, entities, SIZE } from './art.mjs'
+import { spriteBook, FRAME } from './sheet.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const outDir = join(root, 'apps', 'web', 'public', 'sprites')
+rmSync(outDir, { recursive: true, force: true })
 mkdirSync(outDir, { recursive: true })
 
-const SCALE = 2
-/** 프레임 둘레 여백 (그림 단위). 휘두르는 도구·별이 프레임 밖으로 나가 잘리거나 옆 프레임에 닿지 않게 (2026-11-27) */
-const PAD = 16
-const FRAME = SIZE + PAD * 2
-// frameSize = PNG 안 프레임 한 칸(px), content = 그림(96)이 프레임에서 차지하는 비율, footY = 발밑 높이(프레임 안 비율)
-const meta = { frameSize: FRAME * SCALE, content: SIZE / FRAME, footY: (PAD + 88) / FRAME, entities: {} }
+const { meta, sheetSvg, ids } = spriteBook()
 const previews = []
-
-for (const e of entities()) {
-  const motionNames = Object.keys(e.motions)
-  const cols = Math.max(...motionNames.map((m) => e.motions[m].frames.length))
-  const rows = motionNames.length
-  let body = ''
-  const motions = {}
-  motionNames.forEach((name, row) => {
-    const m = e.motions[name]
-    motions[name] = { row, frames: m.frames.length, fps: m.fps, loop: m.loop }
-    m.frames.forEach((pose, col) => {
-      body += `<g transform="translate(${col * FRAME + PAD} ${row * FRAME + PAD})">${e.draw(pose)}</g>\n`
-    })
-  })
-  const w = cols * FRAME
-  const h = rows * FRAME
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">\n${body}</svg>\n`
-  writeFileSync(join(outDir, `${e.id}.svg`), svg)
-  const png = new Resvg(svg, { fitTo: { mode: 'zoom', value: SCALE } }).render().asPng()
-  writeFileSync(join(outDir, `${e.id}.png`), png)
-  meta.entities[e.id] = { name: e.name, kind: e.kind, cols, rows, motions }
-  previews.push(`<section><h3>${e.name} <small>${e.id}</small></h3><img src="${e.id}.png" width="${w}"><p>${motionNames.map((n) => `${n} ${e.motions[n].frames.length}프레임`).join(' · ')}</p></section>`)
-  console.log(`${e.id}: ${cols}×${rows} → ${png.length} bytes`)
+for (const id of ids) {
+  const e = meta.entities[id]
+  writeFileSync(join(outDir, `${id}.svg`), sheetSvg(id))
+  const motions = Object.entries(e.motions).map(([n, m]) => `${n} ${m.frames}프레임`)
+  previews.push(`<section><h3>${e.name} <small>${id}</small></h3><img src="${id}.svg" width="${e.cols * FRAME}"><p>${motions.join(' · ')}</p></section>`)
 }
-
-// 별칭: 게임의 몬스터 종류(mon_normal 등) → 실제 그림 파일
-for (const [alias, target] of Object.entries(ALIASES)) meta.entities[alias] = { ...meta.entities[target], file: target }
-writeFileSync(join(outDir, 'sprites.json'), JSON.stringify(meta, null, 2))
 writeFileSync(
   join(outDir, 'preview.html'),
-  `<!doctype html><meta charset="utf-8"><title>스프라이트 미리 보기</title><style>body{background:#1b1f24;color:#eee;font-family:sans-serif}img{background:#3d5a40;image-rendering:auto}section{margin:12px 0}small{color:#999}</style>${previews.join('\n')}`,
+  `<!doctype html><meta charset="utf-8"><title>스프라이트 미리 보기</title><style>body{background:#eef6e2;color:#3f3123;font-family:sans-serif}img{background:#7cbd5a;border-radius:8px}section{margin:12px 0}small{color:#8b7b65}</style>${previews.join('\n')}`,
 )
-console.log('완료:', outDir)
+console.log(`스프라이트 미리 보기 ${ids.length}개 → ${outDir}`)
