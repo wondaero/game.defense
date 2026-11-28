@@ -348,3 +348,9 @@
   - 확인: typecheck·build 통과, 막사 얼굴·성능 시험(200개) 화면 정상, 개발 서버가 art.mjs 저장 시 page reload 확인. 번들 +약 70KB(그림 코드)
   - CLAUDE.md 구조 설명·design.md 8장 고침. 아직 안 올림
 - "올려줘" → PNG 없애기(SVG 직접 그리기) 커밋·푸시
+- "VS Code 확장으로 쓰던 이 대화를 Claude 프로그램에서 열 수 있나?" → 공식 문서 확인(code.claude.com sessions·vs-code·desktop·remote-control) 후 대화로 답:
+  - VS Code 확장과 터미널 CLI 는 대화 기록을 같이 씀 (`~/.claude/projects/-Users-ro-Desktop-project1-mine-game-defense/`, 기본 30일 보관) → 이 폴더에서 `claude --resume`(목록에서 고름) 또는 `claude -c`(가장 최근)로 그대로 이어짐. 같은 대화를 두 곳에서 동시에 열면 기록이 꼬일 수 있으니 한쪽 닫고 열기
+  - 데스크톱 앱은 대화 목록을 따로 관리 → 이 대화가 안 보일 수 있음(문서로 확인 안 됨). 안 보이면 터미널 방법
+  - 휴대폰·웹에서 이어 보려면 대화 안에서 `/remote-control` (맥에서 계속 돌고 claude.ai/code·Claude 앱에서 이어 씀)
+  - 새 대화를 시작해도 이 worklog 를 읽으면 이어서 작업 가능
+- "워크로그에 기록하고 올려 줘 + 맥북을 덮어도 계속 진행되나?" → 기록·커밋·푸시. 덮개 질문은 대화로 답 (덮으면 잠들어 이 맥의 작업이 멈춤 → 열어 두기 / 외부 모니터 / 클라우드 세션)
