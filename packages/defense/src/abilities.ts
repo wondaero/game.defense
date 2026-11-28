@@ -19,7 +19,8 @@ export type Ability =
   | { kind: 'splash'; chanceBp: number }
   | { kind: 'crit'; chanceBp: number }
   /** amountBp: 가시 = 1초마다 몬스터 최대 체력의 %, 늪 = 속도 감소 % */
-  | { kind: 'obstacle'; chanceBp: number; obstacle: ObstacleKind; amountBp: number }
+  /** count = 놓는 장애물 수 1/2 (2026-11-28 spec 4, 예전 캐릭은 없음 = 1개) */
+  | { kind: 'obstacle'; chanceBp: number; obstacle: ObstacleKind; amountBp: number; count?: number }
   | { kind: 'recall'; chanceBp: number }
   | { kind: 'teamLevel'; chanceBp: number; stat: BuffStat; level: number }
   | { kind: 'allAttack'; chanceBp: number }
@@ -95,7 +96,8 @@ export const ROLL_TABLE = {
   stun: { chanceBp: [500, 1000, 1500], durationMs: [500, 1000, 1500] },
   splash: { chanceBp: [300, 500] },
   crit: { chanceBp: [500, 1000] },
-  obstacle: { chanceBp: [500, 1000], obstacle: ['damage', 'slow'] as ObstacleKind[], damageBp: [1000, 2000], slowBp: [4000, 5000, 6000] },
+  /** 2026-11-28: 확률은 10% 고정 (뽑는 숫자는 개수·수치 2개까지 규칙) */
+  obstacle: { chanceBp: [1000], obstacle: ['damage', 'slow'] as ObstacleKind[], damageBp: [1000, 2000], slowBp: [4000, 5000, 6000], count: [1, 2] },
   recall: { chanceBp: [300, 500] },
   teamLevel: { chanceBp: [500], stat: ['atk', 'range', 'speed', 'agility', 'all'] as BuffStat[], level: [1, 2, 3] },
   allAttack: { chanceBp: [200, 300, 400, 500] },
@@ -170,7 +172,7 @@ export function rollAbility(rng: Rng): Ability {
     case 'obstacle': {
       const chanceBp = pick(rng, t.obstacle.chanceBp)
       const obstacle = pick(rng, t.obstacle.obstacle)
-      return { kind, chanceBp, obstacle, amountBp: pick(rng, obstacle === 'damage' ? t.obstacle.damageBp : t.obstacle.slowBp) }
+      return { kind, chanceBp, obstacle, amountBp: pick(rng, obstacle === 'damage' ? t.obstacle.damageBp : t.obstacle.slowBp), count: pick(rng, t.obstacle.count) }
     }
     case 'recall':
       return { kind, chanceBp: pick(rng, t.recall.chanceBp) }
@@ -224,7 +226,7 @@ export function abilityDesc(a: Ability): string {
     case 'crit':
       return `${pct(a.chanceBp)} 확률로 2배 데미지 (피해 = 공격력×2 − 방어력)`
     case 'obstacle':
-      return `${pct(a.chanceBp)} 확률로 길 무작위 칸에 ${
+      return `${pct(a.chanceBp)} 확률로 길 무작위 칸에 ${a.count ?? 1}개 ${
         a.obstacle === 'damage' ? `가시 장애물 (슬라임이 처음 밟을 때 최대 체력의 ${pct(a.amountBp)}, 마리마다 한 번)` : `늪 장애물 (밟으면 속도 −${pct(a.amountBp)})`
       } · 판당 1회`
     case 'recall':

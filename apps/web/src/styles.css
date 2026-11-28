@@ -1029,3 +1029,8 @@ svg.icon { display: inline-block; vertical-align: -0.2em; flex: none; overflow: 
   .shop-list .big { font-size: 19px; }
   .shop-list button.buy { min-width: 0; padding: 5px 8px; font-size: 13px; }
 }
+
+/* 슬라임 자세히: 능력치 꼬리표 · 능력 이름 줄 세로 가운데 (2026-11-28) */
+.monster-info .stat-tags.mi-stats { margin: 0 0 10px; display: flex; flex-wrap: wrap; gap: 4px; font-size: 12.5px; }
+.monster-info .mi-ab .ab-name { display: flex; align-items: center; gap: 5px; line-height: 1.2; }
+.monster-info .mi-ab .ab-name .mon-ab-icon { vertical-align: 0; }

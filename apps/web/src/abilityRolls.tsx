@@ -40,7 +40,7 @@ function parts(a: Ability): { main: Part[]; notes: Part[][] } {
       const kindNames = { damage: '가시', slow: '늪' } as const
       const amount = a.obstacle === 'damage' ? o(t.obstacle.damageBp, a.amountBp, pct, '%') : o(t.obstacle.slowBp, a.amountBp, pct, '%')
       return {
-        main: [chance(t.obstacle.chanceBp), ' 확률로 길 무작위 칸에 ', o(t.obstacle.obstacle, a.obstacle, (k) => kindNames[k]), ' 장애물'],
+        main: [chance(t.obstacle.chanceBp), ' 확률로 길 무작위 칸에 ', o(t.obstacle.count, a.count ?? 1, String, '개'), ' ', o(t.obstacle.obstacle, a.obstacle, (k) => kindNames[k]), ' 장애물'],
         notes: [a.obstacle === 'damage' ? ['슬라임이 처음 밟을 때 최대 체력의 ', amount] : ['밟으면 속도 −', amount], ['판당 1회']],
       }
     }
@@ -132,7 +132,7 @@ export function sampleAbility(kind: Ability['kind']): Ability {
     case 'stun':
       return { kind, chanceBp: t.stun.chanceBp[0], durationMs: t.stun.durationMs[0] }
     case 'obstacle':
-      return { kind, chanceBp: t.obstacle.chanceBp[0], obstacle: 'damage', amountBp: t.obstacle.damageBp[0] }
+      return { kind, chanceBp: t.obstacle.chanceBp[0], obstacle: 'damage', amountBp: t.obstacle.damageBp[0], count: t.obstacle.count[0] }
     case 'teamLevel':
       return { kind, chanceBp: t.teamLevel.chanceBp[0], stat: t.teamLevel.stat[0]!, level: t.teamLevel.level[0] }
     case 'poison':

@@ -31,6 +31,7 @@ import {
   type WaveSim,
   autoPlace,
   REFERENCE_MAX_STAGE,
+  TOP_TARGET_STAGE,
   referenceDeck,
   referencePasses,
   starsFor,
@@ -329,7 +330,8 @@ describe('진행', () => {
   })
 
   it('탄 체력 표: 1~70탄 모두 기준 덱이 겨우 깸 (npm run calibrate 결과와 맞는지)', () => {
-    expect(STAGE_HP_BP.length).toBe(REFERENCE_MAX_STAGE)
+    // 2026-11-28: 표는 100탄까지 (71~100 = 무지개 + 특수능력 상급 목표)
+    expect(STAGE_HP_BP.length).toBe(TOP_TARGET_STAGE)
     for (let n = 1; n <= REFERENCE_MAX_STAGE; n++) {
       const st = stageDef(n)
       const map = maps[st.mapId]!
@@ -337,10 +339,11 @@ describe('진행', () => {
       const r = runWave(createWave(cfg, map, st, deck, autoPlace(cfg, map, deck), cfg.startLives))
       expect(referencePasses(r), `${n}탄 — 규칙을 바꿨으면 npm run calibrate`).toBe(true)
     }
-    // 71탄부터: 61~69탄 평균(우두머리 탄은 70탄 값) 바탕으로 탄마다 +3% (정수)
-    const tail = STAGE_HP_BP.slice(60, 69)
+    // 101탄부터(무한): 91~99탄 평균(우두머리 탄은 100탄 값) 바탕으로 탄마다 +3% (정수)
+    const tail = STAGE_HP_BP.slice(90, 99)
     const normalBase = Math.floor(tail.reduce((a, b) => a + b, 0) / tail.length)
-    expect(stageHpBp(71)).toBe(Math.floor((normalBase * 10300) / 10000))
+    expect(stageHpBp(100)).toBe(STAGE_HP_BP[99])
+    expect(stageHpBp(101)).toBe(Math.floor((normalBase * 10300) / 10000))
     expect(stageHpBp(80)).toBeLessThan(stageHpBp(79)) // 우두머리 탄은 일반 탄보다 배율 낮음 (우두머리가 단단하니까)
     expect(stageHpBp(150)).toBeGreaterThan(stageHpBp(100))
   })

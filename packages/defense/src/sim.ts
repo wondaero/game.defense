@@ -519,8 +519,10 @@ function applyUnitAbility(sim: WaveSim, u: SimUnit, target: Monster, proc: Abili
       }
       break
     case 'obstacle': {
-      const free = map.path.map((_, i) => i).filter((i) => !sim.obstacles.some((o) => o.index === i))
-      if (free.length) {
+      // count 개(1/2)를 서로 다른 빈 칸에 (칸 중첩 없음)
+      for (let c = 0; c < (proc.count ?? 1); c++) {
+        const free = map.path.map((_, i) => i).filter((i) => !sim.obstacles.some((o) => o.index === i))
+        if (!free.length) break
         const index = free[sim.rng.int(free.length)]!
         sim.obstacles.push({ index, kind: proc.obstacle, amountBp: proc.amountBp, ownerId: u.inst.id })
       }

@@ -1,8 +1,9 @@
+import { ABILITY_KINDS, ROLL_TABLE, type Ability } from './abilities.ts'
 import { IMAGES, type UnitInstance } from './roster.ts'
 
 /**
  * 탄 난이도의 기준이 되는 덱 (2026-11-26 사용자 결정).
- * - 특수능력 없는 10명. 1탄 = 능력치 모두 최하, REFERENCE_MAX_STAGE 탄 = 모두 최고
+ * - 특수능력 없는 10명. 1탄 = 능력치 모두 최하, REFERENCE_MAX_STAGE 탄 = 보통 무지개(아래 TOTALS)
  * - 그 사이는 10명 **합계**가 고르게 오름 (사거리는 2칸짜리 인원이 한 명씩 늘어남)
  * - n탄 몬스터 체력 = "n탄 기준 덱이 겨우 깨는(2마리까지 통과) 최대 체력" (scripts/calibrate.ts)
  */
@@ -17,10 +18,14 @@ export function referencePasses(r: { cleared: boolean }): boolean {
 }
 
 /** 합계 범위 [1탄, 최고 탄] */
+/**
+ * 2026-11-28: 끝(70탄) = 전부 최고(총사령관)가 아니라 "보통 무지개 10명" 평균 (공격 27 · 공속 4.6 · 민첩 9.5 · 사거리 2)
+ * → 무지개 10명(특수능력 없이)이 70탄을 겨우 깸. 71~100탄은 특수능력 상급이 3탄마다 1명씩 더 필요 (scripts/calibrate.ts)
+ */
 const TOTALS = {
-  atk: [10 * REFERENCE_SIZE, 30 * REFERENCE_SIZE],
-  attackSpeed: [1 * REFERENCE_SIZE, 5 * REFERENCE_SIZE],
-  agility: [5 * REFERENCE_SIZE, 10 * REFERENCE_SIZE],
+  atk: [10 * REFERENCE_SIZE, 27 * REFERENCE_SIZE],
+  attackSpeed: [1 * REFERENCE_SIZE, 46],
+  agility: [5 * REFERENCE_SIZE, 95],
   range2: [0, REFERENCE_SIZE],
 } as const
 
@@ -55,4 +60,34 @@ export function referenceSummary(n: number): string {
   const d = referenceDeck(n)
   const avg = (f: (u: UnitInstance) => number) => (d.reduce((s, u) => s + f(u), 0) / d.length).toFixed(1)
   return `공격 ${avg((u) => u.atk)} · 사거리2 ${d.filter((u) => u.range === 2).length}명 · 공속 ${avg((u) => u.attackSpeed)} · 민첩 ${avg((u) => u.agility)}`
+}
+
+/** 71~100탄 목표 덱 (2026-11-28 사용자: 100탄 = 무지개 10명 모두 특수능력 상급이어야 깸) */
+export const TOP_TARGET_STAGE = 100
+
+/**
+ * 특수능력 상급 = 그 종류에서 뽑힐 수 있는 가장 좋은 값. kindIndex 로 종류를 골라 덱마다 고르게 섞음 (보정·시험용)
+ */
+export function topAbility(kindIndex: number): Ability {
+  const kind = ABILITY_KINDS[((kindIndex % ABILITY_KINDS.length) + ABILITY_KINDS.length) % ABILITY_KINDS.length]!
+  const t = ROLL_TABLE
+  const max = (xs: readonly number[]) => Math.max(...xs)
+  switch (kind) {
+    case 'stun':
+      return { kind, chanceBp: max(t.stun.chanceBp), durationMs: max(t.stun.durationMs) }
+    case 'obstacle':
+      return { kind, chanceBp: max(t.obstacle.chanceBp), obstacle: 'slow', amountBp: max(t.obstacle.slowBp), count: max(t.obstacle.count) }
+    case 'teamLevel':
+      return { kind, chanceBp: max(t.teamLevel.chanceBp), stat: 'all', level: max(t.teamLevel.level) }
+    case 'poison':
+      return { kind, chanceBp: max(t.poison.chanceBp), pctBp: max(t.poison.pctBp) }
+    case 'boostAll':
+      return { kind, chanceBp: 0, mulBp: max(t.boost.mulBp) }
+    case 'frenzy':
+      return { kind, chanceBp: max(t.frenzy.chanceBp), cooldownMs: Math.min(...t.frenzy.cooldownMs) }
+    case 'hawkeye':
+      return { kind, chanceBp: 0, plus: max(t.hawkeye.plus) }
+    default:
+      return { kind, chanceBp: max((t[kind] as { chanceBp: readonly number[] }).chanceBp) } as Ability
+  }
 }

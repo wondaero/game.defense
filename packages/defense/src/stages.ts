@@ -1,7 +1,6 @@
 import type { AbilityKind } from './abilities.ts'
 import { MAP_DEFS } from './maps.ts'
 import { MAP_ORDER } from './mapOrder.ts'
-import { REFERENCE_MAX_STAGE } from './reference.ts'
 import { seedFromString, Rng } from './rng.ts'
 import { STAGE_HP_BP } from './stageHp.ts'
 
@@ -217,12 +216,14 @@ const HP_BP_CAP = 1e13
  * 체력이 낮게 잡혀 71탄부터 너무 쉬웠음 — 2026-11-27 수정)
  */
 export function stageHpBp(n: number): number {
-  if (n <= REFERENCE_MAX_STAGE || !STAGE_HP_BP.length) return STAGE_HP_BP[Math.min(n, REFERENCE_MAX_STAGE) - 1] ?? 10_000
-  const tail = STAGE_HP_BP.slice(REFERENCE_MAX_STAGE - 10, REFERENCE_MAX_STAGE - 1) // 61~69탄
+  // 표(1~100탄, npm run calibrate)에 있으면 그대로. 그 뒤(무한 탄)는 마지막 10탄 평균에서 3%씩
+  const last = STAGE_HP_BP.length
+  if (n <= last || !last) return STAGE_HP_BP[Math.min(n, last) - 1] ?? 10_000
+  const tail = STAGE_HP_BP.slice(last - 10, last - 1)
   const normalBase = Math.floor(tail.reduce((s, v) => s + v, 0) / tail.length)
-  const bossBase = STAGE_HP_BP[REFERENCE_MAX_STAGE - 1] ?? normalBase // 70탄 (우두머리 탄)
+  const bossBase = STAGE_HP_BP[last - 1] ?? normalBase // 마지막 우두머리 탄
   let bp = n % 10 === 0 ? bossBase : normalBase
-  for (let k = REFERENCE_MAX_STAGE + 1; k <= n && bp < HP_BP_CAP; k++) bp = Math.floor((bp * HP_GROWTH_AFTER_BP) / 10_000)
+  for (let k = last + 1; k <= n && bp < HP_BP_CAP; k++) bp = Math.floor((bp * HP_GROWTH_AFTER_BP) / 10_000)
   return Math.min(bp, HP_BP_CAP)
 }
 

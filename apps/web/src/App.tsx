@@ -1116,10 +1116,21 @@ export function App() {
               <b>{monsterInfo.spec.name}</b>
             </div>
             {/* 능력치 한 줄 + 특수능력은 도감과 같은 박스 (이름 · 설명 · 다음 줄 보충) */}
-            <p className="mi-stats">
-              체력 {Math.max(1, Math.floor((monsterInfo.spec.hp * cfg.monsterHpBp) / 10000))} · 방어 {monsterInfo.spec.armor} · 민첩 {monsterInfo.spec.agility} · 속도{' '}
-              {((monsterInfo.spec.speed * cfg.monsterSpeedBp) / 10000 / 1000).toFixed(1)}칸/초
-            </p>
+            {/* 능력치 = 캐릭 목록과 같은 꼬리표 (2026-11-28) */}
+            <div className="stat-tags mi-stats">
+              <span>
+                체력 <b>{Math.max(1, Math.floor((monsterInfo.spec.hp * cfg.monsterHpBp) / 10000))}</b>
+              </span>
+              <span>
+                방어 <b>{monsterInfo.spec.armor}</b>
+              </span>
+              <span>
+                민첩 <b>{monsterInfo.spec.agility}</b>
+              </span>
+              <span>
+                속도 <b>{((monsterInfo.spec.speed * cfg.monsterSpeedBp) / 10000 / 1000).toFixed(1)}</b>칸/초
+              </span>
+            </div>
             {monsterInfo.spec.abilities.length === 0 && <p className="dim">특수능력 없음</p>}
             {monsterInfo.spec.abilities.map((k) => {
               const d = MONSTER_ABILITIES[k]
