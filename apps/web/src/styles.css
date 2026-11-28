@@ -1155,3 +1155,12 @@ svg.icon { display: inline-block; vertical-align: -0.2em; flex: none; overflow: 
 .ud-actions button.stat.grade-statTop { background: linear-gradient(#ffe066, #f0b400); border-color: #b07d00; box-shadow: 0 3px 0 #b07d00; color: #4a3200; text-shadow: 0 1px 0 rgba(255,255,255,0.5); }
 /* 특수능력 변경 버튼 = 에메랄드 (2026-11-29, 보라 대신 — 동·은·금 옆에서 보석 느낌) */
 .ud-actions button.ability { background: linear-gradient(#34d399, #059669); border-color: #047857; box-shadow: 0 3px 0 #047857; color: #fff; }
+/* 설명 상자 최대 높이 3줄 → 3.5줄 (2026-11-29): 넘칠 때 4번째 줄이 반쯤 잘려 보여야 "아래 더 있음"을 앎. 내용이 짧으면 내용 높이 그대로 */
+.ab2-box { max-height: calc(var(--lh) * 3.5 + 10px); }
+.ab2.big .ab2-box { max-height: calc(var(--lh) * 3.5 + 16px); }
+/* 최대 높이는 AbBox 가 실제 줄을 재서 정함 (3줄 + 4번째 줄 절반) */
+.ab2-box, .ab2.big .ab2-box { max-height: none; }
+
+/* 능력치 꼬리표 2×2 (4개가 한 줄에 안 들어갈 때, StatTagRow 가 정함) */
+.stat-tags.two { display: grid; grid-template-columns: max-content max-content; justify-content: start; }
+.stat-tags.two > span { justify-self: start; }

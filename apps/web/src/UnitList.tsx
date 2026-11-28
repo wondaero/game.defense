@@ -157,14 +157,14 @@ export function UnitRow(props: {
     </div>
   )
   const stats = (
-    <div className="stat-tags">
+    <StatTagRow>
       {statTags(props.cfg, u).map((t) => (
         <span key={t.label} className={`${t.up ? 'up' : ''} ${t.max ? 'max' : ''}`} title={t.max ? '최고값' : undefined}>
           {t.label} <b>{t.value}</b>
           {t.up && '▲'}
         </span>
       ))}
-    </div>
+    </StatTagRow>
   )
   const abBox = ab && (
     // 2026-11-28: "특수능력: 이름" 은 상자 밖, 설명만 상자(p) — 최대 3줄, 넘치면 상자 안에서 스크롤
@@ -215,24 +215,72 @@ export function UnitRow(props: {
 
 
 /**
- * 특수능력 설명 상자 (2026-11-29): 3줄까지는 넘침 숨김(스크롤 없음) → 화면 전체 스크롤이 상자에 걸리지 않음.
- * 내용이 실제로 3줄을 넘을 때만 상자 안 스크롤을 켬 (크기가 바뀌면 다시 잼)
+ * 특수능력 설명 상자 (2026-11-29):
+ * - 줄이 3줄 이하면 내용 높이 그대로 (스크롤 없음 → 화면 전체 스크롤이 상자에 안 걸림)
+ * - 4줄 이상이면 실제 줄 위치를 재서 "3줄 + 4번째 줄 절반" 까지만 보이게 → 아래 더 있음을 알 수 있음. 그때만 상자 안 스크롤
+ * - 줄마다 글자 크기가 달라도(설명·보충) 실제 줄 높이로 계산. 화면 폭이 바뀌면 다시 잼
  */
 export function AbBox({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLParagraphElement>(null)
-  const [scroll, setScroll] = useState(false)
+  const [maxH, setMaxH] = useState<number | null>(null)
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    const check = () => setScroll(el.scrollHeight > el.clientHeight + 2)
-    check()
-    const ro = new ResizeObserver(check)
+    const measure = () => {
+      const box = el.getBoundingClientRect()
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      // 줄 = 같은 높이(top)에 있는 글자 조각들. 위에서부터 줄마다 [top, bottom]
+      const lines: { top: number; bottom: number }[] = []
+      for (const r of Array.from(range.getClientRects())) {
+        if (r.width < 1 || r.height < 1) continue
+        const top = r.top + el.scrollTop
+        const hit = lines.find((l) => Math.abs(l.top - top) < r.height / 2)
+        if (hit) hit.bottom = Math.max(hit.bottom, top + r.height)
+        else lines.push({ top, bottom: top + r.height })
+      }
+      lines.sort((a, b) => a.top - b.top)
+      const l4 = lines[3]
+      const next = l4 ? Math.round(l4.top + (l4.bottom - l4.top) / 2 - box.top) : null
+      setMaxH((cur) => (cur === next ? cur : next))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el.parentElement ?? el)
+    return () => ro.disconnect()
+  }, [children])
+  return (
+    <p ref={ref} className={`ab2-box ${maxH != null ? 'scrolls' : ''}`} style={{ maxHeight: maxH != null ? maxH : 'none' }}>
+      {children}
+    </p>
+  )
+}
+
+/**
+ * 능력치 꼬리표 줄 (2026-11-29): 4개가 한 줄에 들어가면 4×1, 안 들어가면 2×2 (3+1 로 어정쩡하게 꺾이지 않게).
+ * 꼬리표 폭 합 + 간격을 줄 폭과 비교해서 정함, 폭이 바뀌면 다시 잼
+ */
+function StatTagRow({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [two, setTwo] = useState(false)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const measure = () => {
+      const kids = Array.from(el.children) as HTMLElement[]
+      const gap = parseFloat(getComputedStyle(el).columnGap) || 0
+      const need = kids.reduce((w, k) => w + k.getBoundingClientRect().width, 0) + gap * (kids.length - 1)
+      const next = need > el.clientWidth + 0.5
+      setTwo((cur) => (cur === next ? cur : next))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
   }, [children])
   return (
-    <p ref={ref} className={`ab2-box ${scroll ? 'scrolls' : ''}`}>
+    <div ref={ref} className={`stat-tags ${two ? 'two' : ''}`}>
       {children}
-    </p>
+    </div>
   )
 }
