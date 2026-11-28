@@ -304,8 +304,8 @@ export function drawFinishFlag(ctx: CanvasRenderingContext2D, map: GameMap, cell
   const x0 = e.x * cell + 4
   const y0 = e.y * cell + 4
   const w = cell - 8
-  // 깃대는 칸 왼쪽, 깃발은 오른쪽으로 (2026-11-28 좌우 반대로)
-  const px = x0 + 8
+  // 깃대는 원래대로 칸 오른쪽, 깃발만 오른쪽을 향하게 (2026-11-28)
+  const px = x0 + w - 8
   const top = y0 - cell * 0.28
   ctx.strokeStyle = '#5d4037'
   ctx.lineWidth = 3

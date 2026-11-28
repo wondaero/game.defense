@@ -623,3 +623,41 @@ html, body { overflow-x: clip; overscroll-behavior-x: none; }
 .prep-bar button.primary { flex: 1; margin-top: 0; width: auto; font-size: 15px; }
 .monster-info .mi-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 17px; }
 .monster-info { text-align: left; }
+/* 판이 화면 위에 붙어도(sticky) 위에 여백이 남게 (2026-11-28): 판 영역 안쪽 위 여백 + 같은 만큼 위로 당겨 처음 자리는 그대로 */
+.board { padding-top: 10px; margin-top: -10px; }
+/* 판이 위에 붙으니 아래에 선 + 옅은 그림자로 목록과 구분 (2026-11-28) */
+.board { border-bottom: 1px solid var(--line-dark); padding-bottom: 8px;
+  /* 판 아래 그림자도 화면 배경색으로 은은하게 (필터 아래와 같은 방식, 2026-11-28) — 판 쪽엔 여백을 두지 않음 */
+  box-shadow: 0 10px 10px -2px var(--bg); }
+/* 판과 아래 목록 사이 간격은 판이 아니라 아래 영역(aside)의 위 안쪽 여백으로 (판이 위아래로 쌓인 휴대폰 화면) */
+@media (max-width: 520px) { main { row-gap: 0; } main > aside { padding-top: 10px; } }
+
+/* 슬라임 자세히 창 (2026-11-28) */
+.monster-info .mi-head b { font-size: 19px; }
+.monster-info .mi-stats { margin: 0 0 8px; font-size: 13.5px; }
+.monster-info .mi-ab { display: flex; flex-direction: column; gap: 1px; padding: 7px 10px; border-radius: 10px; background: #fff6dc; border: 1px solid #f3d98a; margin-bottom: 6px; }
+.monster-info .mi-ab .ab-name { color: #8a4f00; }
+.monster-info .mi-ab .ab-desc { font-size: 13px; color: #9a6a00; }
+
+/* 막사 머리(제목·필터): 판 바로 아래에 한 번 더 고정 (2026-11-28) */
+.roster-head { position: sticky; top: calc(var(--board-h, 0px) + 8px); z-index: 4; background: var(--card); margin: -10px -12px 0; padding: 10px 12px 2px; border-radius: 14px 14px 0 0; border-bottom: 1px solid var(--line);
+  /* 필터 아래 그림자 = 목록 바탕색으로 은은하게: 머리 밑으로 들어가는 목록이 스르르 사라지듯 (2026-11-28) */
+  box-shadow: 0 10px 10px -2px var(--card); }
+.roster-head .roster-tools { position: static; margin-bottom: 4px; }
+
+/* 막사 머리 둥근 위 모서리 (2026-11-28): 위에 붙어도 카드 위쪽 테두리·둥근 모서리가 보이게.
+   - 카드 모양(바탕·테두리·둥근 위)은 ::before, 모서리 바깥을 배경색으로 채우는 띠는 ::after (목록이 모서리 밖으로 비치지 않게)
+   - 둘 다 z-index 음수 → 머리 글씨 아래, 머리 자체 바탕은 투명 (자기 바탕은 음수 자식보다 아래에 그려지므로)
+   - 카드 테두리(1.5px) 위에 그대로 겹치도록 한 칸 더 바깥으로 */
+.roster-head { margin: -11.5px -13.5px 0; padding: 13px 15px 3px; background: transparent; border: none; border-radius: 0; }
+.roster-head::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--card); border: 1.5px solid var(--line); border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; }
+/* 배경색 띠는 머리 위 8px 틈까지 덮음 → 판과 머리 사이로 목록이 삐져나와 보이지 않게 */
+.roster-head::after { content: ''; position: absolute; left: -2px; right: -2px; top: -9px; height: 25px; z-index: -2; background: var(--bg); }
+/* 막사 화면 위쪽 고정 영역도 같은 방식: 아래 그림자 = 화면 배경색으로 은은하게 */
+.barracks-page .barracks-sticky { box-shadow: 0 10px 10px -2px var(--bg); }
+
+/* 개발자 탭 스프라이트 모아 보기 (2026-11-28) */
+.sprite-gallery { margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
+.sprite-gallery .sg-item { display: flex; flex-direction: column; gap: 3px; }
+.sprite-gallery img { max-width: 100%; background: #7cbd5a; border-radius: 8px; }
+.sprite-gallery small, .sprite-gallery span { font-size: 11.5px; }

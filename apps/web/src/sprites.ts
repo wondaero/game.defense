@@ -134,3 +134,11 @@ export function drawSprite(ctx: CanvasRenderingContext2D, id: string, motion: st
   }
   return true
 }
+
+/** 개발자 탭 "스프라이트 모아 보기"용 목록 (2026-11-28: 만든 파일 없이 화면에서 바로 — 배포판에서도 404 없음) */
+export function spriteList(): { id: string; name: string; cols: number; url: string | null; motions: string[] }[] {
+  return book.ids.map((id) => {
+    const e = meta.entities[id]!
+    return { id, name: e.name, cols: e.cols, url: sheetUrl(id), motions: Object.entries(e.motions).map(([n, m]) => `${n} ${m.frames}프레임`) }
+  })
+}

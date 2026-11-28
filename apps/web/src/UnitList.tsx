@@ -129,7 +129,7 @@ export function UnitRow(props: {
   const look = unitLook(props.cfg, u)
   const ab = abilityText(u)
   return (
-    <li className={`${props.selected ? 'sel' : ''} ${props.placed ? 'placed' : ''} ${look.special === 'trainee' ? 'trainee-row' : ''} ${props.dim ? 'dimmed' : ''}`} onClick={props.onClick}>
+    <li data-unit-id={u.id} className={`${props.selected ? 'sel' : ''} ${props.placed ? 'placed' : ''} ${look.special === 'trainee' ? 'trainee-row' : ''} ${props.dim ? 'dimmed' : ''}`} onClick={props.onClick}>
       <span className="face-wrap">
         <UnitFace body={look.body} tool={look.tool} rainbow={look.tier === 6} />
         {props.selected && <b className="sel-check">✓</b>}

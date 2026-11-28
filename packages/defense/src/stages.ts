@@ -238,7 +238,7 @@ export function monsterAbilityDesc(kind: MonsterAbilityKind, spec: MonsterSpec):
     case 'fullHeal':
       return `맞으면 ${pct} 확률로 체력을 전부 회복${tail}`
     case 'groupHeal':
-      return `맞으면 ${pct} 확률로 판 위 몬스터 전체가 최대 체력의 ${GROUP_HEAL_BP / 100}% 회복${tail}`
+      return `맞으면 ${pct} 확률로 판 위 슬라임 전체가 최대 체력의 ${GROUP_HEAL_BP / 100}% 회복${tail}`
     case 'haste':
       return `맞으면 ${pct} 확률로 ${sec(d.durationMs)} 동안 이동속도 2배${tail}`
     case 'blink':

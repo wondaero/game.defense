@@ -1,5 +1,5 @@
 /**
- * 스프라이트 미리 보기 만들기: node scripts/sprites/build.mjs  (= npm run sprites, dev·build 때 자동)
+ * 스프라이트 미리 보기 파일 만들기: node scripts/sprites/build.mjs  (= npm run sprites, 필요할 때만 — 2026-11-28 부터 게임 안 개발자 탭에서 바로 볼 수 있어 dev·build 에선 안 돌림)
  *
  * 2026-11-28: 게임은 art.mjs 를 직접 읽어 그 자리에서 그림 (sheet.mjs) → PNG 없음.
  * 여기선 개발자 탭 "스프라이트 모아 보기"용 파일만 만든다 (저장소엔 안 올림, .gitignore):

@@ -214,16 +214,16 @@ export function abilityDesc(a: Ability): string {
       return `${pct(a.chanceBp)} 확률로 2배 데미지 (피해 = 공격력×2 − 방어력)`
     case 'obstacle':
       return `${pct(a.chanceBp)} 확률로 길 무작위 칸에 ${
-        a.obstacle === 'damage' ? `가시 장애물 (몬스터가 처음 밟을 때 최대 체력의 ${pct(a.amountBp)}, 마리마다 한 번)` : `늪 장애물 (밟으면 속도 −${pct(a.amountBp)})`
+        a.obstacle === 'damage' ? `가시 장애물 (슬라임가 처음 밟을 때 최대 체력의 ${pct(a.amountBp)}, 마리마다 한 번)` : `늪 장애물 (밟으면 속도 −${pct(a.amountBp)})`
       } · 판당 1회`
     case 'recall':
-      return `${pct(a.chanceBp)} 확률로 때린 몬스터를 출발지로${tail}`
+      return `${pct(a.chanceBp)} 확률로 때린 슬라임를 출발지로${tail}`
     case 'teamLevel':
       return `${pct(a.chanceBp)} 확률로 아군 전체 레벨 +${a.level}: ${levelText(a.stat, a.level)} (${sec(TEAM_LEVEL_MS)} 동안)${tail}`
     case 'allAttack':
-      return `${pct(a.chanceBp)} 확률로 맵에 있는 몬스터 전체 공격 (피해 = 공격력 − 방어력)${tail}`
+      return `${pct(a.chanceBp)} 확률로 맵에 있는 슬라임 전체 공격 (피해 = 공격력 − 방어력)${tail}`
     case 'poison':
-      return `${pct(a.chanceBp)} 확률로 맹독: 죽을 때까지 1초마다 공격력의 ${pct(a.pctBp)} (방어 무시, 몬스터당 한 번)`
+      return `${pct(a.chanceBp)} 확률로 맹독: 죽을 때까지 1초마다 공격력의 ${pct(a.pctBp)} (방어 무시, 슬라임당 한 번)`
     case 'boostAll':
       return `공격력·공속·민첩 모두 × ${a.mulBp / 10000} (최대를 넘을 수 있음, 사거리 제외, 봉인되면 원래 값)`
     case 'frenzy':
@@ -231,14 +231,14 @@ export function abilityDesc(a: Ability): string {
     case 'hawkeye':
       return `사거리 +${a.plus} (항상, 봉인되면 원래 사거리)`
     case 'hypnosis':
-      return `${pct(a.chanceBp)} 확률로 최면: 때린 몬스터가 ${HYPNOSIS_CELLS}칸 뒤로 갔다가 다시 옴 (몬스터당 한 번)`
+      return `${pct(a.chanceBp)} 확률로 최면: 때린 슬라임가 ${HYPNOSIS_CELLS}칸 뒤로 갔다가 다시 옴 (슬라임당 한 번)`
     case 'instakill':
-      return `${pct(a.chanceBp)} 확률로 때린 몬스터 즉사 (왕에겐 안 통함)`
+      return `${pct(a.chanceBp)} 확률로 때린 슬라임 즉사 (왕에겐 안 통함)`
     case 'iceTile':
-      return `${pct(a.chanceBp)} 확률로 때린 몬스터가 있는 칸의 몬스터 모두 ${sec(ICE_TILE_MS)} 얼림${tail}`
+      return `${pct(a.chanceBp)} 확률로 때린 슬라임가 있는 칸의 슬라임 모두 ${sec(ICE_TILE_MS)} 얼림${tail}`
     case 'lullaby':
-      return `${pct(a.chanceBp)} 확률로 몬스터 모두 ${sec(LULLABY_MS)} 잠듦 (${LULLABY_WAKE_HITS}대 맞으면 깸)${tail}`
+      return `${pct(a.chanceBp)} 확률로 슬라임 모두 ${sec(LULLABY_MS)} 잠듦 (${LULLABY_WAKE_HITS}대 맞으면 깸)${tail}`
     case 'agiCopy':
-      return `${pct(a.chanceBp)} 확률로 때린 몬스터의 민첩을 ${sec(AGI_COPY_MS)} 동안 내 민첩에 더함${tail}`
+      return `${pct(a.chanceBp)} 확률로 때린 슬라임의 민첩을 ${sec(AGI_COPY_MS)} 동안 내 민첩에 더함${tail}`
   }
 }

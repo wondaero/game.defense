@@ -38,9 +38,10 @@ import { loadSprites, motionDuration } from './sprites.ts'
 import { Bench } from './Bench.tsx'
 import { Codex } from './Codex.tsx'
 import { ResultOverlay } from './ResultOverlay.tsx'
+import { SpriteGallery } from './SpriteGallery.tsx'
 import { StageMap } from './StageMap.tsx'
 import { unitLook, stageName, stageTheme } from './format.ts'
-import { RosterTools, UnitFace, UnitRow, viewRoster, type RosterView } from './UnitList.tsx'
+import { RosterTools, splitDesc, UnitFace, UnitRow, viewRoster, type RosterView } from './UnitList.tsx'
 import { Barracks } from './Barracks.tsx'
 import type { GameApi } from './api/api.ts'
 import { createLocalApi } from './api/localApi.ts'
@@ -99,6 +100,8 @@ export function App() {
   // 아래 고정 메뉴 (2026-11-27): 막사 · 스테이지 · 상점
   const [tab, setTab] = useState<Tab>('stages')
   const [shopTab, setShopTab] = useState<'shop' | 'trade'>('shop')
+  /** 개발자 탭: 스프라이트 모아 보기 펼침 */
+  const [showSprites, setShowSprites] = useState(false)
   const [save, setSave] = useState<Save>(loadSave)
   // 계정 창구: 지금은 브라우저 안(localApi), 서버를 붙이면 serverApi 로 바꿈 (화면 코드는 그대로)
   const cfgRef = useRef(cfg)
@@ -420,11 +423,43 @@ export function App() {
 
   const placedCount = Object.keys(placements).length
 
+  /** 판 높이를 CSS 변수로 → 목록 머리(.roster-head)가 판 바로 아래에 붙음. 판이 옆에 있는 넓은 화면이면 0 */
+  useEffect(() => {
+    const board = document.querySelector<HTMLElement>('.board')
+    const aside = document.querySelector<HTMLElement>('main > aside')
+    if (!board || !aside) return
+    const update = () => {
+      const b = board.getBoundingClientRect()
+      const stacked = aside.getBoundingClientRect().left < b.right - 1
+      document.documentElement.style.setProperty('--board-h', stacked ? `${Math.floor(b.height)}px` : '0px')
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(board)
+    ro.observe(aside)
+    return () => ro.disconnect()
+  }, [screen])
+
+  /** 판에서 캐릭을 고르면 아래 목록에서 그 캐릭이 보이게 스크롤 (2026-11-28) */
+  const scrollToUnit = (id: string | null | undefined) => {
+    if (!id) return
+    requestAnimationFrame(() => {
+      const li = document.querySelector(`.roster [data-unit-id="${id}"]`)
+      if (!li) return
+      // 위에 붙은 판 바로 아래로 오게 (가운데로 맞추면 판에 가려질 수 있음)
+      const boardH = document.querySelector('.board')?.getBoundingClientRect().height ?? 0
+      const headH = document.querySelector('.roster-head')?.getBoundingClientRect().height ?? 0
+      const top = li.getBoundingClientRect().top + window.scrollY - boardH - headH - 8
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+    })
+  }
+
   const onCellClick = (c: Cell) => {
     if (screen !== 'prepare') {
       // 진행 중엔 지금 서 있는 자리 기준 (날려 보내기로 옮겨졌을 수 있음)
       const su = simRef.current?.units.find((u) => u.cell.x === c.x && u.cell.y === c.y)
       setSelectedId(su?.inst.id ?? null)
+      scrollToUnit(su?.inst.id)
       return
     }
     const occupant = roster.find((u) => {
@@ -435,6 +470,7 @@ export function App() {
     const sel = roster.find((u) => u.id === selectedId)
     if (!sel) {
       setSelectedId(occupant?.id ?? null)
+      scrollToUnit(occupant?.id)
       return
     }
     if (occupant?.id === sel.id) {
@@ -598,10 +634,9 @@ export function App() {
                 >
                   🧪 그리기 성능 시험 (200개~)
                 </button>
-                <a className="dim" href="sprites/preview.html" target="_blank">
-                  스프라이트 모아 보기
-                </a>
+                <button onClick={() => setShowSprites((v) => !v)}>{showSprites ? '스프라이트 접기' : '🖼️ 스프라이트 모아 보기'}</button>
               </div>
+              {showSprites && <SpriteGallery />}
             </section>
             <section>
               <h3>게임 설정</h3>
@@ -660,7 +695,7 @@ export function App() {
           <span>🚪 통과 {sim ? sim.leaked : 0}/{cfg.startLives - 1}</span>
           {sim && (
             <span>
-              ⏱ {(sim.tick / cfg.tickRate).toFixed(1)}초 · 남은 몬스터 {sim.spawns.length - sim.spawnIdx + sim.monsters.length}
+              ⏱ {(sim.tick / cfg.tickRate).toFixed(1)}초 · 남은 슬라임 {sim.spawns.length - sim.spawnIdx + sim.monsters.length}
             </span>
           )}
           {/* 이 탄에서 딴 별 (2026-11-28, 전체 최고 기록 대신) */}
@@ -750,7 +785,7 @@ export function App() {
           {screen === 'prepare' && (
             <section className="prep-monsters">
               <h3>
-                {stageName(stageNo)} {stage.isBoss && <span className="boss-tag">우두머리</span>} 출연 몬스터 <span className="dim">· 눌러서 보기</span>
+                {stageName(stageNo)} {stage.isBoss && <span className="boss-tag">우두머리</span>} 출연 슬라임 <span className="dim">· 눌러서 보기</span>
               </h3>
               {/* 그림 + 마릿수를 가로로, 누르면 능력치·특수능력 (2026-11-28) */}
               <ul className="monster-chips">
@@ -769,7 +804,7 @@ export function App() {
           {screen !== 'prepare' && (
           <section>
             <h3>
-              출연 몬스터 <span className="dim">· 맵 {map.name} · 길 {map.path.length}칸</span>
+              출연 슬라임 <span className="dim">· 맵 {map.name} · 길 {map.path.length}칸</span>
             </h3>
             <p className="dim" style={{ margin: '0 0 6px' }}>
               {stageNo <= REFERENCE_MAX_STAGE
@@ -785,10 +820,13 @@ export function App() {
           )}
 
           <section>
-            <h3>
-              막사 ({roster.length}명) · 출전 {placedCount} / {cfg.maxDeploy}
-            </h3>
-            <RosterTools view={view} onChange={setView} roster={roster} />
+            {/* 판 바로 아래에 한 번 더 붙음: 출전 수·필터가 목록을 내려도 보이게 (2026-11-28) */}
+            <div className="roster-head">
+              <h3>
+                막사 ({roster.length}명) · 출전 {placedCount} / {cfg.maxDeploy}
+              </h3>
+              <RosterTools view={view} onChange={setView} roster={roster} />
+            </div>
             <ul className="roster">
               {viewRoster(cfg, roster, view).map((u) => {
                 const placed = !!placements[u.id]
@@ -830,19 +868,33 @@ export function App() {
         </div>
       )}
 
-      {/* 출연 몬스터 자세히 — 확인만 하는 창이라 가운데 */}
+      {/* 출연 슬라임 자세히 — 확인만 하는 창이라 가운데 */}
       {monsterInfo && (
         <div className="modal-back" onClick={() => setMonsterInfo(null)}>
           <div className="modal monster-info" onClick={(e) => e.stopPropagation()}>
             <div className="mi-head">
               <UnitFace body={monsterSprite(monsterInfo.spec)} tool={null} big />
-              <div>
-                <b>{monsterInfo.spec.name}</b> ×{monsterInfo.count}
-              </div>
+              <b>{monsterInfo.spec.name}</b>
             </div>
-            <ul className="monsters">
-              <MonsterRow spec={monsterInfo.spec} count={monsterInfo.count} cfg={cfg} />
-            </ul>
+            {/* 능력치 한 줄 + 특수능력은 도감과 같은 박스 (이름 · 설명 · 다음 줄 보충) */}
+            <p className="mi-stats">
+              체력 {Math.max(1, Math.floor((monsterInfo.spec.hp * cfg.monsterHpBp) / 10000))} · 방어 {monsterInfo.spec.armor} · 민첩 {monsterInfo.spec.agility} · 속도{' '}
+              {((monsterInfo.spec.speed * cfg.monsterSpeedBp) / 10000 / 1000).toFixed(1)}칸/초
+            </p>
+            {monsterInfo.spec.abilities.length === 0 && <p className="dim">특수능력 없음</p>}
+            {monsterInfo.spec.abilities.map((k) => {
+              const d = MONSTER_ABILITIES[k]
+              const { main, notes } = splitDesc(d.name, monsterAbilityDesc(k, monsterInfo.spec))
+              return (
+                <div key={k} className="ab mi-ab">
+                  <b className="ab-name">
+                    {d.icon} {d.name}
+                  </b>
+                  <span className="ab-desc">{main}</span>
+                  {notes.length > 0 && <span className="ab-note">{notes.join(' · ')}</span>}
+                </div>
+              )
+            })}
             <div className="row end">
               <button className="primary inline" onClick={() => setMonsterInfo(null)}>
                 확인
@@ -891,14 +943,15 @@ const SHOP_ITEMS: { kind: TicketKind; icon: string; desc: string }[] = [
   { kind: 'statTop', icon: '🔄', desc: '2개 골라 유지, 나머지 다시' },
 ]
 
-function MonsterRow({ spec, count, cfg }: { spec: MonsterSpec; count: number; cfg: DefenseConfig }) {
+function MonsterRow({ spec, count, cfg }: { spec: MonsterSpec; /** 없으면 마릿수 안 씀 (자세히 창) */ count?: number; cfg: DefenseConfig }) {
   const hp = Math.max(1, Math.floor((spec.hp * cfg.monsterHpBp) / 10000))
   const speed = (spec.speed * cfg.monsterSpeedBp) / 10000 / 1000
   return (
     <li>
       <div>
         <i className="dot" style={{ background: spec.color }} />
-        <b>{spec.name}</b> ×{count}
+        <b>{spec.name}</b>
+        {count !== undefined && ` ×${count}`}
         <span className="dim">
           {' '}
           체력 {hp} · 방어 {spec.armor} · 민첩 {spec.agility} · 속도 {speed.toFixed(1)}칸/초
@@ -942,8 +995,8 @@ function Settings({ cfg, onChange }: { cfg: DefenseConfig; onChange: (p: Partial
       {num('공속 최대 (1초에 N대)', cfg.attackSpeed.max, (v) => ({ attackSpeed: { min: Math.min(clampSpeed(v), cfg.attackSpeed.min), max: clampSpeed(v) } }), 1, 1)}
       {num('민첩 최소', cfg.agility.min, (v) => ({ agility: { min: v, max: Math.max(v, cfg.agility.max) } }), 1, 1)}
       {num('민첩 최대', cfg.agility.max, (v) => ({ agility: { min: Math.min(v, cfg.agility.min), max: v } }), 1, 1)}
-      {num('몬스터 속도 (%)', cfg.monsterSpeedBp / 100, (v) => ({ monsterSpeedBp: Math.max(10, v) * 100 }), 10, 10)}
-      {num('몬스터 체력 (%)', cfg.monsterHpBp / 100, (v) => ({ monsterHpBp: Math.max(10, v) * 100 }), 10, 10)}
+      {num('슬라임 속도 (%)', cfg.monsterSpeedBp / 100, (v) => ({ monsterSpeedBp: Math.max(10, v) * 100 }), 10, 10)}
+      {num('슬라임 체력 (%)', cfg.monsterHpBp / 100, (v) => ({ monsterHpBp: Math.max(10, v) * 100 }), 10, 10)}
       {num('몇 마리 통과하면 실패', cfg.startLives, (v) => ({ startLives: Math.max(1, v) }), 1, 1)}
       {num('특수능력 확률 (%)', cfg.abilityChanceBp / 100, (v) => ({ abilityChanceBp: Math.min(100, v) * 100 }), 10)}
       <button onClick={() => onChange({ ...DEFAULT_CONFIG })}>기본값으로</button>

@@ -29,7 +29,7 @@ export function Codex() {
         </ul>
       </section>
       <section>
-        <h3>몬스터 능력 도감 ({MONSTER_ABILITY_KINDS.length}종)</h3>
+        <h3>슬라임 능력 도감 ({MONSTER_ABILITY_KINDS.length}종)</h3>
         <p className="dim" style={{ margin: '0 0 8px' }}>
           캐릭에게 맞을 때마다 확률로 터져요. 10탄부터 붙기 시작
         </p>
