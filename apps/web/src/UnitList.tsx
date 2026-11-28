@@ -84,7 +84,8 @@ export function UnitRow(props: {
       <UnitFace body={look.body} tool={look.tool} />
       <div className="info">
         <div>
-          <b className={`tier ${look.tierName === '무지개' ? 'rainbow' : ''} ${look.special === 'trainee' ? 'trainee' : ''}`} style={{ color: look.color }}>{look.title}</b> {statText(props.cfg, u)}
+          {/* 이름 = 헬멧 색 알약 (밝은 화면에서도 흰색·노랑이 보이게, 2026-11-28) */}
+          <b className={`tier-pill t${look.tier} ${look.special === 'trainee' ? 'trainee' : ''}`}>{look.title}</b> {statText(props.cfg, u)}
           {props.placed && <span className="tag">출전</span>}
         </div>
         {ab && (

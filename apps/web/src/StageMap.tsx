@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react'
-import { STAGES_PER_MAP, stageMapId } from '@def/defense'
+import { LAST_NORMAL_STAGE, STAGES_PER_MAP, stageMapId } from '@def/defense'
+import { chapterTheme, stageName, stageShort } from './format.ts'
 
 /**
  * 탄 고르기: 풀밭 위 구불구불한 길에 탄이 동그라미로 놓인 지도.
  * **아래 = 1탄, 위 = 100탄** (2026-11-27: 아래에서 위로 올라가며 진행)
  * - 맵(알파벳)이 바뀌는 4탄마다 띠 색이 바뀌고 옆에 "맵 Q" 표지판
+ * - 100탄 위로 무한 탄이 이어짐 (∞1, ∞2 …, 2026-11-28 무한 버튼 대신)
  * - 깬 탄 = 초록 + ✓, 다음 할 탄 = 금색으로 반짝, 우두머리 탄 = 크고 빨갛고 왕관, 못 여는 탄 = 회색 자물쇠
  */
 const STEP = 76 // 탄 사이 세로 간격 (px)
@@ -20,11 +22,11 @@ const rand = (k: number) => {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296
 }
 
-export function StageMap(props: { count: number; best: number; stars: Record<number, number>; maxOpen: number; onOpen: (n: number) => void }) {
-  const { count, best, stars, maxOpen, onOpen } = props
+export function StageMap(props: { count: number; best: number; stars: Record<number, number>; maxOpen: number; onOpen: (n: number) => void; /** 아래 메뉴에 가리는 높이 — 1탄 아래로 길·풀밭이 이만큼 더 이어짐 */ bottomSpace?: number }) {
+  const { count, best, stars, maxOpen, onOpen, bottomSpace = 0 } = props
   const boxRef = useRef<HTMLDivElement>(null)
   const current = Math.min(best + 1, count)
-  const height = nodeY(count - 1) + TOP
+  const height = nodeY(count - 1) + TOP + bottomSpace
   /** n탄이 위에서 몇 번째 자리인가 (100탄 = 0) */
   const pos = (n: number) => count - n
 
@@ -64,12 +66,11 @@ export function StageMap(props: { count: number; best: number; stars: Record<num
           const id = stageMapId(first)
           const left = nodeX(topPos) > 50
           return (
-            <div key={c} className={`chapter ${c % 2 ? 'alt' : ''}`} style={{ top, height: bottom - top }}>
+            <div key={c} className={`chapter ${chapterTheme(c)}`} style={{ top, height: bottom - top }}>
               <span className={`chapter-sign ${left ? 'left' : 'right'}`}>
+                {first > LAST_NORMAL_STAGE && <em className="inf">무한</em>}
                 맵 <b>{id.toUpperCase()}</b>
-                <small>
-                  {first}~{last}탄
-                </small>
+                <small>{first > LAST_NORMAL_STAGE ? `∞${first - LAST_NORMAL_STAGE}~${last - LAST_NORMAL_STAGE}` : `${first}~${last}탄`}</small>
               </span>
             </div>
           )
@@ -82,18 +83,25 @@ export function StageMap(props: { count: number; best: number; stars: Record<num
         </svg>
 
         {/* 풀밭 장식 (꽃·풀) */}
-        {Array.from({ length: Math.floor(count * 1.2) }, (_, k) => (
-          <span key={k} className="deco" style={{ left: `${4 + rand(k) * 92}%`, top: rand(k + 999) * height }}>
-            {rand(k + 77) < 0.35 ? '✿' : '❦'}
-          </span>
-        ))}
+        {Array.from({ length: Math.floor(count * 1.2) }, (_, k) => {
+          // 장식이 놓인 자리의 탄 → 그 구간이 얼음이면 눈송이
+          const y = rand(k + 999) * height
+          const n = Math.min(count, Math.max(1, count - Math.round((y - TOP) / STEP)))
+          const ice = chapterTheme(Math.floor((n - 1) / STAGES_PER_MAP)) === 'ice'
+          return (
+            <span key={k} className={`deco ${ice ? 'ice' : ''}`} style={{ left: `${4 + rand(k) * 92}%`, top: y }}>
+              {ice ? (rand(k + 77) < 0.5 ? '❄' : '✦') : rand(k + 77) < 0.35 ? '✿' : '❦'}
+            </span>
+          )
+        })}
 
         {Array.from({ length: count }, (_, i) => {
           const n = i + 1
           const boss = n % 10 === 0
           const cleared = n <= best
           const locked = n > maxOpen
-          const cls = ['node', boss && 'boss', cleared && 'cleared', n === current && !cleared && 'current', locked && 'locked'].filter(Boolean).join(' ')
+          const inf = n > LAST_NORMAL_STAGE
+          const cls = ['node', inf && 'inf', boss && 'boss', cleared && 'cleared', n === current && !cleared && 'current', locked && 'locked'].filter(Boolean).join(' ')
           return (
             <button
               key={n}
@@ -101,10 +109,10 @@ export function StageMap(props: { count: number; best: number; stars: Record<num
               style={{ left: `${nodeX(pos(n))}%`, top: nodeY(pos(n)) }}
               disabled={locked}
               onClick={() => onOpen(n)}
-              title={boss ? `${n}탄 · 우두머리` : `${n}탄`}
+              title={boss ? `${stageName(n)} · 우두머리` : stageName(n)}
             >
               {boss && <span className="crown">👑</span>}
-              <span className="num">{n}</span>
+              <span className="num">{stageShort(n)}</span>
               {cleared && (
                 <span className="node-stars">
                   {[1, 2, 3].map((k) => (

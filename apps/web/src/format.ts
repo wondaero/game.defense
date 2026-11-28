@@ -1,4 +1,17 @@
-import { ABILITY_NAMES, abilityDesc, statTier, type DefenseConfig, type UnitInstance } from '@def/defense'
+import { ABILITY_NAMES, abilityDesc, LAST_NORMAL_STAGE, STAGES_PER_MAP, statTier, type DefenseConfig, type UnitInstance } from '@def/defense'
+
+/** 탄 이름 (2026-11-28): 1~100탄은 "N탄", 101탄부터는 "무한 N탄" (101 = 무한 1) */
+export const stageName = (n: number) => (n > LAST_NORMAL_STAGE ? `무한 ${n - LAST_NORMAL_STAGE}탄` : `${n}탄`)
+/** 지도 동그라미 안 글자: 100까지는 숫자, 그 뒤는 ∞1, ∞2 … */
+export const stageShort = (n: number) => (n > LAST_NORMAL_STAGE ? `∞${n - LAST_NORMAL_STAGE}` : `${n}`)
+
+/**
+ * 판·지도 스킨 (2026-11-28): 맵 구간(4탄)마다 풀밭 ↔ 얼음 번갈아 — 1~4 풀밭, 5~8 얼음, …
+ * 겉모습만 (규칙·체력 보정과 무관). 지도(StageMap)와 판(ground.ts)이 같이 씀
+ */
+export type StageTheme = 'grass' | 'ice'
+export const chapterTheme = (chapter: number): StageTheme => (chapter % 2 ? 'ice' : 'grass')
+export const stageTheme = (n: number): StageTheme => chapterTheme(Math.floor((n - 1) / STAGES_PER_MAP))
 
 /** 그림 8종 (성능 무관, 임시 그림 = 예전 프로젝트와 같은 이모지) */
 export const IMAGE_INFO: Record<string, { emoji: string; name: string; color: string }> = {

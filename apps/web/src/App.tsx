@@ -34,7 +34,7 @@ import { loadSprites, motionDuration } from './sprites.ts'
 import { Bench } from './Bench.tsx'
 import { ResultOverlay } from './ResultOverlay.tsx'
 import { StageMap } from './StageMap.tsx'
-import { unitLook } from './format.ts'
+import { unitLook, stageName, stageTheme } from './format.ts'
 import { RosterTools, UnitRow, viewRoster, type RosterView } from './UnitList.tsx'
 import { Barracks } from './Barracks.tsx'
 import type { GameApi } from './api/api.ts'
@@ -211,6 +211,7 @@ export function App() {
         hover: L.screen === 'prepare' ? L.hover : null,
         fx: fxRef.current,
         now,
+        theme: stageTheme(L.stageNo),
       })
       raf = requestAnimationFrame(loop)
     }
@@ -458,31 +459,25 @@ export function App() {
 
   // ── 첫 화면: 아래 고정 메뉴로 막사 · 스테이지 · 상점 (2026-11-27) ──
   if (screen === 'select') {
-    const infinite = Math.max(LAST_NORMAL_STAGE + 1, best + 1)
     const shown = viewRoster(cfg, roster, view)
     return (
-      <div className="app with-tabbar">
-        <header>
-          <h1>{TAB_TITLES[tab]}</h1>
-          <div className="stats">
-            <span>🏆 최고 기록 {best}탄</span>
-            <span>💰 {account?.gold ?? 0} 골드</span>
-          </div>
-        </header>
-
-        {tab === 'stages' && (
-          <>
-            <section>
-              <StageMap count={LAST_NORMAL_STAGE} best={best} stars={account?.stars ?? {}} maxOpen={maxOpen} onOpen={openStage} />
-              <div className="row" style={{ marginTop: 10 }}>
-                <button className="primary inline" disabled={best < LAST_NORMAL_STAGE && !unlockAll} onClick={() => openStage(infinite)}>
-                  ♾ 무한 ({infinite}탄)
-                </button>
-                <span className="dim">100탄을 깨면 열림. 그 뒤로 끝없이 어려워짐</span>
+      <div className={`app with-tabbar ${tab === 'stages' ? 'stages-view' : ''}`}>
+        {/* 스테이지 탭은 제목 줄 없이 지도만 (진행 상황 = 지도의 깬 탄·별). 최고 기록은 지도와 겹쳐서 빼고,
+            골드는 쓰는 곳(상점 제목 줄 · 막사 권 줄)에서만 보여 줌 (2026-11-28) */}
+        {tab !== 'stages' && (
+          <header>
+            <h1>{TAB_TITLES[tab]}</h1>
+            {tab === 'shop' && (
+              <div className="stats">
+                <span>💰 {account?.gold ?? 0} 골드</span>
               </div>
-            </section>
-          </>
+            )}
+          </header>
         )}
+
+        {/* 스테이지 (2026-11-28): 풀밭 지도가 화면을 가득 채움 (아래 메뉴·정보 알약은 그 위에 떠 있음).
+            무한 버튼 대신 100탄 위로 지도가 이어짐: 무한 1, 무한 2 … (깬 탄 + 몇 개 미리 보기) */}
+        {tab === 'stages' && <StageMap count={Math.max(LAST_NORMAL_STAGE, best + INFINITE_PREVIEW)} best={best} stars={account?.stars ?? {}} maxOpen={maxOpen} onOpen={openStage} bottomSpace={TABBAR_SPACE} />}
 
         {tab === 'barracks' && account && (
           <Barracks
@@ -612,8 +607,7 @@ export function App() {
           <button className="link back" onClick={() => (screen === 'play' ? askToLeave() : goSelect())} title="탄 고르기로">
             ←
           </button>{' '}
-          {stageNo}탄 {stage.isBoss && <span className="boss-tag">우두머리</span>}
-          {stageNo > LAST_NORMAL_STAGE && <span className="inf-tag">무한</span>}
+          {stageName(stageNo)} {stage.isBoss && <span className="boss-tag">우두머리</span>}
         </h1>
         <div className="stats">
           <span>🚪 통과 {sim && screen !== 'prepare' ? sim.leaked : 0}/{cfg.startLives - 1}</span>
@@ -622,7 +616,7 @@ export function App() {
               ⏱ {(sim.tick / cfg.tickRate).toFixed(1)}초 · 남은 몬스터 {sim.spawns.length - sim.spawnIdx + sim.monsters.length}
             </span>
           )}
-          <span>🏆 {best}탄</span>
+          <span>🏆 {best ? stageName(best) : '없음'}</span>
         </div>
       </header>
 
@@ -654,7 +648,7 @@ export function App() {
         </div>
       )}
       <main>
-        <div className="board">
+        <div className={`board ${stageTheme(stageNo)}`}>
           {screen === 'result' && result && (
             <ResultOverlay
               cleared={result.cleared}
@@ -761,6 +755,10 @@ type Tab = 'barracks' | 'stages' | 'shop' | 'dev'
  * **출시할 때 false 한 줄**이면 탭이 사라지고 "모든 탄 열기"도 꺼짐. 서버 api 엔 dev 가 없어서 기능도 같이 없어짐
  */
 const SHOW_DEV_MENU = true
+/** 아래 메뉴 높이 (지도가 1탄 아래로 이만큼 더 이어져 메뉴 밑까지 풀밭·길) */
+const TABBAR_SPACE = 80
+/** 지도에서 깬 탄 위로 미리 보여 주는 무한 탄 수 (잠긴 채) */
+const INFINITE_PREVIEW = 3
 const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: 'barracks', icon: '⛺', label: '막사' },
   { id: 'stages', icon: '⚔️', label: '스테이지' },

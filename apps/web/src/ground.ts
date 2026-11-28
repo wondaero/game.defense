@@ -1,7 +1,9 @@
 import { positionAt, type GameMap } from '@def/defense'
+import type { StageTheme } from './format.ts'
 
 /**
- * 판 바닥 그림 (풀밭 + 부드러운 길 + 입구·출구). 맵마다 한 번 그려 두고 재사용.
+ * 판 바닥 그림 (풀밭 또는 얼음 + 부드러운 길 + 입구·출구). 맵·스킨마다 한 번 그려 두고 재사용.
+ * 스킨 (2026-11-28): grass = 풀밭·흙길·꽃 / ice = 눈밭·얼음 길·눈송이·얼음 결정
  * - 'play'   : 진행 중. 네모 칸 없이 풀밭 위에 길만
  * - 'prepare': 배치 중. 배치 칸을 네모로 보여 줌 + 길 방향 화살표
  */
@@ -16,8 +18,38 @@ function hash(x: number, y: number, k: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296
 }
 
-export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale: number): HTMLCanvasElement {
-  const key = `${map.id}|${mode}|${cell}|${scale}`
+/** 스킨별 색 */
+const SKINS = {
+  grass: {
+    top: '#79b85a',
+    bottom: '#5f9e48',
+    blade: 'rgba(40,90,30,0.45)',
+    roadEdge: '#8d6e4a',
+    roadFill: '#d9b98a',
+    roadLine: 'rgba(255,255,255,0.12)',
+    pebble: 'rgba(120,90,60,0.45)',
+    slotFill: 'rgba(255,255,255,0.10)',
+    slotLine: 'rgba(255,255,255,0.45)',
+    arrow: 'rgba(110,75,40,0.55)',
+  },
+  ice: {
+    top: '#f1f9fd',
+    bottom: '#cfe6f2',
+    blade: 'rgba(120,170,205,0.5)',
+    roadEdge: '#6f93ad',
+    roadFill: '#b9d9ea',
+    roadLine: 'rgba(255,255,255,0.55)',
+    pebble: 'rgba(255,255,255,0.85)',
+    slotFill: 'rgba(60,120,170,0.08)',
+    slotLine: 'rgba(60,120,170,0.45)',
+    arrow: 'rgba(60,100,135,0.55)',
+  },
+} as const
+
+export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale: number, theme: StageTheme = 'grass'): HTMLCanvasElement {
+  const key = `${map.id}|${mode}|${cell}|${scale}|${theme}`
+  const S = SKINS[theme]
+  const ice = theme === 'ice'
   const hit = cache.get(key)
   if (hit) return hit
   const W = map.width * cell
@@ -35,8 +67,8 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
   ctx.roundRect(0, 0, W, H, r)
   ctx.clip()
   const gr = ctx.createLinearGradient(0, 0, 0, H)
-  gr.addColorStop(0, '#79b85a')
-  gr.addColorStop(1, '#5f9e48')
+  gr.addColorStop(0, S.top)
+  gr.addColorStop(1, S.bottom)
   ctx.fillStyle = gr
   ctx.fillRect(0, 0, W, H)
 
@@ -47,16 +79,39 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
       for (let k = 0; k < 3; k++) {
         const px = (x + 0.15 + hash(x, y, k) * 0.7) * cell
         const py = (y + 0.15 + hash(x, y, k + 9) * 0.7) * cell
-        ctx.strokeStyle = 'rgba(40,90,30,0.45)'
+        ctx.strokeStyle = S.blade
         ctx.lineWidth = 1.6
         ctx.beginPath()
+        if (ice) {
+          // 눈 더미 결: 짧은 곡선 + 반짝 점
+          ctx.arc(px, py + 2, 4, Math.PI * 1.1, Math.PI * 1.9)
+          ctx.stroke()
+          ctx.fillStyle = 'rgba(255,255,255,0.95)'
+          ctx.beginPath()
+          ctx.arc(px + 2, py - 2, 1.1, 0, Math.PI * 2)
+          ctx.fill()
+          continue
+        }
         ctx.moveTo(px - 3, py + 3)
         ctx.lineTo(px - 1, py - 3)
         ctx.moveTo(px + 1, py + 3)
         ctx.lineTo(px + 3, py - 2)
         ctx.stroke()
       }
-      if (hash(x, y, 31) < 0.22) {
+      if (ice && hash(x, y, 31) < 0.22) {
+        // 얼음 결정 (작은 눈송이)
+        const px = (x + 0.2 + hash(x, y, 32) * 0.6) * cell
+        const py = (y + 0.2 + hash(x, y, 33) * 0.6) * cell
+        ctx.strokeStyle = 'rgba(100,170,215,0.85)'
+        ctx.lineWidth = 1.3
+        ctx.beginPath()
+        for (let a = 0; a < 3; a++) {
+          const ang = (a * Math.PI) / 3
+          ctx.moveTo(px - Math.cos(ang) * 4, py - Math.sin(ang) * 4)
+          ctx.lineTo(px + Math.cos(ang) * 4, py + Math.sin(ang) * 4)
+        }
+        ctx.stroke()
+      } else if (hash(x, y, 31) < 0.22) {
         const px = (x + 0.2 + hash(x, y, 32) * 0.6) * cell
         const py = (y + 0.2 + hash(x, y, 33) * 0.6) * cell
         ctx.fillStyle = ['#fff59d', '#f8bbd0', '#ffffff'][Math.floor(hash(x, y, 34) * 3)]!
@@ -86,13 +141,13 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
     pts.forEach((p, i) => (i ? ctx.lineTo(p.x * cell, p.y * cell) : ctx.moveTo(p.x * cell, p.y * cell)))
     ctx.stroke()
   }
-  road(cell * 0.86, '#8d6e4a')
-  road(cell * 0.74, '#d9b98a')
-  road(cell * 0.3, 'rgba(255,255,255,0.12)')
+  road(cell * 0.86, S.roadEdge)
+  road(cell * 0.74, S.roadFill)
+  road(cell * 0.3, S.roadLine)
   // 길 위 작은 돌멩이
   for (const [i, c] of map.path.entries()) {
     if (hash(c.x, c.y, 50 + i) > 0.55) continue
-    ctx.fillStyle = 'rgba(120,90,60,0.45)'
+    ctx.fillStyle = S.pebble
     ctx.beginPath()
     ctx.ellipse((c.x + 0.3 + hash(c.x, c.y, 51) * 0.4) * cell, (c.y + 0.3 + hash(c.x, c.y, 52) * 0.4) * cell, 2.6, 1.8, 0, 0, Math.PI * 2)
     ctx.fill()
@@ -103,8 +158,8 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         if (map.tiles[y]![x] !== 'slot') continue
-        ctx.fillStyle = 'rgba(255,255,255,0.10)'
-        ctx.strokeStyle = 'rgba(255,255,255,0.45)'
+        ctx.fillStyle = S.slotFill
+        ctx.strokeStyle = S.slotLine
         ctx.lineWidth = 1.5
         ctx.beginPath()
         ctx.roundRect(x * cell + 4, y * cell + 4, cell - 8, cell - 8, 7)
@@ -113,7 +168,7 @@ export function groundImage(map: GameMap, mode: GroundMode, cell: number, scale:
       }
     }
     // 길 방향 화살표 (두 칸마다)
-    ctx.fillStyle = 'rgba(110,75,40,0.55)'
+    ctx.fillStyle = S.arrow
     for (let dist = 1500; dist < map.length - 300; dist += 2000) {
       const a = positionAt(map, dist - 150)
       const b = positionAt(map, dist + 150)

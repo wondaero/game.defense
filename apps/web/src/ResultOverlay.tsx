@@ -1,3 +1,5 @@
+import { stageName } from './format.ts'
+
 /**
  * 탄이 끝났을 때 판 위에 크게 띄우는 결과 (2026-11-27)
  * - 성공: "클리어!" 띠가 떨어지고 → 별이 하나씩 튀어나오고 → 위에서 색종이
@@ -55,7 +57,7 @@ export function ResultOverlay(props: {
         </div>
       )}
       <div className="result-card">
-        <div className="result-banner">{cleared ? `${stage}탄 클리어!` : '실패…'}</div>
+        <div className="result-banner">{cleared ? `${stageName(stage)} 클리어!` : '실패…'}</div>
         {cleared ? (
           <>
             <div className="result-big-stars">
@@ -82,7 +84,7 @@ export function ResultOverlay(props: {
         <div className="result-buttons">
           {cleared && (
             <button className="primary inline" onClick={props.onNext}>
-              다음 탄 ({stage + 1}) →
+              다음 탄 ({stageName(stage + 1)}) →
             </button>
           )}
           <button className={cleared ? '' : 'primary inline'} onClick={props.onRetry}>

@@ -2,6 +2,7 @@ import { baseStats, inRange, MONSTER_ABILITIES, positionAt, type Cell, type Defe
 import { unitLook } from './format.ts'
 import { drawSprite, motionDuration, spritesReady } from './sprites.ts'
 import { drawBlackHole, drawFinishFlag, groundImage, type GroundMode } from './ground.ts'
+import type { StageTheme } from './format.ts'
 
 export const CELL_PX = 60
 /** 판 둘레 여백 (가장자리 몬스터·입구 밖 몬스터가 잘리지 않게) */
@@ -38,6 +39,8 @@ export interface DrawInput {
   fx: Fx[]
   now: number
   anim: AnimState
+  /** 판 스킨 (풀밭 / 얼음) */
+  theme?: StageTheme
 }
 
 /** 화면용 애니메이션 상태 (게임 계산과 무관). clock = 게임 시간(밀리초) → 일시정지·배속 따라감 */
@@ -111,7 +114,7 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
 
   // 바닥: 풀밭 + 부드러운 길 (배치 중에만 배치 칸 네모·길 방향 화살표). 맵마다 한 번 그려 둔 그림을 씀
   const mode: GroundMode = d.sim ? 'play' : 'prepare'
-  ctx.drawImage(groundImage(map, mode, CELL_PX, Math.max(1, ctx.getTransform().a)), 0, 0, map.width * CELL_PX, map.height * CELL_PX)
+  ctx.drawImage(groundImage(map, mode, CELL_PX, Math.max(1, ctx.getTransform().a), d.theme), 0, 0, map.width * CELL_PX, map.height * CELL_PX)
   drawFinishFlag(ctx, map, CELL_PX, d.now)
   drawBlackHole(ctx, map, CELL_PX, d.now)
 
