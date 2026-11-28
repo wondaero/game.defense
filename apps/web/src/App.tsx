@@ -34,6 +34,7 @@ import {
 import { CELL_PX, draw, monsterScreenPos, monsterSprite, newAnimState, PAD, type Fx } from './draw.ts'
 import { loadSprites, motionDuration } from './sprites.ts'
 import { Bench } from './Bench.tsx'
+import { Codex } from './Codex.tsx'
 import { ResultOverlay } from './ResultOverlay.tsx'
 import { StageMap } from './StageMap.tsx'
 import { unitLook, stageName, stageTheme } from './format.ts'
@@ -541,6 +542,9 @@ export function App() {
           </section>
         )}
 
+        {/* 설정 (2026-11-28): 지금은 도감만. 나중에 계정·소리 등 */}
+        {tab === 'settings' && <Codex />}
+
         {/* 개발자 메뉴 (2026-11-28): 시험용 기능 전부 여기. 숨기려면 SHOW_DEV_MENU = false */}
         {tab === 'dev' && SHOW_DEV_MENU && (
           <>
@@ -792,7 +796,7 @@ export function App() {
 }
 
 /** 아래 고정 메뉴 (막사 · 스테이지 · 상점, 가운데 스테이지) */
-type Tab = 'barracks' | 'stages' | 'shop' | 'dev'
+type Tab = 'barracks' | 'stages' | 'shop' | 'settings' | 'dev'
 /**
  * 개발자 메뉴 (2026-11-28): 시험용 기능(모든 탄 열기·기록 지우기·권 지급·막사 다시 뽑기·성능 시험·스프라이트·게임 설정)을 한 탭에.
  * **출시할 때 false 한 줄**이면 탭이 사라지고 "모든 탄 열기"도 꺼짐. 서버 api 엔 dev 가 없어서 기능도 같이 없어짐
@@ -806,10 +810,11 @@ const TABS: { id: Tab; icon: string; label: string }[] = [
   { id: 'barracks', icon: '⛺', label: '막사' },
   { id: 'stages', icon: '⚔️', label: '스테이지' },
   { id: 'shop', icon: '🛒', label: '상점' },
+  { id: 'settings', icon: '⚙️', label: '설정' },
   { id: 'dev', icon: '🛠', label: '개발자' },
 ]
 const VISIBLE_TABS = TABS.filter((t) => t.id !== 'dev' || SHOW_DEV_MENU)
-const TAB_TITLES: Record<Tab, string> = { barracks: '막사', stages: '스테이지', shop: '상점', dev: '개발자' }
+const TAB_TITLES: Record<Tab, string> = { barracks: '막사', stages: '스테이지', shop: '상점', settings: '설정', dev: '개발자' }
 /** 막사에서 할 일 (아직 준비 중) */
 const BARRACKS_ACTIONS = [
   { icon: '🎟️', label: '캐릭 뽑기' },

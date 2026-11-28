@@ -20,6 +20,7 @@ import {
 import { AbilityDesc, RosterTools, UnitFace, UnitRow, viewRoster, type RosterView } from './UnitList.tsx'
 import { abilityText, unitLook } from './format.ts'
 import type { GameApi } from './api/api.ts'
+import { AbilityRolls } from './abilityRolls.tsx'
 
 /**
  * 막사: 캐릭 목록 + 캐릭 뽑기 · 합성 (메인) / 능력치 변경 · 특수능력 변경 (캐릭을 누르면 뜨는 창, 2026-11-28).
@@ -270,10 +271,11 @@ function UnitDetail({ u, cfg }: { u: UnitInstance; cfg: DefenseConfig }) {
         {row('공속', b.attackSpeed, u.attackSpeed, '', `1초에 ${b.attackSpeed}대 (범위 ${cfg.attackSpeed.min}~${cfg.attackSpeed.max})`)}
         {row('민첩', b.agility, u.agility, '', '명중 · 몬스터 기술 피하기 · 특수능력 버티기')}
       </ul>
-      {ab ? (
+      {ab && u.ability ? (
         <div className="ab big">
           <b className="ab-name">★ {ab.name}</b>
-          <AbilityDesc name={ab.name} desc={ab.desc} />
+          {/* 뽑을 수 있는 값 전부 + 이 캐릭이 뽑은 값 강조 (2026-11-28) */}
+          <AbilityRolls ability={u.ability} />
         </div>
       ) : (
         <p className="dim">특수능력 없음 (능력치 변경권을 쓰면 5% 확률로 생겨요)</p>
