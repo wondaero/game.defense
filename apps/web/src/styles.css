@@ -1186,3 +1186,45 @@ html, body { touch-action: manipulation; }
 /* 절취선 더 가늘고 촘촘하게 (2026-11-29) */
 .stage-road .road-edge { stroke-width: 4px; stroke-dasharray: 5 5; }
 .stage-road .road-dash { stroke-width: 2px; stroke-dasharray: 5 5; }
+
+/* 상점 줄 누르면 자세히 창 (2026-11-29) */
+.shop-list li.shop-row { cursor: pointer; }
+.shop-info { position: relative; max-width: 340px; }
+.shop-info .si-icon { display: flex; justify-content: center; margin: 4px 0 6px; }
+.shop-info .si-detail { text-align: left; margin: 6px 0 10px; padding-left: 18px; font-size: 13.5px; line-height: 1.55; }
+.shop-info .si-detail li + li { margin-top: 3px; }
+.shop-info .si-have { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: var(--gold-text); }
+.shop-info button.primary { margin-top: 6px; }
+.shop-info .si-short { margin: 6px 0 0; font-size: 12.5px; }
+
+/* 상점 줄 = 2줄 (2026-11-29): 1줄 아이콘 · 이름 · n장 보유 / 2줄 오른쪽 구매 버튼 — 모든 줄 같은 모양 */
+.shop-list li.shop-row { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "icon name" "buy buy"; align-items: center; column-gap: 10px; row-gap: 6px; }
+.shop-list li.shop-row > .big { grid-area: icon; }
+.shop-list li.shop-row > .shop-name { grid-area: name; display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; min-width: 0; }
+.shop-list li.shop-row > .shop-name b { display: inline; }
+.shop-list li.shop-row > button.buy { grid-area: buy; justify-self: end; }
+/* 280px 에서 긴 이름이면 보유 수가 꺾여 3줄이 되던 것 → 보유 수는 2번째 줄 왼쪽(구매 버튼과 같은 줄) */
+.shop-list li.shop-row { grid-template-columns: auto 1fr auto; grid-template-areas: "icon name name" "have have buy"; }
+.shop-list li.shop-row > .shop-name { display: contents; }
+.shop-list li.shop-row > .shop-name > b { grid-area: name; }
+.shop-list li.shop-row > .shop-name > .have { grid-area: have; padding-left: 2px; }
+
+/* 뽑기 덤 알림 (2026-11-29) */
+.draw-bonus { margin: -2px 0 10px; padding: 6px 10px; border-radius: 10px; background: #fff3e0; border: 1px solid #f0c890; color: #8a4b22; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 5px; }
+
+/* 럭키 강조 (2026-11-29): 무지개 글자 알약 + 살짝 반짝 튀어 오름 */
+.draw-bonus { flex-wrap: wrap; }
+.lucky-tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12.5px; font-weight: 900; letter-spacing: 0.04em; color: #fff; background: linear-gradient(90deg, #ff1744, #ff9100, #ffd600, #00c853, #2979ff, #d500f9); background-size: 200% 100%; text-shadow: 0 1px 0 rgba(0,0,0,0.35); box-shadow: 0 1px 3px rgba(0,0,0,0.25); animation: lucky-pop 0.5s cubic-bezier(.2,1.6,.4,1) both, lucky-flow 2s linear infinite; }
+@keyframes lucky-pop { 0% { transform: scale(0.4) rotate(-8deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes lucky-flow { to { background-position: 200% 0; } }
+@media (prefers-reduced-motion: reduce) { .lucky-tag { animation: none; } }
+/* 창이 화면보다 길어 아래 버튼이 잘리던 것 (2026-11-29): 창 높이를 화면 안으로, 목록만 남는 높이에서 스크롤 → [확인]은 항상 보임 */
+.modal { max-height: calc(100dvh - 24px); overflow-y: auto; }
+.modal:has(.drawn-list) { display: flex; flex-direction: column; overflow: hidden; }
+.modal:has(.drawn-list) > * { flex: none; }
+.modal:has(.drawn-list) > .drawn-list { flex: 1 1 auto; min-height: 120px; max-height: none; }
+/* 모두 뽑기 창 위쪽 여백 줄임 (2026-11-29): 제목 ↔ LUCKY ↔ 필터 ↔ 목록 */
+.modal:has(.drawn-list) > h3, .modal:has(.drawn-list) > .modal-title { margin-bottom: 6px; }
+.modal:has(.drawn-list) .draw-bonus { margin: 0 0 6px; padding: 4px 8px; gap: 4px 6px; }
+.modal:has(.drawn-list) .drawn-tools { margin: 0 0 4px; }
+.modal:has(.drawn-list) .drawn-list { padding-top: 0; }

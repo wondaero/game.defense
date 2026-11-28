@@ -48,6 +48,9 @@ export function newAccount(units: UnitInstance[] = []): Account {
 export type StatGrade = 'statNormal' | 'statHigh' | 'statTop'
 
 /** 막사 요청 — 캐릭은 id 로만 가리킴 (화면이 보낸 캐릭 내용은 믿지 않음) */
+/** 병사 뽑기 덤: 뽑을 때마다 이 확률로 능력치 변경 티켓(보통) +1 (2026-11-29 사용자, 1%) */
+export const DRAW_BONUS_BP = 100
+
 export type BarracksAction =
   | { type: 'draw' }
   /** 모두 뽑기 (2026-11-29): 뽑기 티켓을 막사 자리가 허락하는 만큼 한 번에 */
@@ -75,8 +78,9 @@ export const SHOP_PRICES: Readonly<Record<TicketKind, number>> = {
 }
 
 export type BarracksOutcome =
-  | { type: 'drawn'; unit: UnitInstance }
-  | { type: 'drawnMany'; units: UnitInstance[] }
+  /** bonus = 뽑기 덤으로 받은 능력치 변경 티켓(보통) 장 수 (2026-11-29, 뽑을 때마다 DRAW_BONUS_BP) */
+  | { type: 'drawn'; unit: UnitInstance; bonus: number }
+  | { type: 'drawnMany'; units: UnitInstance[]; bonus: number }
   | { type: 'changed'; before: UnitInstance; after: UnitInstance; used: TicketKind; gainedAbility: boolean }
   | { type: 'merged'; count: number; target: TicketKind; rewards: TicketKind[] }
   | { type: 'bought'; kind: TicketKind; price: number }
@@ -94,18 +98,25 @@ export function applyBarracks(cfg: DefenseConfig, acc: Account, action: Barracks
       if (acc.tickets.draw < 1) return fail('뽑기 티켓이 없어요.')
       if (barracksFull(cfg, acc.units)) return fail(`막사가 꽉 찼어요 (${cfg.rosterSize}명). 합성으로 자리를 비워 주세요.`)
       const u = drawUnit(cfg, rng, `u${acc.nextUnitId}`)
-      return { ok: true, account: { ...acc, units: [...acc.units, u], tickets: spend('draw'), nextUnitId: acc.nextUnitId + 1 }, value: { type: 'drawn', unit: u } }
+      const bonus = rng.int(10_000) < DRAW_BONUS_BP ? 1 : 0
+      const tickets = { ...spend('draw'), statNormal: acc.tickets.statNormal + bonus }
+      return { ok: true, account: { ...acc, units: [...acc.units, u], tickets, nextUnitId: acc.nextUnitId + 1 }, value: { type: 'drawn', unit: u, bonus } }
     }
     case 'drawAll': {
       const room = cfg.rosterSize - acc.units.length
       const n = Math.min(acc.tickets.draw, room)
       if (acc.tickets.draw < 1) return fail('뽑기 티켓이 없어요.')
       if (n < 1) return fail(`막사가 꽉 찼어요 (${cfg.rosterSize}명). 합성으로 자리를 비워 주세요.`)
-      const units = Array.from({ length: n }, (_, i) => drawUnit(cfg, rng, `u${acc.nextUnitId + i}`))
+      let bonus = 0
+      const units = Array.from({ length: n }, (_, i) => {
+        const u = drawUnit(cfg, rng, `u${acc.nextUnitId + i}`)
+        if (rng.int(10_000) < DRAW_BONUS_BP) bonus++
+        return u
+      })
       return {
         ok: true,
-        account: { ...acc, units: [...acc.units, ...units], tickets: { ...acc.tickets, draw: acc.tickets.draw - n }, nextUnitId: acc.nextUnitId + n },
-        value: { type: 'drawnMany', units },
+        account: { ...acc, units: [...acc.units, ...units], tickets: { ...acc.tickets, draw: acc.tickets.draw - n, statNormal: acc.tickets.statNormal + bonus }, nextUnitId: acc.nextUnitId + n },
+        value: { type: 'drawnMany', units, bonus },
       }
     }
     case 'rerollStats': {

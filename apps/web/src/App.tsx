@@ -115,6 +115,8 @@ export function App() {
   const [devAsk, setDevAsk] = useState(false)
   const visibleTabs = TABS.filter((t) => t.id !== 'dev' || devOn)
   const [shopTab, setShopTab] = useState<'shop' | 'trade'>('shop')
+  /** 상점 줄 자세히 창 (누른 티켓) */
+  const [shopInfo, setShopInfo] = useState<TicketKind | null>(null)
   /** 개발자 탭: 스프라이트 모아 보기 펼침 */
   const [showSprites, setShowSprites] = useState(false)
   const [save, setSave] = useState<Save>(loadSave)
@@ -774,24 +776,25 @@ export function App() {
                     const gold = account?.gold ?? 0
                     const have = account?.tickets[it.kind] ?? 0
                     return (
-                      <li key={it.kind}>
+                      // 줄을 누르면 자세히 창, 값 버튼은 바로 구매 (2026-11-29)
+                      <li key={it.kind} className="shop-row" onClick={() => setShopInfo(it.kind)}>
                         <span className="big">
                           <Icon name={it.icon} />
                         </span>
-                        <div>
+                        <div className="shop-name">
                           <b>{TICKET_NAMES[it.kind]}</b>
-                          <div className="dim">{it.desc}</div>
-                          <div className="have">{have}장 보유</div>
+                          <span className="have">{have}장 보유</span>
                         </div>
                         <button
                           className="buy"
                           disabled={gold < price}
-                          onClick={() =>
+                          onClick={(e) => {
+                            e.stopPropagation()
                             void api
                               .barracks({ type: 'buy', kind: it.kind })
                               .then(({ account: a }) => setAccount(a))
-                              .catch((e: unknown) => void showAlert(e instanceof Error ? e.message : String(e)))
-                          }
+                              .catch((err: unknown) => void showAlert(err instanceof Error ? err.message : String(err)))
+                          }}
                         >
                           <Icon name="coin" /> {price}
                         </button>
@@ -799,6 +802,46 @@ export function App() {
                     )
                   })}
                 </ul>
+                {shopInfo && (() => {
+                  const it = SHOP_ITEMS.find((x) => x.kind === shopInfo)!
+                  const price = SHOP_PRICES[it.kind]
+                  const gold = account?.gold ?? 0
+                  const have = account?.tickets[it.kind] ?? 0
+                  return (
+                    <div className="modal-backdrop" onClick={() => setShopInfo(null)}>
+                      <div className="modal shop-info" onClick={(e) => e.stopPropagation()}>
+                        <button className="sheet-close" aria-label="닫기" onClick={() => setShopInfo(null)}>
+                          <Icon name="close" />
+                        </button>
+                        <div className="si-icon">
+                          <Icon name={it.icon} size={52} />
+                        </div>
+                        <div className="modal-title">{TICKET_NAMES[it.kind]}</div>
+                        <ul className="si-detail">
+                          {it.detail.map((d) => (
+                            <li key={d}>{d}</li>
+                          ))}
+                        </ul>
+                        <p className="si-have">
+                          {have}장 보유 · <Icon name="coin" /> {gold} 골드
+                        </p>
+                        <button
+                          className="primary"
+                          disabled={gold < price}
+                          onClick={() =>
+                            void api
+                              .barracks({ type: 'buy', kind: it.kind })
+                              .then(({ account: a }) => setAccount(a))
+                              .catch((err: unknown) => void showAlert(err instanceof Error ? err.message : String(err)))
+                          }
+                        >
+                          <Icon name="coin" /> {price} 골드로 구매하기
+                        </button>
+                        {gold < price && <p className="dim si-short">골드가 {price - gold} 모자라요.</p>}
+                      </div>
+                    </div>
+                  )
+                })()}
               </>
             ) : (
               <p className="dim">다른 사람과 병사를 주고받는 곳 (서버를 붙인 뒤 만듦, 준비 중)</p>
@@ -1358,13 +1401,13 @@ const BARRACKS_ACTIONS = [
   { icon: '🧪', label: '합성' },
 ]
 /** 상점 물건 (값은 엔진 SHOP_PRICES, 2026-11-28 *임시*) */
-const SHOP_ITEMS: { kind: TicketKind; icon: IconName; desc: string }[] = [
-  { kind: 'statNormal', icon: 'rerollBronze', desc: '능력치 4개 모두 다시' },
-  { kind: 'draw', icon: 'ticket', desc: '병사 1명 뽑기' },
-  { kind: 'statHigh', icon: 'rerollSilver', desc: '1개 골라 유지, 나머지 다시' },
-  { kind: 'ability', icon: 'sparkle', desc: '특수능력만 다시' },
-  { kind: 'statTop', icon: 'rerollGold', desc: '2개 골라 유지, 나머지 다시' },
-  { kind: 'abilityGrant', icon: 'gift', desc: '특수능력 없는 병사에 하나 붙임' },
+const SHOP_ITEMS: { kind: TicketKind; icon: IconName; desc: string; detail: string[] }[] = [
+  { kind: 'statNormal', icon: 'rerollBronze', desc: '능력치 4개 모두 다시', detail: ['병사 한 명의 공격력·사거리·공속·민첩 4개를 모두 다시 뽑아요.', '특수능력은 그대로예요. 없던 병사는 5% 확률로 새로 생겨요.', '막사에서 병사를 눌러 쓸 수 있어요.'] },
+  { kind: 'draw', icon: 'ticket', desc: '병사 1명 뽑기', detail: ['새 병사를 한 명 뽑아요.', '능력치는 무작위이고, 30% 확률로 특수능력이 붙어요.', '뽑을 때마다 1% 확률로 능력치 변경 티켓(보통)을 덤으로 받아요.', '막사가 꽉 차면(100명) 뽑을 수 없어요.'] },
+  { kind: 'statHigh', icon: 'rerollSilver', desc: '1개 골라 유지, 나머지 다시', detail: ['능력치 4개 중 1개를 골라 그대로 두고, 나머지 3개를 다시 뽑아요.', '좋은 능력치 하나는 지키면서 나머지를 노릴 때 써요.', '특수능력은 그대로예요. 없던 병사는 5% 확률로 새로 생겨요.'] },
+  { kind: 'ability', icon: 'sparkle', desc: '특수능력만 다시', detail: ['특수능력의 종류와 수치를 모두 다시 뽑아요.', '능력치는 그대로예요.', '특수능력이 있는 병사에게만 쓸 수 있어요.'] },
+  { kind: 'statTop', icon: 'rerollGold', desc: '2개 골라 유지, 나머지 다시', detail: ['능력치 4개 중 2개를 골라 그대로 두고, 나머지 2개를 다시 뽑아요.', '거의 완성된 병사를 마무리할 때 써요.', '특수능력은 그대로예요. 없던 병사는 5% 확률로 새로 생겨요.'] },
+  { kind: 'abilityGrant', icon: 'gift', desc: '특수능력 없는 병사에 하나 붙임', detail: ['특수능력이 없는 병사에게 특수능력을 하나 붙여요.', '종류와 수치는 무작위이고, 능력치는 그대로예요.', '이미 특수능력이 있는 병사에게는 쓸 수 없어요.'] },
 ]
 
 /**

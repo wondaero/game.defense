@@ -33,8 +33,8 @@ import { AbilityRolls } from './abilityRolls.tsx'
 type Mode = null | { kind: 'merge'; target: TicketKind; ids: string[] }
 type Popup =
   | null
-  | { kind: 'drawn'; unit: UnitInstance }
-  | { kind: 'drawnMany'; units: UnitInstance[] }
+  | { kind: 'drawn'; unit: UnitInstance; bonus: number }
+  | { kind: 'drawnMany'; units: UnitInstance[]; bonus: number }
   /** 캐릭 자세히 + 능력치 변경 · 특수능력 변경 (아래에서 올라오는 창) — 2026-11-28 */
   | { kind: 'unit'; unitId: string }
   /** 능력치 변경: 등급 고르기 (보통 · 상급 · 최상급) */
@@ -90,12 +90,12 @@ export function Barracks(props: {
 
   const draw = async () => {
     const o = await send({ type: 'draw' })
-    if (o?.type === 'drawn') setPopup({ kind: 'drawn', unit: o.unit })
+    if (o?.type === 'drawn') setPopup({ kind: 'drawn', unit: o.unit, bonus: o.bonus })
   }
   /** 모두 뽑기: 남은 뽑기 티켓을 한 번에 → 뽑힌 캐릭 목록 (점수 높은 순) */
   const drawAll = async () => {
     const o = await send({ type: 'drawAll' })
-    if (o?.type === 'drawnMany') setPopup({ kind: 'drawnMany', units: o.units })
+    if (o?.type === 'drawnMany') setPopup({ kind: 'drawnMany', units: o.units, bonus: o.bonus })
   }
 
   /** 캐릭 누르기: 합성 중이면 고르기, 아니면 자세히 창 */
@@ -107,7 +107,7 @@ export function Barracks(props: {
 
   const doStat = async (grade: StatGrade, unit: UnitInstance, keep: StatKey[]) => {
     const o = await send({ type: 'rerollStats', unitId: unit.id, grade, keep })
-    if (o?.type === 'changed') setPopup({ kind: 'changed', title: `${TICKET_NAMES[grade]} 사용`, before: o.before, after: o.after, note: o.gainedAbility ? '특수능력이 생겼어요! (5% 행운)' : undefined, redo: { type: 'stat', grade, keep } })
+    if (o?.type === 'changed') setPopup({ kind: 'changed', title: `${TICKET_NAMES[grade]} 사용`, before: o.before, after: o.after, note: o.gainedAbility ? '럭키! 특수능력이 생겼어요. (5%)' : undefined, redo: { type: 'stat', grade, keep } })
     else setPopup(null)
   }
   const doAbility = async (unit: UnitInstance) => {
@@ -317,8 +317,18 @@ function UnitDetail({ u, cfg, keep }: { u: UnitInstance; cfg: DefenseConfig; kee
   )
 }
 
+/** 뽑기 덤 알림 (1% 럭키) */
+function DrawBonus({ n }: { n: number }) {
+  return (
+    <p className="draw-bonus">
+      <span className="lucky-tag">LUCKY!</span>
+      <Icon name="rerollBronze" /> 능력치 변경 티켓(보통) <b>+{n}</b>
+    </p>
+  )
+}
+
 /** 모두 뽑기 결과 (2026-11-29): 막사와 같은 보기(능력 있음/없음) · 정렬로 목록, 창 안에서만 스크롤 */
-function DrawnMany({ units, cfg, onClose }: { units: UnitInstance[]; cfg: DefenseConfig; onClose: () => void }) {
+function DrawnMany({ units, bonus, cfg, onClose }: { units: UnitInstance[]; bonus: number; cfg: DefenseConfig; onClose: () => void }) {
   const [view, setView] = useState<RosterView>({ filter: 'all', sort: 'score' })
   // 목록에서 누른 캐릭 → 캐릭 자세히 모양(등급 사다리·막대)으로, "‹ 목록" 으로 돌아옴 (2026-11-29)
   const [pick, setPick] = useState<UnitInstance | null>(null)
@@ -344,6 +354,7 @@ function DrawnMany({ units, cfg, onClose }: { units: UnitInstance[]; cfg: Defens
     )
   return (
     <Modal title={`${units.length}명이 왔어요!`} onClose={onClose}>
+      {bonus > 0 && <DrawBonus n={bonus} />}
       <div className="drawn-tools">
         <RosterTools view={view} onChange={setView} roster={units} />
       </div>
@@ -462,6 +473,7 @@ function BarracksPopup(props: {
       return (
         <Modal title="새 병사가 왔어요!" onClose={onClose}>
           {/* 캐릭 자세히와 같은 모양: 등급 사다리 · 능력치 막대 · 특수능력 (2026-11-29) */}
+          {pp.bonus > 0 && <DrawBonus n={pp.bonus} />}
           <div className="drawn-detail">
             <UnitDetail u={pp.unit} cfg={cfg} />
           </div>
@@ -483,7 +495,7 @@ function BarracksPopup(props: {
         </Modal>
       )
     case 'drawnMany':
-      return <DrawnMany units={pp.units} cfg={cfg} onClose={onClose} />
+      return <DrawnMany units={pp.units} bonus={pp.bonus} cfg={cfg} onClose={onClose} />
     case 'statPick': {
       const need = STAT_TICKET_KEEP[pp.grade]
       const toggle = (k: StatKey) => props.setPopup({ ...pp, keep: pp.keep.includes(k) ? pp.keep.filter((x) => x !== k) : pp.keep.length < need ? [...pp.keep, k] : pp.keep })
@@ -646,7 +658,7 @@ function BarracksPopup(props: {
             </p>
           ))}
           {lucky > 0 && <p className="lucky">
-              <Icon name="sparkle" /> 행운! {lucky}장이 보통 대신 상급 이상으로 나왔어요</p>}
+              <span className="lucky-tag">LUCKY!</span> {lucky}장이 보통 대신 상급 이상으로 나왔어요.</p>}
           <div className="row end">
             <button className="primary inline" onClick={onClose}>
               확인
