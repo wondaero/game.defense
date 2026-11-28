@@ -277,3 +277,7 @@ button.link.back { font-size: 20px; }
 
 /* 얼음 판: 캔버스 바탕(둥근 모서리 밖)도 눈 색 */
 .board.ice canvas { background: #d3e9f5; }
+
+/* 얼음 판의 제목 줄은 하늘색 (2026-11-28) */
+header.ice { background: linear-gradient(180deg, #92cdee, #6fb3dd); box-shadow: 0 2px 0 #4a8fbd; }
+header.ice .stats > span { box-shadow: 0 1px 0 #4a8fbd; }

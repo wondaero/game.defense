@@ -602,7 +602,7 @@ export function App() {
   const summary = stageSummary(stage)
   return (
     <div className="app">
-      <header>
+      <header className={stageTheme(stageNo)}>
         <h1>
           <button className="link back" onClick={() => (screen === 'play' ? askToLeave() : goSelect())} title="탄 고르기로">
             ←
