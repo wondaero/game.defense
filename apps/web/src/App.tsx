@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  attackCellCount,
   ABILITY_NAMES,
   createRngState,
   createWave,
@@ -933,6 +934,9 @@ export function App() {
                     key={u.id}
                     u={u}
                     cfg={cfg}
+                    stacked
+                    // 배치한 캐릭: 사거리 안에 들어오는 길 칸 수 (자리 고를 때 참고, 2026-11-28)
+                    note={placements[u.id] ? `공격 칸 ${attackCellCount(cfg, map, placements[u.id]!, u)}` : undefined}
                     selected={selectedId === u.id}
                     placed={placed}
                     onClick={() => setSelectedId(selectedId === u.id ? null : u.id)}
@@ -1119,6 +1123,9 @@ function SoundSettings() {
               value={p[r.vol]}
               disabled={!p[r.on]}
               aria-label={`${r.name} 크기`}
+              className="vol"
+              // 채워진 부분 길이 (직접 그린 막대라 값만큼 색칠)
+              style={{ '--pct': `${p[r.vol]}%` } as React.CSSProperties}
               onChange={(e) => {
                 unlockAudio()
                 set({ [r.vol]: Number(e.target.value) })

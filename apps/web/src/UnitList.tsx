@@ -124,38 +124,72 @@ export function UnitRow(props: {
   dim?: boolean
   onClick?: () => void
   children?: ReactNode
+  /**
+   * 쌓는 모양 (2026-11-28, 탄 배치 목록): 1줄 = 얼굴 · 이름 · 버튼(빼기) / 2줄 = 능력치 / 3줄 = 특수능력.
+   * 오른쪽 버튼 때문에 능력치가 억지로 줄바뀜되던 것 해결 — 2·3줄은 얼굴 아래까지 꽉 씀
+   */
+  stacked?: boolean
+  /** 이름 옆 작은 꼬리표 (예: 배치한 캐릭의 "공격 칸 6") */
+  note?: ReactNode
 }) {
   const { u } = props
   const look = unitLook(props.cfg, u)
   const ab = abilityText(u)
+  const cls = `${props.selected ? 'sel' : ''} ${props.placed ? 'placed' : ''} ${look.special === 'trainee' ? 'trainee-row' : ''} ${props.dim ? 'dimmed' : ''}`
+  // 출전(판에 배치됨) = 얼굴 오른쪽 위에 겹친 초록 ✓ (2026-11-28, "출전" 글자 꼬리표 대신 — 줄 자리를 안 차지함)
+  const placedMark = props.placed && (
+    <b className="placed-mark" title="출전" aria-label="출전">
+      ✓
+    </b>
+  )
+  const name = (
+    <div className="unit-name">
+      <b className={`tier-pill t${look.tier} ${look.special === 'trainee' ? 'trainee' : ''}`}>{look.title}</b>
+      {props.note && <span className="tag note">{props.note}</span>}
+    </div>
+  )
+  const stats = (
+    <div className="stat-tags">
+      {statTags(props.cfg, u).map((t) => (
+        <span key={t.label} className={t.up ? 'up' : ''}>
+          {t.label} <b>{t.value}</b>
+          {t.up && '▲'}
+        </span>
+      ))}
+    </div>
+  )
+  const abBox = ab && (
+    <div className="ab" title={ab.desc}>
+      <b className="ab-name">★ {ab.name}</b>
+      <AbilityDesc name={ab.name} desc={ab.desc} />
+    </div>
+  )
+  if (props.stacked)
+    return (
+      <li data-unit-id={u.id} className={`stacked ${cls}`} onClick={props.onClick}>
+        <div className="row-top">
+          <span className="face-wrap">
+            <UnitFace body={look.body} tool={look.tool} rainbow={look.tier === 6} />
+            {placedMark}
+          </span>
+          {name}
+          {props.children && <span className="row-actions">{props.children}</span>}
+        </div>
+        {stats}
+        {abBox}
+      </li>
+    )
   return (
-    <li data-unit-id={u.id} className={`${props.selected ? 'sel' : ''} ${props.placed ? 'placed' : ''} ${look.special === 'trainee' ? 'trainee-row' : ''} ${props.dim ? 'dimmed' : ''}`} onClick={props.onClick}>
+    <li data-unit-id={u.id} className={cls} onClick={props.onClick}>
       <span className="face-wrap">
         <UnitFace body={look.body} tool={look.tool} rainbow={look.tier === 6} />
-        {props.selected && <b className="sel-check">✓</b>}
+        {placedMark}
       </span>
       <div className="info">
         {/* 2026-11-28: 첫 줄 이름 · 둘째 줄 능력치 꼬리표 · 셋째 줄 특수능력(있을 때만) */}
-        <div className="unit-name">
-          {/* 이름 = 헬멧 색 알약 (밝은 화면에서도 흰색·노랑이 보이게) */}
-          <b className={`tier-pill t${look.tier} ${look.special === 'trainee' ? 'trainee' : ''}`}>{look.title}</b>
-          {props.placed && <span className="tag">출전</span>}
-        </div>
-        <div className="stat-tags">
-          {statTags(props.cfg, u).map((t) => (
-            <span key={t.label} className={t.up ? 'up' : ''}>
-              {t.label} <b>{t.value}</b>
-              {t.up && '▲'}
-            </span>
-          ))}
-        </div>
-        {ab && (
-          <div className="ab" title={ab.desc}>
-            {/* 첫 줄 = 능력 이름, 둘째 줄 = 설명 (설명 안에 이름이 또 나오면 뺌) */}
-            <b className="ab-name">★ {ab.name}</b>
-            <AbilityDesc name={ab.name} desc={ab.desc} />
-          </div>
-        )}
+        {name}
+        {stats}
+        {abBox}
       </div>
       {props.children}
     </li>

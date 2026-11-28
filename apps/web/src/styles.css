@@ -570,7 +570,6 @@ section.barracks-page { background: none; border: none; box-shadow: none; paddin
 .merge-calc .mc-hint { font-size: 12px; color: var(--dim); }
 /* 고른 캐릭: 진한 초록 테두리 + 연두 바탕 + 얼굴에 ✓ */
 .face-wrap { position: relative; display: inline-flex; flex: none; }
-.sel-check { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; background: #43a047; color: #fff; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); z-index: 2; }
 .roster > li.sel { border: 2.5px solid #43a047 !important; background: #e3f4d7 !important; border-radius: 12px; box-shadow: 0 0 0 3px rgba(67,160,71,0.18); }
 /* 고른 캐릭끼리 붙지 않게 위아래 여백 (2026-11-28) */
 .roster > li.sel { margin: 4px 0; }
@@ -766,3 +765,47 @@ html, body { overflow-x: clip; overscroll-behavior-x: none; }
 .app.with-tabbar > section.settings-menu { margin-top: 12px; }
 .settings-sub-head { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; }
 .settings-sub-head b { font-size: 17px; }
+
+/* 소리 스위치 (2026-11-28): 공용 버튼 꾸밈(흰 바탕·hover 크림색·.on 금색 테두리)이 섞이지 않게 모두 덮어씀 */
+.sound-settings button.switch,
+.sound-settings button.switch:hover:not(:disabled),
+.sound-settings button.switch:active:not(:disabled) { background: #cfc6b4; border: none; box-shadow: inset 0 1px 2px rgba(0,0,0,0.2); transform: none; }
+.sound-settings button.switch.on,
+.sound-settings button.switch.on:hover:not(:disabled),
+.sound-settings button.switch.on:active:not(:disabled) { background: #4caf50; border: none; box-shadow: inset 0 1px 2px rgba(0,0,0,0.2); }
+
+/* 소리 크기 막대 (2026-11-28): 브라우저 기본 모양 대신 직접 그림 — 값만큼 초록으로 채우고, 100 이면 끝까지 꽉 참 */
+input.vol { -webkit-appearance: none; appearance: none; height: 28px; background: transparent; margin: 0; padding: 0; cursor: pointer; --pct: 50%; }
+input.vol:disabled { cursor: default; }
+input.vol::-webkit-slider-runnable-track { height: 8px; border-radius: 999px; background: linear-gradient(90deg, #4caf50 var(--pct), #e2dccd var(--pct)); box-shadow: inset 0 1px 2px rgba(0,0,0,0.15); }
+input.vol::-moz-range-track { height: 8px; border-radius: 999px; background: linear-gradient(90deg, #4caf50 var(--pct), #e2dccd var(--pct)); box-shadow: inset 0 1px 2px rgba(0,0,0,0.15); }
+input.vol::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -7px; border-radius: 50%; background: #fff; border: 2px solid #4caf50; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+input.vol::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 2px solid #4caf50; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+input.vol:disabled::-webkit-slider-runnable-track { background: linear-gradient(90deg, #b9b2a2 var(--pct), #e2dccd var(--pct)); }
+input.vol:disabled::-moz-range-track { background: linear-gradient(90deg, #b9b2a2 var(--pct), #e2dccd var(--pct)); }
+input.vol:disabled::-webkit-slider-thumb { border-color: #b9b2a2; }
+input.vol:disabled::-moz-range-thumb { border-color: #b9b2a2; }
+.sound-row.off input.vol { opacity: 1; }
+input.vol, input.vol:focus { border: none; box-shadow: none; outline: none; border-radius: 0; background: transparent; width: auto; }
+input.vol:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(76,175,80,0.35); }
+
+/* 탄 배치 목록 줄 = 쌓는 모양 (2026-11-28): 1줄 얼굴·이름·빼기 / 2줄 능력치 / 3줄 특수능력 (2·3줄은 줄 폭 전체) */
+.roster li.stacked { display: flex; flex-direction: column; align-items: stretch; gap: 5px; }
+.roster li.stacked .row-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.roster li.stacked .row-top .unit-name { flex: 1; min-width: 0; margin: 0; }
+.roster li.stacked .row-actions { flex: none; margin-left: auto; }
+.roster li.stacked .row-actions button { padding: 4px 12px; font-size: 13px; }
+.roster li.stacked .stat-tags { margin: 0; }
+.roster li.stacked .ab { margin-top: 0; }
+
+/* 배치 목록: 줄 안쪽 좌우 여백 넉넉히 (고른 줄 테두리에 얼굴이 붙어 보이지 않게, 2026-11-28) */
+.roster li.stacked { padding: 8px 10px; }
+.unit-name .tag.note { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }
+/* 좁은 화면: 이름·꼬리표는 글자 안에서 안 끊기고, 자리가 모자라면 꼬리표가 다음 줄로 */
+.roster li.stacked .unit-name { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 4px; }
+.roster li.stacked .unit-name .tier-pill, .roster li.stacked .unit-name .tag { white-space: nowrap; flex: none; }
+.roster li.stacked .unit-name .tag { margin-left: 0; }
+
+/* 출전 표시: 얼굴 오른쪽 위 초록 ✓ (겹쳐 그림, 2026-11-28) */
+.roster li .face-wrap { position: relative; display: inline-flex; flex: none; }
+.placed-mark { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: #43a047; color: #fff; font-size: 12px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); z-index: 2; pointer-events: none; }

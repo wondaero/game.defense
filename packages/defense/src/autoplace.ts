@@ -4,6 +4,15 @@ import { baseStats, type UnitInstance } from './roster.ts'
 import type { Placements } from './sim.ts'
 
 /**
+ * 공격 칸 수 (2026-11-28): 이 자리에 선 캐릭의 사거리 안에 들어오는 길 칸 수.
+ * 사거리는 특수능력(호크아이 등)까지 더한 값 · 설정의 사거리 모양(마름모/네모)을 따름
+ */
+export function attackCellCount(cfg: DefenseConfig, map: GameMap, cell: Cell, unit: Pick<UnitInstance, 'atk' | 'range' | 'attackSpeed' | 'agility' | 'ability'>): number {
+  const r = baseStats(cfg, unit).range
+  return map.path.reduce((n, c) => n + (inRange(cell, c, r, cfg.rangeShape) ? 1 : 0), 0)
+}
+
+/**
  * 간단 자동 배치 (탄 체력 보정·시뮬용. 사람보다 서툼).
  * 공격력·공속이 높은 캐릭부터, 아직 덜 덮인 길 칸을 사거리에 많이 넣는 배치 칸에 세운다.
  * 정수 점수 + 고정 순서라 같은 입력이면 항상 같은 배치.
