@@ -17,7 +17,7 @@ import {
   type ObstacleKind,
 } from './abilities.ts'
 import { applyBp, ATTACK_WINDOW_MS, BP, MAX_ATTACK_SPEED, msToTicks, type DefenseConfig } from './config.ts'
-import { CELL, inRange, pathIndexAt, type Cell, type GameMap } from './map.ts'
+import { CELL, inRange, pathIndexAt, pierceLine, type Cell, type GameMap } from './map.ts'
 import { Rng, seedFromString } from './rng.ts'
 import { baseStats, type UnitInstance } from './roster.ts'
 import {
@@ -477,7 +477,8 @@ function rollProc(sim: WaveSim, u: SimUnit): boolean {
   const a = u.inst.ability
   if (!a || sim.tick < u.abilityReadyAt || sim.tick < u.sealedUntil || a.chanceBp <= 0) return false
   if (a.kind === 'obstacle' && u.obstacleUsed) return false
-  if (sim.rng.int(BP) >= a.chanceBp) return false
+  // 시험용 확률 100% 여도 난수는 똑같이 한 번 씀 (켜고 끄는 것 말고는 결과 흐름이 같게)
+  if (sim.rng.int(BP) >= (sim.cfg.forceProc ? BP : a.chanceBp)) return false
   const cd = a.kind === 'frenzy' ? a.cooldownMs : ABILITY_COOLDOWN_MS[a.kind]
   if (cd) u.abilityReadyAt = sim.tick + msToTicks(sim.cfg, cd)
   return true
@@ -571,6 +572,21 @@ function applyUnitAbility(sim: WaveSim, u: SimUnit, target: Monster, proc: Abili
         m.sleepHits = 0
       }
       break
+    case 'pierce': {
+      // 캐릭 → 맞힌 칸 방향으로 길이 곧게 이어지는 칸들 (map.ts pierceLine)
+      const line = new Set(pierceLine(map, u.cell, cellOfMonster(sim, target)).map((c) => c.y * 1000 + c.x))
+      const st = unitStatsNow(sim, u)
+      const weak = sim.tick < u.weakenedUntil
+      for (const m of sim.monsters) {
+        if (m === target || m.hp <= 0 || m.spec.immunities.includes('pierce')) continue
+        const c = cellOfMonster(sim, m)
+        if (!line.has(c.y * 1000 + c.x)) continue
+        // 슬라임마다 명중 판정 (평타와 같은 규칙, 약화 중이면 절반)
+        const hitBp = agilityChanceBp(st.agility, monsterAgility(sim, m))
+        if (sim.rng.int(BP) < (weak ? Math.floor(hitBp / 2) : hitBp)) damage(sim, u, m, atk, false, true)
+      }
+      break
+    }
     case 'agiCopy':
       u.agiCopy = Math.floor(monsterAgility(sim, target))
       u.agiCopyUntil = sim.tick + msToTicks(cfg, AGI_COPY_MS)

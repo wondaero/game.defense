@@ -809,3 +809,6 @@ input.vol:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgba(76,17
 /* 출전 표시: 얼굴 오른쪽 위 초록 ✓ (겹쳐 그림, 2026-11-28) */
 .roster li .face-wrap { position: relative; display: inline-flex; flex: none; }
 .placed-mark { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: #43a047; color: #fff; font-size: 12px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); z-index: 2; pointer-events: none; }
+
+/* 바텀시트는 화면 폭 전체 (2026-11-28): 공용 .modal 의 max-width 320px 이 시트에도 걸려 넓은 폰에서 좁아 보이던 것 */
+.modal.sheet { max-width: 560px; }

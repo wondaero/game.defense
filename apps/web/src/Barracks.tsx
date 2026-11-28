@@ -268,7 +268,7 @@ function UnitDetail({ u, cfg }: { u: UnitInstance; cfg: DefenseConfig }) {
       </div>
       <ul className="ud-stats">
         {row('공격력', b.atk, u.atk, '', `피해 = 공격력 − 슬라임 방어 (범위 ${cfg.atk.min}~${cfg.atk.max})`)}
-        {row('사거리', b.range, u.range, '칸', '이 칸 수 안의 슬라임를 공격')}
+        {row('사거리', b.range, u.range, '칸', '이 칸 수 안의 슬라임을 공격')}
         {row('공속', b.attackSpeed, u.attackSpeed, '', `1초에 ${b.attackSpeed}대 (범위 ${cfg.attackSpeed.min}~${cfg.attackSpeed.max})`)}
         {row('민첩', b.agility, u.agility, '', '명중 · 슬라임 기술 피하기 · 특수능력 버티기')}
       </ul>

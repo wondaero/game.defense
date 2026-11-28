@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   attackCellCount,
+  pierceLine,
   ABILITY_NAMES,
   createRngState,
   createWave,
@@ -257,12 +258,33 @@ export function App() {
       // 효과음 (2026-11-28): 맞을 때만(때리는 순간·빗나감은 소리 없음) + 처치·특수능력·통과
       if (ev.type === 'hit') ev.crit ? sfx.crit() : sfx.hit()
       else if (ev.type === 'kill') sim.stage.monsters[ev.monsterType]?.id === 'boss' ? sfx.bossDown() : sfx.kill()
-      else if (ev.type === 'proc') sfx.proc()
+      else if (ev.type === 'proc') {
+        if (ev.kind === 'lullaby') {
+          // 자장가: 배경음을 잠깐 끄고 오르골 자장가 + 판 가득 음표 (2026-11-28)
+          bgm.duck(2600)
+          sfx.lullaby()
+        } else sfx.proc()
+      }
       else if (ev.type === 'leak') sfx.leak()
       if (ev.type === 'proc') {
         fxRef.current.push({ kind: 'text', born: now, life: 900, to: { ...monsterScreenPos(map, ev.dist, ev.monsterId), y: monsterScreenPos(map, ev.dist, ev.monsterId).y - 14 }, text: ABILITY_NAMES[ev.kind] + '!', color: '#ffeb3b' })
         const p = unitPos(ev.unitId)
         if (p) fxRef.current.push({ kind: 'skill', born: now, life: 500, to: p, color: '#ffeb3b' })
+        if (ev.kind === 'lullaby' && p) fxRef.current.push({ kind: 'notes', born: now, life: 2400, to: p })
+        if (ev.kind === 'pierce') {
+          // 관통: 캐릭 → 줄 끝 칸 중심까지 레이저 (엔진과 같은 pierceLine 으로 줄을 구함)
+          const su = sim.units.find((x) => x.inst.id === ev.unitId)
+          const line = su ? pierceLine(map, su.cell, map.path[pathIndexAt(map, ev.dist)]!) : []
+          const end = line[line.length - 1]
+          if (p && end) {
+            const dx = end.x - su!.cell.x
+            const dy = end.y - su!.cell.y
+            const len = Math.hypot(dx, dy) || 1
+            // 줄 끝 칸 가장자리까지 조금 더 뻗게
+            const to = { x: (end.x + 0.5 + (dx / len) * 0.45) * CELL_PX, y: (end.y + 0.5 + (dy / len) * 0.45) * CELL_PX }
+            fxRef.current.push({ kind: 'beam', born: now, life: 380, from: p, to })
+          }
+        }
         if (ev.kind === 'splash') {
           // 광역공격: 맞힌 몬스터가 있는 칸 중심 범위 번쩍 + 판 흔들림
           const c = map.path[pathIndexAt(map, ev.dist)]!
@@ -709,6 +731,7 @@ export function App() {
                     ['실패', sfx.fail],
                     ['우두머리 등장', sfx.bossAppear],
                     ['우두머리 처치', sfx.bossDown],
+                    ['자장가', () => (bgm.duck(2600), sfx.lullaby())],
                   ] as const
                 ).map(([name, play]) => (
                   <button
@@ -1197,6 +1220,10 @@ function Settings({ cfg, onChange }: { cfg: DefenseConfig; onChange: (p: Partial
   )
   return (
     <div className="settings">
+      <label className="setting">
+        <span>특수능력 확률 100% (시험)</span>
+        <input type="checkbox" checked={cfg.forceProc} onChange={(e) => onChange({ forceProc: e.target.checked })} />
+      </label>
       <label className="setting">
         <span>사거리 모양</span>
         <select value={cfg.rangeShape} onChange={(e) => onChange({ rangeShape: e.target.value as DefenseConfig['rangeShape'] })}>

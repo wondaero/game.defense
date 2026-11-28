@@ -13,7 +13,7 @@ export const UNIT_SCALE = 0.98
 /** 화면 효과 (시간은 performance.now 밀리초) */
 export interface Fx {
   /** bolt = 날아가는 빛 구슬 · slash = 베기 반달 · burst = 맞은 자리 팡 (2026-11-27 평타 효과) */
-  kind: 'shot' | 'text' | 'leak' | 'skill' | 'bolt' | 'slash' | 'burst' | 'area'
+  kind: 'shot' | 'text' | 'leak' | 'skill' | 'bolt' | 'slash' | 'burst' | 'area' | 'beam' | 'notes'
   /** area: 칸 반경 (5×5 = 2) */
   radius?: number
   /** 크기 배율 (2배 데미지는 크게) */
@@ -579,6 +579,62 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
       ctx.stroke()
       ctx.lineWidth = 1
       ctx.restore()
+    } else if (f.kind === 'beam' && f.from) {
+      // 관통 레이저 (2026-11-28): 무지개 빛줄기 — 색이 빔을 따라 흘러가며 번쩍했다 가늘어짐
+      const fade = 1 - k
+      ctx.globalAlpha = 1
+      ctx.lineCap = 'round'
+      const grad = (a: number) => {
+        const g = ctx.createLinearGradient(f.from!.x, f.from!.y, f.to.x, f.to.y)
+        for (let i = 0; i <= 6; i++) g.addColorStop(i / 6, `hsla(${(i * 60 + k * 720) % 360},100%,60%,${a})`)
+        return g
+      }
+      for (const [w, style] of [
+        [16, grad(0.3 * fade)],
+        [8, grad(0.95 * fade)],
+        [2.5, `rgba(255,255,255,${fade})`],
+      ] as const) {
+        ctx.strokeStyle = style
+        ctx.lineWidth = w * (0.6 + 0.4 * fade)
+        ctx.beginPath()
+        ctx.moveTo(f.from.x, f.from.y)
+        ctx.lineTo(f.to.x, f.to.y)
+        ctx.stroke()
+      }
+      ctx.lineCap = 'butt'
+      ctx.lineWidth = 1
+    } else if (f.kind === 'notes') {
+      // 자장가 (2026-11-28): 캐릭에게서 커다란 음표가 쏟아져 나와 판 전체로 퍼지며 둥실둥실 떠오름
+      const glyphs = ['♪', '♫', '♬', '♩']
+      const colors = ['#ff80ab', '#80d8ff', '#ffd54f', '#b388ff', '#69f0ae', '#ff9e80']
+      const span = Math.max(map.width, map.height) * CELL_PX
+      const ms = d.now - f.born
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      for (let i = 0; i < 26; i++) {
+        // 음표마다 조금씩 늦게 나옴 → 쏟아지는 느낌
+        const t = (ms - i * 45) / (f.life - 26 * 45)
+        if (t <= 0 || t >= 1) continue
+        const ang = i * 2.399963 // 황금각 → 고르게 퍼짐
+        const ease = 1 - (1 - t) * (1 - t)
+        const dist = ease * span * (0.45 + (i % 5) * 0.12)
+        const x = f.to.x + Math.cos(ang) * dist + Math.sin(t * 9 + i) * 8
+        const y = f.to.y + Math.sin(ang) * dist * 0.8 - t * CELL_PX * 1.2
+        const size = (26 + (i % 4) * 7) * (t < 0.15 ? t / 0.15 : 1)
+        ctx.globalAlpha = t > 0.7 ? (1 - t) / 0.3 : 1
+        ctx.save()
+        ctx.translate(x, y)
+        ctx.rotate(Math.sin(t * 6 + i) * 0.35)
+        ctx.font = `900 ${size}px system-ui, sans-serif`
+        ctx.lineWidth = 4
+        ctx.strokeStyle = 'rgba(255,255,255,0.95)'
+        ctx.strokeText(glyphs[i % 4]!, 0, 0)
+        ctx.fillStyle = colors[i % colors.length]!
+        ctx.fillText(glyphs[i % 4]!, 0, 0)
+        ctx.restore()
+      }
+      ctx.lineWidth = 1
+      ctx.textBaseline = 'alphabetic'
     } else if (f.kind === 'leak' || f.kind === 'skill') {
       ctx.strokeStyle = f.color ?? '#f44336'
       ctx.lineWidth = 4

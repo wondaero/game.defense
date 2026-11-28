@@ -41,11 +41,11 @@ function parts(a: Ability): { main: Part[]; notes: Part[][] } {
       const amount = a.obstacle === 'damage' ? o(t.obstacle.damageBp, a.amountBp, pct, '%') : o(t.obstacle.slowBp, a.amountBp, pct, '%')
       return {
         main: [chance(t.obstacle.chanceBp), ' 확률로 길 무작위 칸에 ', o(t.obstacle.obstacle, a.obstacle, (k) => kindNames[k]), ' 장애물'],
-        notes: [a.obstacle === 'damage' ? ['슬라임가 처음 밟을 때 최대 체력의 ', amount] : ['밟으면 속도 −', amount], ['판당 1회']],
+        notes: [a.obstacle === 'damage' ? ['슬라임이 처음 밟을 때 최대 체력의 ', amount] : ['밟으면 속도 −', amount], ['판당 1회']],
       }
     }
     case 'recall':
-      return { main: [chance(t.recall.chanceBp), ' 확률로 때린 슬라임를 출발지로'], notes: cd(a.kind).map((x) => [x]) }
+      return { main: [chance(t.recall.chanceBp), ' 확률로 때린 슬라임을 출발지로'], notes: cd(a.kind).map((x) => [x]) }
     case 'teamLevel':
       return {
         main: [chance(t.teamLevel.chanceBp), ' 확률로 아군 전체 ', o(t.teamLevel.stat, a.stat, (s: BuffStat) => STAT_NAMES[s]), ' 레벨 +', o(t.teamLevel.level, a.level, String)],
@@ -62,15 +62,17 @@ function parts(a: Ability): { main: Part[]; notes: Part[][] } {
     case 'hawkeye':
       return { main: ['사거리 +', o(t.hawkeye.plus, a.plus, String)], notes: [['항상'], ['봉인되면 원래 사거리']] }
     case 'hypnosis':
-      return { main: [chance(t.hypnosis.chanceBp), ` 확률로 때린 슬라임가 ${HYPNOSIS_CELLS}칸 뒤로 갔다가 다시 옴`], notes: [['슬라임당 한 번']] }
+      return { main: [chance(t.hypnosis.chanceBp), ` 확률로 때린 슬라임이 ${HYPNOSIS_CELLS}칸 뒤로 갔다가 다시 옴`], notes: [['슬라임당 한 번']] }
     case 'instakill':
       return { main: [chance(t.instakill.chanceBp), ' 확률로 때린 슬라임 즉사'], notes: [['왕에겐 안 통함']] }
     case 'iceTile':
-      return { main: [chance(t.iceTile.chanceBp), ` 확률로 때린 슬라임가 있는 칸의 슬라임 모두 ${sec(ICE_TILE_MS)}초 얼림`], notes: cd(a.kind).map((x) => [x]) }
+      return { main: [chance(t.iceTile.chanceBp), ` 확률로 때린 슬라임이 있는 칸의 슬라임 모두 ${sec(ICE_TILE_MS)}초 얼림`], notes: cd(a.kind).map((x) => [x]) }
     case 'lullaby':
       return { main: [chance(t.lullaby.chanceBp), ` 확률로 슬라임 모두 ${sec(LULLABY_MS)}초 잠듦`], notes: [[`${LULLABY_WAKE_HITS}대 맞으면 깸`], ...cd(a.kind).map((x) => [x])] }
     case 'agiCopy':
       return { main: [chance(t.agiCopy.chanceBp), ` 확률로 때린 슬라임의 민첩을 ${sec(AGI_COPY_MS)}초 동안 내 민첩에 더함`], notes: cd(a.kind).map((x) => [x]) }
+    case 'pierce':
+      return { main: [chance(t.pierce.chanceBp), ' 확률로 관통: 가로·세로로 쏘면 곧게 이어진 길의 슬라임 모두 피해'], notes: [['대각선이면 그 칸의 슬라임만'], ['피해 = 공격력 − 방어력'], ['슬라임마다 명중 판정'], ['길이 끊기면 멈춤']] }
   }
 }
 

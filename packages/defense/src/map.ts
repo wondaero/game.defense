@@ -121,3 +121,21 @@ export function inRange(a: Cell, b: Cell, range: number, shape: 'diamond' | 'squ
   const dy = Math.abs(a.y - b.y)
   return shape === 'diamond' ? dx + dy <= range : Math.max(dx, dy) <= range
 }
+
+/**
+ * 관통 줄 (2026-11-28 spec 17): from(캐릭) → to(맞힌 칸).
+ * - 가로·세로로 쏘면: to 부터 같은 방향으로 한 칸씩, 길 칸이 이어지는 동안 전부 (풀밭·판 밖에서 멈춤)
+ * - 대각선·비스듬히 쏘면: 맞힌 그 한 칸만 (그 칸을 지나가는 슬라임들) — 2026-11-28 사용자 결정
+ */
+export function pierceLine(map: GameMap, from: Cell, to: Cell): Cell[] {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  if (dx === 0 && dy === 0) return []
+  if (dx !== 0 && dy !== 0) return [{ x: to.x, y: to.y }]
+  const sx = Math.sign(dx)
+  const sy = Math.sign(dy)
+  const onPath = (x: number, y: number) => map.path.some((c) => c.x === x && c.y === y)
+  const out: Cell[] = []
+  for (let x = to.x, y = to.y; onPath(x, y); x += sx, y += sy) out.push({ x, y })
+  return out
+}

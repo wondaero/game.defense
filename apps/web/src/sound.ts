@@ -224,6 +224,15 @@ export const bgm = {
     if (bgmTimer != null) window.clearInterval(bgmTimer)
     bgmTimer = null
   },
+  /** 배경음을 ms 동안 잠깐 껐다가 다시 (자장가 등). 꺼짐·켜짐 모두 부드럽게 */
+  duck(ms: number) {
+    if (!ctx) return
+    const g = bgmBus.gain
+    const t = ctx.currentTime
+    g.cancelScheduledValues(t)
+    g.setTargetAtTime(0, t, 0.06)
+    g.setTargetAtTime((prefs.bgmVol / 100) * BGM_MAX, t + ms / 1000, 0.35)
+  },
   /** 곡 바꾸기: 'boss' (우두머리 등장) · 'peace' (평소). 같은 곡이면 아무 일 없음 */
   setTrack(name: TrackName) {
     if ((pendingTrack ?? track) === name) return
@@ -305,6 +314,23 @@ export const sfx = {
     noise(sfxBus, t, 0.5, 0.45, 'lowpass', 1200)
     tone(sfxBus, 'sine', 160, t, 0.4, 0.6, 40)
     ;[72, 76, 79, 84, 88].forEach((m, i) => tone(sfxBus, 'triangle', midiHz(m), t + 0.12 + i * 0.06, 0.25, 0.2))
+  },
+  /** 자장가: 오르골 소리로 느린 자장가 한 소절 (원곡 아님, 직접 만든 멜로디) */
+  lullaby() {
+    const t = gate('lullaby', 1500)
+    if (t == null) return
+    const mel: [number, number][] = [
+      [79, 0.32], [76, 0.32], [79, 0.32], [76, 0.32], [72, 0.48], [74, 0.24], [76, 0.32], [77, 0.32], [76, 0.64],
+    ]
+    let at = t
+    for (const [m, d] of mel) {
+      // 오르골 = 맑은 사인 + 한 옥타브 위 살짝, 길게 울림
+      tone(sfxBus, 'sine', midiHz(m), at, d * 2.2, 0.3, undefined, 0.005)
+      tone(sfxBus, 'sine', midiHz(m + 12), at, d * 1.4, 0.08, undefined, 0.005)
+      at += d
+    }
+    // 밑에 깔리는 화음 (C → F → C)
+    for (const [m, s0, d] of [[60, 0, 1.3], [65, 1.3, 0.7], [60, 2.0, 0.9]] as const) tone(sfxBus, 'triangle', midiHz(m - 12), t + s0, d, 0.12, undefined, 0.08)
   },
   /** 클리어: 팡파르 */
   clear() {

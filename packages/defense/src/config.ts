@@ -20,6 +20,8 @@ export interface DefenseConfig {
   rosterSize: number
   /** 사거리 모양: 마름모(가로+세로 칸 수) / 사각형(대각선도 1칸) */
   rangeShape: 'diamond' | 'square'
+  /** 시험용 (2026-11-28, 개발자 탭): 켜면 캐릭 특수능력이 쿨타임만 아니면 매번 발동 (확률 100%) */
+  forceProc: boolean
   /** 능력치 뽑기 범위 */
   atk: Range
   range: Range
@@ -45,6 +47,7 @@ export const DEFAULT_CONFIG: Readonly<DefenseConfig> = Object.freeze({
   /** 보관함 최대 100명 (2026-11-27 *임시*). 시험판은 100명을 뽑아 둠 */
   rosterSize: 100,
   rangeShape: 'diamond',
+  forceProc: false,
   atk: { min: 10, max: 30 },
   range: { min: 1, max: 2 },
   agility: { min: 5, max: 10 },

@@ -10,7 +10,7 @@
  */
 import { Rng } from './rng.ts'
 
-export type AbilityKind = 'stun' | 'splash' | 'crit' | 'obstacle' | 'recall' | 'teamLevel' | 'allAttack' | 'poison' | 'boostAll' | 'frenzy' | 'hawkeye' | 'hypnosis' | 'instakill' | 'iceTile' | 'lullaby' | 'agiCopy'
+export type AbilityKind = 'stun' | 'splash' | 'crit' | 'obstacle' | 'recall' | 'teamLevel' | 'allAttack' | 'poison' | 'boostAll' | 'frenzy' | 'hawkeye' | 'hypnosis' | 'instakill' | 'iceTile' | 'lullaby' | 'agiCopy' | 'pierce'
 export type BuffStat = 'atk' | 'range' | 'speed' | 'agility' | 'all'
 export type ObstacleKind = 'damage' | 'slow'
 
@@ -41,8 +41,13 @@ export type Ability =
   | { kind: 'lullaby'; chanceBp: number }
   /** 민첩 복사: 때린 몬스터의 민첩을 AGI_COPY_MS 동안 내 민첩에 더함 (spec 16) */
   | { kind: 'agiCopy'; chanceBp: number }
+  /**
+   * 관통 (2026-11-28 spec 17): 캐릭 → 맞힌 슬라임 방향으로 쭉, 길이 곧게 이어지는 동안 그 줄의 슬라임 모두 피해.
+   * 길이 끊기는(풀밭) 칸에서 멈춤. 관통 피해는 슬라임마다 따로 명중 판정, 피해 = 공격력 − 방어력, 다른 특수능력은 안 걸림
+   */
+  | { kind: 'pierce'; chanceBp: number }
 
-export const ABILITY_KINDS: readonly AbilityKind[] = ['stun', 'splash', 'crit', 'obstacle', 'recall', 'teamLevel', 'allAttack', 'poison', 'boostAll', 'frenzy', 'hawkeye', 'hypnosis', 'instakill', 'iceTile', 'lullaby', 'agiCopy']
+export const ABILITY_KINDS: readonly AbilityKind[] = ['stun', 'splash', 'crit', 'obstacle', 'recall', 'teamLevel', 'allAttack', 'poison', 'boostAll', 'frenzy', 'hawkeye', 'hypnosis', 'instakill', 'iceTile', 'lullaby', 'agiCopy', 'pierce']
 
 export const ABILITY_NAMES: Readonly<Record<AbilityKind, string>> = {
   stun: '스턴',
@@ -61,6 +66,7 @@ export const ABILITY_NAMES: Readonly<Record<AbilityKind, string>> = {
   iceTile: '빙결',
   lullaby: '자장가',
   agiCopy: '민첩 복사',
+  pierce: '관통',
 }
 
 /** 쿨타임 (0 = 없음). 장애물은 판당 1회라 따로 */
@@ -81,6 +87,7 @@ export const ABILITY_COOLDOWN_MS: Readonly<Record<AbilityKind, number>> = {
   iceTile: 3000,
   lullaby: 20_000,
   agiCopy: 10_000,
+  pierce: 0,
 }
 
 /** 뽑기 표 (docs/spec 그대로) */
@@ -102,6 +109,8 @@ export const ROLL_TABLE = {
   iceTile: { chanceBp: [300, 500] },
   lullaby: { chanceBp: [100, 200, 300] },
   agiCopy: { chanceBp: [500, 1000] },
+  /** spec 17 원안 20/30% → 2026-11-28 사용자 결정 10/15% */
+  pierce: { chanceBp: [1000, 1500] },
 } as const
 
 /** 광역공격 범위: 맞힌 자리 중심 (2 × 반경 + 1) 칸 정사각형 = 5×5 */
@@ -187,6 +196,8 @@ export function rollAbility(rng: Rng): Ability {
       return { kind, chanceBp: pick(rng, t.lullaby.chanceBp) }
     case 'agiCopy':
       return { kind, chanceBp: pick(rng, t.agiCopy.chanceBp) }
+    case 'pierce':
+      return { kind, chanceBp: pick(rng, t.pierce.chanceBp) }
   }
 }
 
@@ -214,10 +225,10 @@ export function abilityDesc(a: Ability): string {
       return `${pct(a.chanceBp)} 확률로 2배 데미지 (피해 = 공격력×2 − 방어력)`
     case 'obstacle':
       return `${pct(a.chanceBp)} 확률로 길 무작위 칸에 ${
-        a.obstacle === 'damage' ? `가시 장애물 (슬라임가 처음 밟을 때 최대 체력의 ${pct(a.amountBp)}, 마리마다 한 번)` : `늪 장애물 (밟으면 속도 −${pct(a.amountBp)})`
+        a.obstacle === 'damage' ? `가시 장애물 (슬라임이 처음 밟을 때 최대 체력의 ${pct(a.amountBp)}, 마리마다 한 번)` : `늪 장애물 (밟으면 속도 −${pct(a.amountBp)})`
       } · 판당 1회`
     case 'recall':
-      return `${pct(a.chanceBp)} 확률로 때린 슬라임를 출발지로${tail}`
+      return `${pct(a.chanceBp)} 확률로 때린 슬라임을 출발지로${tail}`
     case 'teamLevel':
       return `${pct(a.chanceBp)} 확률로 아군 전체 레벨 +${a.level}: ${levelText(a.stat, a.level)} (${sec(TEAM_LEVEL_MS)} 동안)${tail}`
     case 'allAttack':
@@ -231,14 +242,16 @@ export function abilityDesc(a: Ability): string {
     case 'hawkeye':
       return `사거리 +${a.plus} (항상, 봉인되면 원래 사거리)`
     case 'hypnosis':
-      return `${pct(a.chanceBp)} 확률로 최면: 때린 슬라임가 ${HYPNOSIS_CELLS}칸 뒤로 갔다가 다시 옴 (슬라임당 한 번)`
+      return `${pct(a.chanceBp)} 확률로 최면: 때린 슬라임이 ${HYPNOSIS_CELLS}칸 뒤로 갔다가 다시 옴 (슬라임당 한 번)`
     case 'instakill':
       return `${pct(a.chanceBp)} 확률로 때린 슬라임 즉사 (왕에겐 안 통함)`
     case 'iceTile':
-      return `${pct(a.chanceBp)} 확률로 때린 슬라임가 있는 칸의 슬라임 모두 ${sec(ICE_TILE_MS)} 얼림${tail}`
+      return `${pct(a.chanceBp)} 확률로 때린 슬라임이 있는 칸의 슬라임 모두 ${sec(ICE_TILE_MS)} 얼림${tail}`
     case 'lullaby':
       return `${pct(a.chanceBp)} 확률로 슬라임 모두 ${sec(LULLABY_MS)} 잠듦 (${LULLABY_WAKE_HITS}대 맞으면 깸)${tail}`
     case 'agiCopy':
       return `${pct(a.chanceBp)} 확률로 때린 슬라임의 민첩을 ${sec(AGI_COPY_MS)} 동안 내 민첩에 더함${tail}`
+    case 'pierce':
+      return `${pct(a.chanceBp)} 확률로 관통: 가로·세로로 쏘면 곧게 이어진 길의 슬라임 모두, 대각선이면 그 칸의 슬라임 모두 피해 (피해 = 공격력 − 방어력, 슬라임마다 명중 판정)`
   }
 }
