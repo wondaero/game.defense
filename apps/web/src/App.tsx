@@ -9,6 +9,8 @@ import {
   MONSTER_ABILITIES,
   monsterAbilityDesc,
   parseMap,
+  pathIndexAt,
+  SPLASH_RADIUS,
   SHOP_PRICES,
   type TicketKind,
   baseStats,
@@ -236,6 +238,12 @@ export function App() {
         fxRef.current.push({ kind: 'text', born: now, life: 900, to: { ...monsterScreenPos(map, ev.dist, ev.monsterId), y: monsterScreenPos(map, ev.dist, ev.monsterId).y - 14 }, text: ABILITY_NAMES[ev.kind] + '!', color: '#ffeb3b' })
         const p = unitPos(ev.unitId)
         if (p) fxRef.current.push({ kind: 'skill', born: now, life: 500, to: p, color: '#ffeb3b' })
+        if (ev.kind === 'splash') {
+          // 광역공격: 맞힌 몬스터가 있는 칸 중심 범위 번쩍 + 판 흔들림
+          const c = map.path[pathIndexAt(map, ev.dist)]!
+          fxRef.current.push({ kind: 'area', born: now, life: 550, to: { x: (c.x + 0.5) * CELL_PX, y: (c.y + 0.5) * CELL_PX }, radius: SPLASH_RADIUS })
+          anim.shakeUntil = now + 180
+        }
         continue
       }
       if (ev.type === 'poison') {

@@ -174,6 +174,8 @@ export const stageGold = (n: number, stars = 3, replay = false) =>
   Math.floor((stageBaseGold(n) * STAR_GOLD_BP[Math.max(0, Math.min(3, stars))]!) / 10_000 / (replay ? REPLAY_GOLD_DIV : 1))
 /** 처음 깬 탄에서 권이 나올 확률 — 별 개수별 (basis point): [실패, ★ 5%, ★★ 10%, ★★★ 15%] (2026-11-28) */
 export const STAR_TICKET_BP: readonly number[] = [0, 500, 1000, 1500]
+/** 우두머리 탄(10·20·30…)을 처음 깨면 골드 추가 (별 상관없이, 2026-11-28) */
+export const BOSS_FIRST_CLEAR_GOLD = 100
 /** 다시 깬 탄의 권 확률 = 처음의 1/이만큼 (2026-11-28) */
 export const REPLAY_TICKET_DIV = 10
 /** 권이 나오면 어떤 권인지 (합 10000) */
@@ -186,13 +188,15 @@ export const FIRST_CLEAR_TICKET_TABLE: readonly (readonly [TicketKind, number])[
 ]
 export interface StageReward {
   gold: number
+  /** 그중 우두머리 첫 처치 보너스 */
+  bossBonus: number
   ticket: TicketKind | null
   firstClear: boolean
 }
 
 function rollStageReward(acc: Account, n: number, cleared: boolean, stars: number, rng: Rng): StageReward {
   const replay = acc.stars[n]! > 0
-  if (!cleared) return { gold: stageGold(n, 0, replay), ticket: null, firstClear: false }
+  if (!cleared) return { gold: stageGold(n, 0, replay), bossBonus: 0, ticket: null, firstClear: false }
   const firstClear = !replay
   // 권: 별에 따라 처음 ★ 5% · ★★ 10% · ★★★ 15%, 다시 깬 탄은 1/10 — 어떤 권인지 비율은 같음 (2026-11-28)
   let ticket: TicketKind | null = null
@@ -206,7 +210,8 @@ function rollStageReward(acc: Account, n: number, cleared: boolean, stars: numbe
       r -= w
     }
   }
-  return { gold: stageGold(n, stars, replay), ticket, firstClear }
+  const bossBonus = firstClear && n % 10 === 0 ? BOSS_FIRST_CLEAR_GOLD : 0
+  return { gold: stageGold(n, stars, replay) + bossBonus, bossBonus, ticket, firstClear }
 }
 
 export type StageJudgement = WaveResult & { bossLeaked: boolean; newBest: boolean; reward: StageReward }

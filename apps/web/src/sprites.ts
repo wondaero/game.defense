@@ -73,6 +73,45 @@ export function motionDuration(id: string, motion: string): number {
  * t = 모션 시작 후 지난 시간(밀리초). 반복 모션은 돌고, 아니면 마지막 프레임에 멈춤.
  * 그릴 수 없으면 false (아직 준비 전 등).
  */
+/** 맹독처럼 그림(불투명한 부분)에만 색을 입힐 때 쓰는 임시 캔버스 */
+let tintCanvas: HTMLCanvasElement | null = null
+
+/**
+ * 그림에만 세로 그라데이션 색을 입혀 그리기 (2026-11-28 맹독: 위는 보라, 아래로 갈수록 원래 색).
+ * stops = [위치 0~1, 색][] — 그림 픽셀 위에만 덮임(source-atop), 배경은 그대로
+ */
+export function drawSpriteTinted(ctx: CanvasRenderingContext2D, id: string, motion: string, t: number, x: number, y: number, size: number, flip: boolean, stops: [number, string][]): boolean {
+  const scale = ctx.getTransform().a || 1
+  const box = Math.ceil((size / meta.content) * scale) + 4
+  tintCanvas ??= document.createElement('canvas')
+  const tc = tintCanvas
+  if (tc.width < box || tc.height < box) {
+    tc.width = Math.max(tc.width, box)
+    tc.height = Math.max(tc.height, box)
+  }
+  const c = tc.getContext('2d')!
+  c.setTransform(1, 0, 0, 1, 0, 0)
+  c.clearRect(0, 0, box, box)
+  c.globalCompositeOperation = 'source-over'
+  // 임시 캔버스 안에서 같은 크기로 (발밑 = 아래쪽)
+  c.setTransform(scale, 0, 0, scale, 0, 0)
+  const half = box / scale / 2
+  const footLocal = (size / meta.content) * meta.footY + 2 / scale
+  if (!drawSprite(c, id, motion, t, half, footLocal, size, flip)) return false
+  c.setTransform(1, 0, 0, 1, 0, 0)
+  c.globalCompositeOperation = 'source-atop'
+  const g = c.createLinearGradient(0, 0, 0, box)
+  for (const [at, col] of stops) g.addColorStop(at, col)
+  c.fillStyle = g
+  c.fillRect(0, 0, box, box)
+  c.globalCompositeOperation = 'source-over'
+  // 원래 자리에 옮겨 그림
+  const left = x - half
+  const top = y - footLocal
+  ctx.drawImage(tc, 0, 0, box, box, left, top, box / scale, box / scale)
+  return true
+}
+
 export function drawSprite(ctx: CanvasRenderingContext2D, id: string, motion: string, t: number, x: number, y: number, size: number, flip = false): boolean {
   const e = meta.entities[id]
   const img = rasters.get(fileOf(id))

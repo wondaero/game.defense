@@ -27,7 +27,7 @@ export function ResultOverlay(props: {
   stage: number
   detail: string
   /** 받은 보상 (2026-11-27): 화폐 + 처음 깬 탄이면 가끔 권 */
-  reward?: { gold: number; ticket: string | null; firstClear: boolean } | null
+  reward?: { gold: number; bossBonus?: number; ticket: string | null; firstClear: boolean } | null
   onNext: () => void
   onRetry: () => void
   onSelect: () => void
@@ -76,6 +76,7 @@ export function ResultOverlay(props: {
           <div className="result-reward">
             <span>
               💰 +{props.reward.gold} 골드{props.reward.firstClear ? ' (처음 깬 탄)' : !cleared ? ' (도전 보상)' : ' (다시 깬 탄 1/10)'}
+              {props.reward.bossBonus ? <span className="dim"> · 우두머리 첫 처치 +{props.reward.bossBonus}</span> : null}
             </span>
             {props.reward.ticket && <span className="reward-ticket">🎉 {props.reward.ticket} +1!</span>}
           </div>

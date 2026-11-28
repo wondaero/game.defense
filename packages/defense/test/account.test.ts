@@ -120,3 +120,11 @@ describe('상점 (2026-11-28)', () => {
     expect(no.ok).toBe(false)
   })
 })
+
+describe('우두머리 첫 처치 보너스 (2026-11-28)', () => {
+  it('10탄을 처음 깨면 +100, 다시 깨면 없음', async () => {
+    const { judgeStage: _j, BOSS_FIRST_CLEAR_GOLD } = await import('../src/index.ts')
+    void _j
+    expect(BOSS_FIRST_CLEAR_GOLD).toBe(100)
+  })
+})

@@ -1,6 +1,6 @@
 import { baseStats, inRange, MONSTER_ABILITIES, positionAt, type Cell, type DefenseConfig, type GameMap, type Placements, type UnitInstance, type WaveSim } from '@def/defense'
 import { unitLook } from './format.ts'
-import { drawSprite, motionDuration, spritesReady } from './sprites.ts'
+import { drawSprite, drawSpriteTinted, motionDuration, spritesReady } from './sprites.ts'
 import { drawBlackHole, drawFinishFlag, groundImage, type GroundMode } from './ground.ts'
 import type { StageTheme } from './format.ts'
 
@@ -13,7 +13,9 @@ export const UNIT_SCALE = 0.98
 /** 화면 효과 (시간은 performance.now 밀리초) */
 export interface Fx {
   /** bolt = 날아가는 빛 구슬 · slash = 베기 반달 · burst = 맞은 자리 팡 (2026-11-27 평타 효과) */
-  kind: 'shot' | 'text' | 'leak' | 'skill' | 'bolt' | 'slash' | 'burst'
+  kind: 'shot' | 'text' | 'leak' | 'skill' | 'bolt' | 'slash' | 'burst' | 'area'
+  /** area: 칸 반경 (5×5 = 2) */
+  radius?: number
   /** 크기 배율 (2배 데미지는 크게) */
   size?: number
   /** 베기 방향 (라디안) */
@@ -340,7 +342,16 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
         ctx.stroke()
         ctx.lineWidth = 1
       }
-      const drawn = sprites && drawSprite(ctx, facing(monsterSprite(m.spec), flip), motion, mt, p.x, foot, size, flip)
+      // 맹독 (2026-11-28): 몸 위쪽부터 보라로 물듦 (아래는 원래 색), 뽀글 방울은 아래에서
+      const drawn =
+        sprites &&
+        (m.poisonDmg > 0
+          ? drawSpriteTinted(ctx, facing(monsterSprite(m.spec), flip), motion, mt, p.x, foot, size, flip, [
+              [0.15, 'rgba(126,30,160,0.92)'],
+              [0.5, 'rgba(156,56,184,0.62)'],
+              [0.86, 'rgba(186,104,200,0)'],
+            ])
+          : drawSprite(ctx, facing(monsterSprite(m.spec), flip), motion, mt, p.x, foot, size, flip))
       if (d.sim.tick < m.iceUntil) {
         // 빙결: 반투명 얼음 덩어리 + 반짝 줄
         const w = size * 0.8
@@ -413,15 +424,7 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
         ctx.lineWidth = 1
       }
       if (m.poisonDmg > 0) {
-        // 맹독: 발밑 보라 고리 + 위로 올라가는 보라 방울
-        ctx.strokeStyle = 'rgba(142,36,170,0.9)'
-        ctx.fillStyle = 'rgba(186,104,200,0.25)'
-        ctx.lineWidth = 2.5
-        ctx.beginPath()
-        ctx.ellipse(p.x, foot - 2, size * 0.4, size * 0.13, 0, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.stroke()
-        ctx.lineWidth = 1
+        // 맹독: 위로 올라가는 보라 방울 (몸 색은 위에서 그라데이션, 발밑 타원은 없앰)
         const ph = (d.anim.clock / 600 + m.id * 0.37) % 1
         ctx.fillStyle = 'rgba(186,104,200,0.85)'
         for (let k = 0; k < 3; k++) {
@@ -538,6 +541,44 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
       }
       ctx.lineCap = 'butt'
       ctx.lineWidth = 1
+    } else if (f.kind === 'area') {
+      // 광역공격 (2026-11-28): 맞힌 칸 중심 (2r+1)×(2r+1) 범위가 주황으로 번쩍 + 가운데서 퍼지는 충격파
+      const r = f.radius ?? 2
+      const half = (r + 0.5) * CELL_PX
+      const flash = k < 0.25 ? k / 0.25 : 1 - (k - 0.25) / 0.75
+      ctx.globalAlpha = 1
+      // 판 밖은 칠하지 않음
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(0, 0, map.width * CELL_PX, map.height * CELL_PX)
+      ctx.clip()
+      ctx.fillStyle = `rgba(255,140,30,${0.32 * flash})`
+      ctx.strokeStyle = `rgba(255,214,90,${0.95 * flash})`
+      ctx.lineWidth = 3
+      ctx.beginPath()
+      ctx.roundRect(f.to.x - half, f.to.y - half, half * 2, half * 2, 12)
+      ctx.fill()
+      ctx.stroke()
+      // 칸 격자 (범위가 몇 칸인지 보이게)
+      ctx.strokeStyle = `rgba(255,230,150,${0.35 * flash})`
+      ctx.lineWidth = 1
+      for (let i = 1; i < r * 2 + 1; i++) {
+        const o = -half + i * CELL_PX
+        ctx.beginPath()
+        ctx.moveTo(f.to.x + o, f.to.y - half)
+        ctx.lineTo(f.to.x + o, f.to.y + half)
+        ctx.moveTo(f.to.x - half, f.to.y + o)
+        ctx.lineTo(f.to.x + half, f.to.y + o)
+        ctx.stroke()
+      }
+      // 충격파 고리
+      ctx.strokeStyle = `rgba(255,120,20,${1 - k})`
+      ctx.lineWidth = 5 * (1 - k) + 1
+      ctx.beginPath()
+      ctx.arc(f.to.x, f.to.y, 8 + k * half * 1.2, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.lineWidth = 1
+      ctx.restore()
     } else if (f.kind === 'leak' || f.kind === 'skill') {
       ctx.strokeStyle = f.color ?? '#f44336'
       ctx.lineWidth = 4

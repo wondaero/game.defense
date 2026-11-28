@@ -157,7 +157,8 @@ const TOOLS = {
   boostAll: { name: '황금 방패 — 전체 강화', draw: (T) => path('M-4,-30 L16,-30 Q17,-14 6,-4 Q-5,-14 -4,-30 Z', T('#ffc107')) + path('M6,-27 L6,-8 M-1,-21 L13,-21', 'none', { stroke: T('#fff8e1'), 'stroke-width': 2.5 }) },
   poison: { name: '독 병 — 맹독', draw: (T) => `<rect x="1" y="-20" width="6" height="7" rx="1.5" fill="${T('#d7ccc8')}" stroke="${OUT}" stroke-width="2"/>` + circ(4, -6, 8, T('#ab47bc')) + circ(1, -8, 1.8, '#ffffff', { 'stroke-width': 0, opacity: 0.7 }) + circ(7, -4, 1.3, '#f3e5f5', { 'stroke-width': 0 }) },
   // 2026-11-28 추가 (spec 13~16)
-  instakill: { name: '낫 — 즉사', draw: (T) => path('M-1,6 L7,-32', 'none', { stroke: T('#5d4037'), 'stroke-width': 3.5 }) + path('M7,-32 Q-12,-36 -20,-20 Q-9,-27 5,-25 Z', T('#cfd8dc')) + path('M-14,-23 Q-6,-28 2,-27', 'none', { stroke: '#ffffff', 'stroke-width': 1.2 }) },
+  // 2026-11-28 날을 바깥(오른쪽)으로
+  instakill: { name: '낫 — 즉사', draw: (T) => path('M-1,6 L7,-32', 'none', { stroke: T('#5d4037'), 'stroke-width': 3.5 }) + path('M7,-32 Q22,-37 27,-21 Q19,-28 9,-25 Z', T('#cfd8dc')) + path('M22,-24 Q17,-29 12,-27', 'none', { stroke: '#ffffff', 'stroke-width': 1.2 }) },
   iceTile: { name: '눈꽃 지팡이 — 빙결', draw: (T) => path('M0,5 L6,-20', 'none', { stroke: T('#90caf9'), 'stroke-width': 3.5 }) + path('M8,-38 L8,-20 M0,-33.5 L16,-24.5 M0,-24.5 L16,-33.5', 'none', { stroke: OUT, 'stroke-width': 5 }) + path('M8,-38 L8,-20 M0,-33.5 L16,-24.5 M0,-24.5 L16,-33.5', 'none', { stroke: T('#b3e5fc'), 'stroke-width': 2.6 }) + circ(8, -29, 3, T('#4fc3f7')) },
   lullaby: { name: '마이크 — 자장가', draw: (T) => `<rect x="1" y="-16" width="6" height="19" rx="2" fill="${T('#424242')}" stroke="${OUT}" stroke-width="2"/>` + circ(4, -22, 7.5, T('#b0bec5')) + path('M-2,-25 L10,-25 M-2,-21 L10,-21 M1,-28 L1,-17 M7,-28 L7,-17', 'none', { stroke: T('#78909c'), 'stroke-width': 1.1 }) + path('M15,-30 L15,-38 L20,-39 L20,-31', 'none', { stroke: T('#4fc3f7'), 'stroke-width': 1.6 }) + circ(13.8, -30, 1.8, T('#4fc3f7'), { 'stroke-width': 1 }) + circ(18.8, -31, 1.8, T('#4fc3f7'), { 'stroke-width': 1 }) },
   agiCopy: { name: '거울 — 민첩 복사', draw: (T) => `<rect x="2" y="-15" width="5" height="19" rx="2.5" transform="rotate(8 4.5 -5)" fill="${T('#ffb300')}" stroke="${OUT}" stroke-width="2"/>` + circ(4, -14, 3, T('#ffb300'), { 'stroke-width': 2 }) + ell(6, -27, 10, 12, T('#ffc107')) + ell(6, -27, 6.5, 8.5, T('#e0f7fa'), { 'stroke-width': 0 }) + path('M2,-31 L6,-35 M2.5,-26 L4.5,-28', 'none', { stroke: '#ffffff', 'stroke-width': 1.8 }) },
@@ -349,24 +350,28 @@ const ACCESSORIES = {
       ),
     }
   },
-  // 우두머리 모자: 높은 모자 앞에 "왕" (글꼴 없이 선으로 그림 — 다른 컴퓨터에서도 같게)
+  // 우두머리 모자: 높은 모자 앞에 "BOSS" (글꼴 없이 선으로 그림 — 다른 컴퓨터에서도 같게)
   kingHat: (p, T, ctx) => {
     // 투구 위에 쓰면 12 만큼 위로
     const up = ctx?.acc.includes('helmet') ? 12 : 0
     const x = 48
     const y = 23 - up
-    const ink = { stroke: T('#ffe082'), 'stroke-width': 2, fill: 'none' }
-    const wang =
-      circ(x - 4.5, y - 7, 2.6, 'none', ink) +
-      path(`M${x - 4.5},${y - 4.4} L${x - 4.5},${y - 2} M${x - 9},${y - 2} L${x},${y - 2}`, 'none', ink) +
-      path(`M${x + 4},${y - 10} L${x + 4},${y + 0.5} M${x + 4},${y - 5} L${x + 7.5},${y - 5}`, 'none', ink) +
-      circ(x - 1, y + 5.5, 3.2, 'none', ink)
+    const ink = { stroke: T('#ffe082'), 'stroke-width': 1.8, fill: 'none' }
+    // "BOSS" (2026-11-28, 예전 "왕"): 글자 하나 폭 6, 간격 1.6, 높이 11
+    const t = y - 8
+    const btm = y + 3
+    const m = (t + btm) / 2
+    const L = (i) => 48 - (4 * 6 + 3 * 1.6) / 2 + i * 7.6
+    const letterB = (l) => path(`M${l},${t} L${l},${btm} M${l},${t} L${l + 3.4},${t} Q${l + 5.8},${t} ${l + 5.8},${t + 2.7} Q${l + 5.8},${m} ${l + 3.4},${m} L${l},${m} M${l + 3.4},${m} Q${l + 6.2},${m} ${l + 6.2},${m + 2.8} Q${l + 6.2},${btm} ${l + 3.4},${btm} L${l},${btm}`, 'none', ink)
+    const letterO = (l) => ell(l + 3, m, 3, 5.5, 'none', ink)
+    const letterS = (l) => path(`M${l + 5.6},${t + 1.4} Q${l + 4.6},${t} ${l + 3},${t} Q${l + 0.3},${t} ${l + 0.3},${t + 2.6} Q${l + 0.3},${m} ${l + 3},${m} Q${l + 5.8},${m} ${l + 5.8},${m + 2.7} Q${l + 5.8},${btm} ${l + 3},${btm} Q${l + 1},${btm} ${l + 0.2},${btm - 1.4}`, 'none', ink)
+    const wang = letterB(L(0)) + letterO(L(1)) + letterS(L(2)) + letterS(L(3))
     return {
       front:
         ell(48, 41 - up, 25, 5.5, T('#1a237e')) +
         `<rect x="30" y="${6 - up}" width="36" height="35" rx="5" fill="${T('#283593')}" stroke="${OUT}" stroke-width="${SW}"/>` +
         `<rect x="30" y="${31 - up}" width="36" height="6" fill="${T('#ffc107')}" stroke="${OUT}" stroke-width="1.5"/>` +
-        // 게임이 좌우로 뒤집어 그릴 때 쓰는 그림(_m)은 글자만 미리 뒤집어 둠 → 화면에선 늘 바른 "왕"
+        // 게임이 좌우로 뒤집어 그릴 때 쓰는 그림(_m)은 글자만 미리 뒤집어 둠 → 화면에선 늘 바른 "BOSS"
         (ctx?.mirrorText ? `<g transform="matrix(-1 0 0 1 96 0)">${wang}</g>` : wang),
     }
   },
