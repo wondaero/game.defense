@@ -122,17 +122,55 @@ export function draw(ctx: CanvasRenderingContext2D, d: DrawInput) {
   drawFinishFlag(ctx, map, CELL_PX, d.now)
   drawBlackHole(ctx, map, CELL_PX, d.now)
 
-  // 사거리 미리 보기: 닿는 칸을 노랗게 (길 칸은 진하게)
+  // 사거리 미리 보기 (2026-11-28): 풀밭·얼음 어디서나 튀는 진한 분홍 — 공격 닿는 길 칸은 진하게 채우고 테두리, 범위 바깥선은 굵게, 천천히 숨쉬기
   if (rangeOrigin && selected) {
+    const r = baseStats(cfg, selected).range
+    const inR = (x: number, y: number) => x >= 0 && y >= 0 && x < map.width && y < map.height && inRange(rangeOrigin, { x, y }, r, cfg.rangeShape)
+    const pulse = 0.85 + 0.15 * Math.sin(d.now / 260)
+    const PINK = '255,45,149'
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
-        if (!inRange(rangeOrigin, { x, y }, baseStats(cfg, selected).range, cfg.rangeShape)) continue
-        ctx.fillStyle = map.tiles[y]![x] === 'path' ? 'rgba(255,240,120,0.42)' : 'rgba(255,240,120,0.16)'
+        if (!inR(x, y)) continue
+        const path = map.tiles[y]![x] === 'path'
+        ctx.fillStyle = `rgba(${PINK},${(path ? 0.4 : 0.14) * pulse})`
         ctx.beginPath()
         ctx.roundRect(x * CELL_PX + 2, y * CELL_PX + 2, CELL_PX - 4, CELL_PX - 4, 8)
         ctx.fill()
+        if (path) {
+          // 공격이 실제로 닿는 길 칸: 흰 테두리 + 분홍 테두리 (어떤 바탕에서도 보이게 두 겹)
+          ctx.lineWidth = 4
+          ctx.strokeStyle = 'rgba(255,255,255,0.9)'
+          ctx.stroke()
+          ctx.lineWidth = 2
+          ctx.strokeStyle = `rgba(${PINK},1)`
+          ctx.stroke()
+        }
       }
     }
+    // 범위 바깥선: 이웃 칸이 범위 밖인 변만 굵게 (흰 + 분홍 두 겹)
+    ctx.lineCap = 'round'
+    for (const [w, col] of [
+      [5, 'rgba(255,255,255,0.95)'],
+      [2.5, `rgba(${PINK},1)`],
+    ] as const) {
+      ctx.lineWidth = w
+      ctx.strokeStyle = col
+      ctx.beginPath()
+      for (let y = 0; y < map.height; y++) {
+        for (let x = 0; x < map.width; x++) {
+          if (!inR(x, y)) continue
+          const X = x * CELL_PX
+          const Y = y * CELL_PX
+          if (!inR(x, y - 1)) (ctx.moveTo(X, Y), ctx.lineTo(X + CELL_PX, Y))
+          if (!inR(x, y + 1)) (ctx.moveTo(X, Y + CELL_PX), ctx.lineTo(X + CELL_PX, Y + CELL_PX))
+          if (!inR(x - 1, y)) (ctx.moveTo(X, Y), ctx.lineTo(X, Y + CELL_PX))
+          if (!inR(x + 1, y)) (ctx.moveTo(X + CELL_PX, Y), ctx.lineTo(X + CELL_PX, Y + CELL_PX))
+        }
+      }
+      ctx.stroke()
+    }
+    ctx.lineCap = 'butt'
+    ctx.lineWidth = 1
   }
 
   // 장애물: 가시(갈색 뾰족) · 늪(파란 웅덩이)

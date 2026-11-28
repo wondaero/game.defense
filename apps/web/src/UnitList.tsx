@@ -1,3 +1,4 @@
+import { Icon } from './Icon.tsx'
 import type { ReactNode } from 'react'
 import { baseStats, statScore, type DefenseConfig, type UnitInstance } from '@def/defense'
 import { abilityText, unitLook } from './format.ts'
@@ -98,13 +99,14 @@ export function UnitFace({ body, tool, rainbow, big }: { body: string; tool: str
 }
 
 /** 능력치 4개 (실제로 쓰는 값). 특수능력(전체 강화·호크아이)으로 올라간 값은 up */
-export function statTags(cfg: DefenseConfig, u: UnitInstance): { label: string; value: number; up: boolean }[] {
+/** max = 원래 능력치(특수능력 빼고)가 뽑기 최고값 (2026-11-29 꼬리표 금색) */
+export function statTags(cfg: DefenseConfig, u: UnitInstance): { label: string; value: number; up: boolean; max: boolean }[] {
   const b = baseStats(cfg, u)
   return [
-    { label: '공격', value: b.atk, up: b.atk !== u.atk },
-    { label: '사거리', value: b.range, up: b.range !== u.range },
-    { label: '공속', value: b.attackSpeed, up: b.attackSpeed !== u.attackSpeed },
-    { label: '민첩', value: b.agility, up: b.agility !== u.agility },
+    { label: '공격', value: b.atk, up: b.atk !== u.atk, max: u.atk >= cfg.atk.max },
+    { label: '사거리', value: b.range, up: b.range !== u.range, max: u.range >= cfg.range.max },
+    { label: '공속', value: b.attackSpeed, up: b.attackSpeed !== u.attackSpeed, max: u.attackSpeed >= cfg.attackSpeed.max },
+    { label: '민첩', value: b.agility, up: b.agility !== u.agility, max: u.agility >= cfg.agility.max },
   ]
 }
 
@@ -135,8 +137,14 @@ export function UnitRow(props: {
   const { u } = props
   const look = unitLook(props.cfg, u)
   const ab = abilityText(u)
-  const cls = `${props.selected ? 'sel' : ''} ${props.placed ? 'placed' : ''} ${look.special === 'trainee' ? 'trainee-row' : ''} ${props.dim ? 'dimmed' : ''}`
+  const cls = `${u.ability ? 'has-ab' : ''} ${props.selected ? 'sel' : ''} ${props.placed ? 'placed' : ''} ${look.special === 'trainee' ? 'trainee-row' : ''} ${props.dim ? 'dimmed' : ''}`
   // 출전(판에 배치됨) = 얼굴 오른쪽 위에 겹친 초록 ✓ (2026-11-28, "출전" 글자 꼬리표 대신 — 줄 자리를 안 차지함)
+  // 특수능력 있는 캐릭: 얼굴 왼쪽 아래 반짝이 표시 (2026-11-29)
+  const abMark = u.ability && (
+    <b className="ab-mark" aria-label="특수능력 있음">
+      <Icon name="sparkle" size={11} />
+    </b>
+  )
   const placedMark = props.placed && (
     <b className="placed-mark" title="출전" aria-label="출전">
       ✓
@@ -151,7 +159,7 @@ export function UnitRow(props: {
   const stats = (
     <div className="stat-tags">
       {statTags(props.cfg, u).map((t) => (
-        <span key={t.label} className={t.up ? 'up' : ''}>
+        <span key={t.label} className={`${t.up ? 'up' : ''} ${t.max ? 'max' : ''}`} title={t.max ? '최고값' : undefined}>
           {t.label} <b>{t.value}</b>
           {t.up && '▲'}
         </span>
@@ -159,9 +167,14 @@ export function UnitRow(props: {
     </div>
   )
   const abBox = ab && (
-    <div className="ab" title={ab.desc}>
-      <b className="ab-name">★ {ab.name}</b>
-      <AbilityDesc name={ab.name} desc={ab.desc} />
+    // 2026-11-28: "특수능력: 이름" 은 상자 밖, 설명만 상자(p) — 최대 3줄, 넘치면 상자 안에서 스크롤
+    <div className="ab2" title={ab.desc}>
+      <b className="ab2-title">
+        특수능력: <span>{ab.name}</span>
+      </b>
+      <p className="ab2-box">
+        <AbilityDesc name={ab.name} desc={ab.desc} />
+      </p>
     </div>
   )
   if (props.stacked)
@@ -171,6 +184,7 @@ export function UnitRow(props: {
           <span className="face-wrap">
             <UnitFace body={look.body} tool={look.tool} rainbow={look.tier === 6} />
             {placedMark}
+            {abMark}
           </span>
           {name}
           {props.children && <span className="row-actions">{props.children}</span>}
@@ -180,18 +194,21 @@ export function UnitRow(props: {
       </li>
     )
   return (
-    <li data-unit-id={u.id} className={cls} onClick={props.onClick}>
-      <span className="face-wrap">
-        <UnitFace body={look.body} tool={look.tool} rainbow={look.tier === 6} />
-        {placedMark}
-      </span>
-      <div className="info">
-        {/* 2026-11-28: 첫 줄 이름 · 둘째 줄 능력치 꼬리표 · 셋째 줄 특수능력(있을 때만) */}
-        {name}
-        {stats}
-        {abBox}
+    // 2026-11-29 막사 목록: 위 = 얼굴 | 이름 · 능력치 / 아래(줄 폭 전체) = 특수능력
+    <li data-unit-id={u.id} className={`split ${cls}`} onClick={props.onClick}>
+      <div className="row-top">
+        <span className="face-wrap">
+          <UnitFace body={look.body} tool={look.tool} rainbow={look.tier === 6} />
+          {placedMark}
+          {abMark}
+        </span>
+        <div className="info">
+          {name}
+          {stats}
+        </div>
+        {props.children}
       </div>
-      {props.children}
+      {abBox}
     </li>
   )
 }

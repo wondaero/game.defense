@@ -315,10 +315,14 @@ function UnitDetail({ u, cfg, keep }: { u: UnitInstance; cfg: DefenseConfig; kee
         {row('agility', '민첩', b.agility, u.agility, '', cfg.agility.min, cfg.agility.max)}
       </ul>
       {ab && u.ability ? (
-        <div className="ab big">
-          <b className="ab-name">★ {ab.name}</b>
+        <div className="ab2 big">
+          <b className="ab2-title">
+            특수능력: <span>{ab.name}</span>
+          </b>
           {/* 뽑을 수 있는 값 전부 + 이 캐릭이 뽑은 값 강조 (2026-11-28) */}
-          <AbilityRolls ability={u.ability} />
+          <p className="ab2-box">
+            <AbilityRolls ability={u.ability} />
+          </p>
         </div>
       ) : (
         <p className="dim">특수능력 없음 — 부여 티켓으로 붙이거나, 능력치 변경 때 5% 확률로 생겨요</p>
@@ -662,11 +666,15 @@ function ChangeDiff({ before, after, cfg }: { before: UnitInstance; after: UnitI
       {sameAbility ? (
         <p className="dim cd-same">{abA ? `특수능력 그대로 (${abA.name})` : '특수능력 없음'}</p>
       ) : (
-        <div className="ab big">
-          <b className="ab-name">
-            ★ {abB ? abB.name : '없음'} → {abA ? abA.name : '없음'}
+        <div className="ab2 big">
+          <b className="ab2-title">
+            특수능력: <span>{abB ? abB.name : '없음'}</span> → <span>{abA ? abA.name : '없음'}</span>
           </b>
-          {abA && <AbilityDesc name={abA.name} desc={abA.desc} />}
+          {abA && (
+            <p className="ab2-box">
+              <AbilityDesc name={abA.name} desc={abA.desc} />
+            </p>
+          )}
         </div>
       )}
     </div>

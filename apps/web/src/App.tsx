@@ -109,6 +109,10 @@ export function App() {
   const [view, setView] = useState<RosterView>({ filter: 'all', sort: 'score' })
   // 아래 고정 메뉴 (2026-11-27): 막사 · 스테이지 · 상점
   const [tab, setTab] = useState<Tab>('stages')
+  // 개발자 모드 (메모리에만): [끄기]를 누르거나 새로고침·탭 닫기·앱 다시 열기로 꺼짐 (시간 제한 없음, 2026-11-29 사용자)
+  const [devOn, setDevOn] = useState(false)
+  const [devAsk, setDevAsk] = useState(false)
+  const visibleTabs = TABS.filter((t) => t.id !== 'dev' || devOn)
   const [shopTab, setShopTab] = useState<'shop' | 'trade'>('shop')
   /** 개발자 탭: 스프라이트 모아 보기 펼침 */
   const [showSprites, setShowSprites] = useState(false)
@@ -117,7 +121,7 @@ export function App() {
   const cfgRef = useRef(cfg)
   cfgRef.current = cfg
   // 개발자 메뉴를 숨기면 "모든 탄 열기"도 저장값과 상관없이 꺼짐
-  const unlockAll = SHOW_DEV_MENU && save.unlockAll
+  const unlockAll = devOn && save.unlockAll
   const unlockRef = useRef(unlockAll)
   unlockRef.current = unlockAll
   const api = useMemo<GameApi>(() => createLocalApi(() => cfgRef.current, () => unlockRef.current), [])
@@ -694,11 +698,24 @@ export function App() {
         )}
 
         {/* 설정 (2026-11-28): 소리 · 도감 메뉴. 나중에 계정 등 */}
-        {tab === 'settings' && <SettingsPage cfg={cfg} />}
+        {tab === 'settings' && <SettingsPage cfg={cfg} onSecret={() => setDevAsk(true)} />}
 
-        {/* 개발자 메뉴 (2026-11-28): 시험용 기능 전부 여기. 숨기려면 SHOW_DEV_MENU = false */}
-        {tab === 'dev' && SHOW_DEV_MENU && (
+        {/* 개발자 메뉴: 이스터에그 + 코드로 켬 (devOn, 아래 DEV_* 설명) */}
+        {tab === 'dev' && devOn && (
           <>
+            <section className="dev-status">
+              <span>
+                <Icon name="wrench" /> <b>개발자 모드 켜짐</b>
+              </span>
+              <button
+                onClick={() => {
+                  setDevOn(false)
+                  setTab('settings')
+                }}
+              >
+                개발자 모드 끄기
+              </button>
+            </section>
             <section>
               <h3>진행</h3>
               <div className="row">
@@ -829,7 +846,7 @@ export function App() {
         )}
 
         <nav className="tabbar">
-          {VISIBLE_TABS.map((t) => (
+          {visibleTabs.map((t) => (
             <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
               <span className="big">
                 <Icon name={t.icon} />
@@ -838,6 +855,16 @@ export function App() {
             </button>
           ))}
         </nav>
+        {devAsk && (
+          <DevCodeModal
+            onClose={() => setDevAsk(false)}
+            onOk={() => {
+              setDevAsk(false)
+              setDevOn(true)
+              setTab('dev')
+            }}
+          />
+        )}
       </div>
     )
   }
@@ -1039,9 +1066,13 @@ export function App() {
             {/* 판 바로 아래에 한 번 더 붙음: 출전 수·필터가 목록을 내려도 보이게 (2026-11-28) */}
             <div className="roster-head">
               <div className="roster-head-top">
-                <h3>
-                  막사 ({roster.length}명) · 출전 {placedCount} / {cfg.maxDeploy}
-                </h3>
+                {/* 출전 현황 (2026-11-29): "출전 n / 10" (칸 막대는 사용자 요청으로 뺌) — 막사 인원은 아래 보기 칸(전체 n)에 있어서 뺌 */}
+                <div className={`deploy-meter ${placedCount >= cfg.maxDeploy ? 'full' : ''}`} aria-label={`출전 ${placedCount} / ${cfg.maxDeploy}`}>
+                  <span className="dm-label">
+                    출전 <b>{placedCount}</b>
+                    <small> / {cfg.maxDeploy}</small>
+                  </span>
+                </div>
                 {/* 자동 배치(기존 배치 지우고 새로, 능력치 점수 순 · 코너 먼저) · 모두 빼기 — 둘 다 확인 창 (2026-11-28) */}
                 <div className="place-tools">
                   <button disabled={roster.length === 0} onClick={() => setAskAuto(true)}>
@@ -1160,11 +1191,29 @@ export function App() {
 /** 아래 고정 메뉴 (막사 · 스테이지 · 상점, 가운데 스테이지) */
 type Tab = 'barracks' | 'stages' | 'shop' | 'settings' | 'dev'
 /**
- * 개발자 메뉴 (2026-11-28): 시험용 기능(모든 탄 열기·기록 지우기·티켓 지급·막사 다시 뽑기·성능 시험·스프라이트·게임 설정)을 한 탭에.
- * 주소 끝이 /dev 일 때만 아래 메뉴에 "개발자" 탭이 뜸 (예: https://주소/dev). 평소 주소에선 탭도 "모든 탄 열기"도 꺼짐.
- * 주의: 이건 숨김일 뿐 보안이 아님 — 서버를 붙이면 티켓 지급 같은 개발 기능은 서버 api 에 아예 없어야 함
+ * 개발자 모드 (2026-11-29 이스터에그):
+ * - 설정 탭 "정보" 제목을 빠르게 7번 누르면 코드 입력 창
+ * - 코드 = <달 영문 첫 글자><시 00~23><분 두 자리를 거꾸로>, 예) 11월 13시 59분 → n1395. 친 시각부터 5분까지 허용
+ * - 꺼지는 때: 개발자 탭 [개발자 모드 끄기] · 새로고침 · 탭 닫기 · 앱 다시 열기 (기억 안 함, 시간 제한 없음)
+ * - 주소(URL)에는 아무것도 안 남김 → 방문 기록으로 다시 못 들어옴, 설치한 앱(주소창 없음)에서도 됨
+ * 주의: 숨김일 뿐 보안이 아님(코드에 규칙이 보임) — 서버를 붙이면 개발 기능은 서버 api 에 아예 없어야 함
  */
-const SHOW_DEV_MENU = /\/dev\/?$/.test(window.location.pathname)
+const DEV_CODE_GRACE_MIN = 5
+const DEV_TAPS = 7
+function devCodeOk(given: string): boolean {
+  const MONTH = 'jfmamjjasond' // 1~12월 영문 첫 글자
+  const p2 = (n: number) => String(n).padStart(2, '0')
+  const code = (d: Date) => `${MONTH[d.getMonth()]}${p2(d.getHours())}${p2(d.getMinutes()).split('').reverse().join('')}`
+  const g = given.trim().toLowerCase()
+  const now = Date.now()
+  for (let m = 0; m <= DEV_CODE_GRACE_MIN; m++) if (g === code(new Date(now - m * 60_000))) return true
+  return false
+}
+try {
+  sessionStorage.removeItem('defense.dev.v1') // 예전 방식 흔적
+} catch {
+  /* 무시 */
+}
 /** 아래 메뉴 높이 (지도가 1탄 아래로 이만큼 더 이어져 메뉴 밑까지 풀밭·길) */
 const TABBAR_SPACE = 80
 /** 지도에서 깬 탄 위로 미리 보여 주는 무한 탄 수 (잠긴 채) */
@@ -1176,7 +1225,6 @@ const TABS: { id: Tab; icon: IconName; label: string }[] = [
   { id: 'settings', icon: 'gear', label: '설정' },
   { id: 'dev', icon: 'wrench', label: '개발자' },
 ]
-const VISIBLE_TABS = TABS.filter((t) => t.id !== 'dev' || SHOW_DEV_MENU)
 const TAB_TITLES: Record<Tab, string> = { barracks: '막사', stages: '스테이지', shop: '상점', settings: '설정', dev: '개발자' }
 /** 막사에서 할 일 (아직 준비 중) */
 const BARRACKS_ACTIONS = [
@@ -1267,12 +1315,72 @@ function DevSnapshots({ api }: { api: GameApi }) {
   )
 }
 
+/** 개발자 코드 입력 창 (이스터에그로 열림) */
+function DevCodeModal({ onClose, onOk }: { onClose: () => void; onOk: () => void }) {
+  const [v, setV] = useState('')
+  const [bad, setBad] = useState(false)
+  const submit = () => {
+    if (devCodeOk(v)) onOk()
+    else {
+      setBad(true)
+      setV('')
+    }
+  }
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-title">코드</div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            submit()
+          }}
+        >
+          <input
+            className="dev-code"
+            autoFocus
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            maxLength={8}
+            value={v}
+            onChange={(e) => {
+              setV(e.target.value)
+              setBad(false)
+            }}
+          />
+          {bad && <p className="dev-bad">맞지 않아요</p>}
+          <div className="row pause-row">
+            <button type="button" onClick={onClose}>
+              취소
+            </button>
+            <button type="submit" className="primary inline">
+              확인
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 /**
  * 설정 탭 (2026-11-28): 소리(배경음·효과음 켜기/끄기 + 크기) · 도감 메뉴.
  * 도감은 메뉴를 누르면 들어가는 아래 화면 (← 설정 으로 돌아옴)
  */
-function SettingsPage({ cfg }: { cfg: DefenseConfig }) {
+function SettingsPage({ cfg, onSecret }: { cfg: DefenseConfig; onSecret: () => void }) {
   const [view, setView] = useState<'main' | 'codex' | 'guide'>('main')
+  // "정보" 제목을 1.5초 간격 안으로 이어서 DEV_TAPS 번 누르면 개발자 코드 창 (이스터에그, 겉으론 아무 반응 없음)
+  const taps = useRef<number[]>([])
+  const tapInfo = () => {
+    const n = Date.now()
+    const prev = taps.current
+    taps.current = prev.length && n - prev[prev.length - 1]! < 1500 ? [...prev, n] : [n]
+    if (taps.current.length >= DEV_TAPS) {
+      taps.current = []
+      onSecret()
+    }
+  }
   if (view === 'guide')
     return (
       <>
@@ -1300,7 +1408,9 @@ function SettingsPage({ cfg }: { cfg: DefenseConfig }) {
       <SoundSettings />
       <InstallSection />
       <section className="settings-menu">
-        <h3>정보</h3>
+        <h3 className="secret-tap" onClick={tapInfo}>
+          정보
+        </h3>
         <button onClick={() => setView('codex')}>
           <span>
             <Icon name="book" /> 도감
